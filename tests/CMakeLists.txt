@@ -30,6 +30,14 @@ add_executable(test_util_logging
 target_link_libraries(test_util_logging PRIVATE arimagarch)
 add_test(NAME test_util_logging COMMAND test_util_logging)
 
+# Data tests
+add_executable(test_data_timeseries
+    unit/test_data_timeseries.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_data_timeseries PRIVATE arimagarch)
+add_test(NAME test_data_timeseries COMMAND test_data_timeseries)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

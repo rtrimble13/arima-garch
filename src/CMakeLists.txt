@@ -1,6 +1,7 @@
 # Library target
 add_library(arimagarch STATIC
     arima_garch.cpp
+    data/TimeSeries.cpp
     util/Logging.cpp
     util/Timer.cpp
 )
