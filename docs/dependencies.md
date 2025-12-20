@@ -199,7 +199,7 @@ To build the project on a fresh machine, you only need:
 **Build Steps:**
 ```bash
 # Clone the repository
-git clone https://github.com/rtrimble13/arima-garch.git
+git clone https://github.com/<your-username>/arima-garch.git
 cd arima-garch
 
 # Configure (downloads dependencies automatically)

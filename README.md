@@ -98,7 +98,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 Quick overview:
 - Code follows C++20 best practices (see [docs/style.md](docs/style.md))
 - Dependencies are managed via CMake FetchContent (see [docs/dependencies.md](docs/dependencies.md))
-- Use standard library and Boost where appropriate
+- Use standard library and approved dependencies (fmt, nlohmann/json, CLI11, Catch2)
 - Update documentation for new features
 - Add tests for new functionality
 
