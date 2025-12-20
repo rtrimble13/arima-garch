@@ -160,7 +160,9 @@ public:
      * @brief Create a view of the entire time series.
      * @return A SeriesView spanning all observations
      */
-    [[nodiscard]] SeriesView view() const noexcept { return SeriesView(data_.data(), data_.size()); }
+    [[nodiscard]] SeriesView view() const noexcept {
+        return SeriesView(data_.data(), data_.size());
+    }
 
     /**
      * @brief Create a view of a subsequence of the time series.
