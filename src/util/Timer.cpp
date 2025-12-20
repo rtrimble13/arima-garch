@@ -1,11 +1,12 @@
 #include "ag/util/Timer.hpp"
+
 #include "ag/util/Logging.hpp"
+
 #include <fmt/core.h>
 
 namespace ag {
 
-Timer::Timer() : start_time_(Clock::now()), stop_time_(Clock::now()), running_(true) {
-}
+Timer::Timer() : start_time_(Clock::now()), stop_time_(Clock::now()), running_(true) {}
 
 void Timer::start() {
     start_time_ = Clock::now();

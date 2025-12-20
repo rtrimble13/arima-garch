@@ -1,7 +1,9 @@
 #include "ag/util/Logging.hpp"
-#include <fmt/core.h>
-#include <fmt/color.h>
+
 #include <iostream>
+
+#include <fmt/color.h>
+#include <fmt/core.h>
 
 namespace ag {
 
@@ -21,18 +23,18 @@ LogLevel Logger::level() const {
 void Logger::logImpl(LogLevel level, const std::string& message) {
     // Format with colors and level prefix
     switch (level) {
-        case LogLevel::Debug:
-            fmt::print(fg(fmt::color::gray), "[DEBUG] {}\n", message);
-            break;
-        case LogLevel::Info:
-            fmt::print(fg(fmt::color::green), "[INFO] {}\n", message);
-            break;
-        case LogLevel::Warning:
-            fmt::print(fg(fmt::color::yellow), "[WARNING] {}\n", message);
-            break;
-        case LogLevel::Error:
-            fmt::print(stderr, fg(fmt::color::red), "[ERROR] {}\n", message);
-            break;
+    case LogLevel::Debug:
+        fmt::print(fg(fmt::color::gray), "[DEBUG] {}\n", message);
+        break;
+    case LogLevel::Info:
+        fmt::print(fg(fmt::color::green), "[INFO] {}\n", message);
+        break;
+    case LogLevel::Warning:
+        fmt::print(fg(fmt::color::yellow), "[WARNING] {}\n", message);
+        break;
+    case LogLevel::Error:
+        fmt::print(stderr, fg(fmt::color::red), "[ERROR] {}\n", message);
+        break;
     }
 }
 
