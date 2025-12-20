@@ -5,4 +5,4 @@ namespace ag {
 // Placeholder implementation
 // Future: ARIMA-GARCH model fitting, forecasting, and simulation
 
-} // namespace ag
+}  // namespace ag

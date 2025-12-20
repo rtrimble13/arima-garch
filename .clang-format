@@ -1,0 +1,127 @@
+---
+# clang-format configuration for arima-garch project
+# Based on style guide in docs/style.md
+
+# Base style (Google) with overrides for our preferences
+BasedOnStyle: Google
+
+# Language and standard
+Language: Cpp
+Standard: c++20
+
+# Indentation - 4 spaces, no tabs (override Google's 2 spaces)
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+
+# Line length - 100 characters max (override Google's 80)
+ColumnLimit: 100
+
+# Brace style - K&R/Attach (opening brace on same line, like Google)
+BreakBeforeBraces: Attach
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: Never
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: None
+AlignConsecutiveBitFields: None
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+AlignEscapedNewlines: Right
+AlignOperands: Align
+AlignTrailingComments: true
+
+# Pointer and reference alignment (left-aligned like Google)
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Include sorting
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^"ag/'
+    Priority:        1
+  - Regex:           '^<boost/'
+    Priority:        2
+  - Regex:           '^<[a-z_]+>'
+    Priority:        3
+  - Regex:           '.*'
+    Priority:        4
+
+# Namespace formatting
+CompactNamespaces: false
+FixNamespaceComments: true
+NamespaceIndentation: None
+
+# Function and parameter formatting
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+# Constructor initializer lists
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+
+# Empty lines
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+# Access modifiers - outdent by 4 to align with class definition
+AccessModifierOffset: -4
+IndentAccessModifiers: false
+
+# Preprocessor directives
+IndentPPDirectives: None
+
+# Penalties (for breaking lines)
+PenaltyBreakAssignment: 2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyBreakTemplateDeclaration: 10
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 60
+PenaltyIndentedWhitespace: 0
+
+# Other formatting options
+Cpp11BracedListStyle: true
+IndentCaseLabels: false
+IndentWrappedFunctionNames: false
+ReflowComments: true
+SortUsingDeclarations: true
