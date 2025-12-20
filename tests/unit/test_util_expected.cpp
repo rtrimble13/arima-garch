@@ -100,6 +100,46 @@ TEST(expected_error_throws_on_value) {
     REQUIRE(threw);
 }
 
+// Test assignment from value to error
+TEST(expected_assignment_value_to_error) {
+    ag::expected<int, std::string> e1{42};
+    ag::expected<int, std::string> e2{ag::unexpected<std::string>("error")};
+    
+    e1 = e2;  // Assign error to value
+    REQUIRE(!e1.has_value());
+    REQUIRE(e1.error() == "error");
+}
+
+// Test assignment from error to value
+TEST(expected_assignment_error_to_value) {
+    ag::expected<int, std::string> e1{ag::unexpected<std::string>("error")};
+    ag::expected<int, std::string> e2{42};
+    
+    e1 = e2;  // Assign value to error
+    REQUIRE(e1.has_value());
+    REQUIRE(e1.value() == 42);
+}
+
+// Test move assignment from value to error
+TEST(expected_move_assignment_value_to_error) {
+    ag::expected<std::string, std::string> e1{"value"};
+    ag::expected<std::string, std::string> e2{ag::unexpected<std::string>("error")};
+    
+    e1 = std::move(e2);  // Move assign error to value
+    REQUIRE(!e1.has_value());
+    REQUIRE(e1.error() == "error");
+}
+
+// Test move assignment from error to value
+TEST(expected_move_assignment_error_to_value) {
+    ag::expected<std::string, std::string> e1{ag::unexpected<std::string>("error")};
+    ag::expected<std::string, std::string> e2{"value"};
+    
+    e1 = std::move(e2);  // Move assign value to error
+    REQUIRE(e1.has_value());
+    REQUIRE(e1.value() == "value");
+}
+
 int main() {
     ag_test::report_test_results("Expected Tests");
     return ag_test::get_test_result();

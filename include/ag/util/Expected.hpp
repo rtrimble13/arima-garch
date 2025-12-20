@@ -93,8 +93,19 @@
             // Copy assignment
             expected& operator=(const expected& other) {
                 if (this != &other) {
-                    this->~expected();
-                    new (this) expected(other);
+                    if (has_value_ && other.has_value_) {
+                        value_ = other.value_;
+                    } else if (!has_value_ && !other.has_value_) {
+                        error_ = other.error_;
+                    } else if (has_value_ && !other.has_value_) {
+                        value_.~T();
+                        new (&error_) E(other.error_);
+                        has_value_ = false;
+                    } else {  // !has_value_ && other.has_value_
+                        error_.~E();
+                        new (&value_) T(other.value_);
+                        has_value_ = true;
+                    }
                 }
                 return *this;
             }
@@ -102,8 +113,19 @@
             // Move assignment
             expected& operator=(expected&& other) noexcept {
                 if (this != &other) {
-                    this->~expected();
-                    new (this) expected(std::move(other));
+                    if (has_value_ && other.has_value_) {
+                        value_ = std::move(other.value_);
+                    } else if (!has_value_ && !other.has_value_) {
+                        error_ = std::move(other.error_);
+                    } else if (has_value_ && !other.has_value_) {
+                        value_.~T();
+                        new (&error_) E(std::move(other.error_));
+                        has_value_ = false;
+                    } else {  // !has_value_ && other.has_value_
+                        error_.~E();
+                        new (&value_) T(std::move(other.value_));
+                        has_value_ = true;
+                    }
                 }
                 return *this;
             }
