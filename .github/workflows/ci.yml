@@ -28,8 +28,7 @@ jobs:
       with:
         path: |
           build
-          !build/**/*.o
-          !build/**/*.obj
+          !build/**/CMakeFiles/
         key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-cmake-
@@ -41,6 +40,4 @@ jobs:
       run: cmake --build build --config Release
     
     - name: Run tests
-      run: |
-        cd build
-        ctest --output-on-failure --build-config Release
+      run: ctest --test-dir build --output-on-failure --build-config Release
