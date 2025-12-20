@@ -31,7 +31,7 @@ namespace models {
 } // namespace models
 } // namespace ag
 
-// Also acceptable (C++17 nested namespace syntax)
+// Also acceptable (nested namespace syntax from C++17)
 namespace ag::models {
     class ARIMAModel { /* ... */ };
 }
