@@ -15,7 +15,7 @@ ARIMA-GARCH models combine autoregressive integrated moving average (ARIMA) for 
 
 This project uses CMake for building. Requirements:
 - CMake 3.14 or higher
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- C++20 compatible compiler (GCC 10+, Clang 10+, MSVC 2019+)
 
 ### Building from Source
 
@@ -89,8 +89,10 @@ arima-garch/
 
 ## Contributing
 
-Contributions are welcome! Please ensure:
-- Code follows C++17 best practices
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+Quick overview:
+- Code follows C++20 best practices (see [docs/style.md](docs/style.md))
 - Use standard library and Boost where appropriate
 - Update documentation for new features
 - Add tests for new functionality
