@@ -89,6 +89,6 @@ TEST(timer_multiple_stops) {
 }
 
 int main() {
-    ag_test::report_test_results("Timer Tests");
-    return ag_test::get_test_result();
+    report_test_results("Timer Tests");
+    return get_test_result();
 }

@@ -139,6 +139,6 @@ TEST(expected_move_assignment_error_to_value) {
 }
 
 int main() {
-    ag_test::report_test_results("Expected Tests");
-    return ag_test::get_test_result();
+    report_test_results("Expected Tests");
+    return get_test_result();
 }

@@ -80,6 +80,6 @@ TEST(logger_formatting) {
 
 int main() {
     std::cout << "\nNote: Log messages above are expected output from tests\n";
-    ag_test::report_test_results("Logging Tests");
-    return ag_test::get_test_result();
+    report_test_results("Logging Tests");
+    return get_test_result();
 }

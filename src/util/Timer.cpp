@@ -4,8 +4,7 @@
 
 namespace ag {
 
-Timer::Timer() : running_(false) {
-    start();
+Timer::Timer() : start_time_(Clock::now()), stop_time_(Clock::now()), running_(true) {
 }
 
 void Timer::start() {
