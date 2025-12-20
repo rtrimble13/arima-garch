@@ -34,7 +34,7 @@ cmake --install build
 
 The build produces the following targets:
 - `arimagarch` - Static library for ARIMA-GARCH modeling
-- `ag-cli` - Command-line interface executable
+- `ag` - Command-line interface executable
 - `test_placeholder` - Unit tests (placeholder)
 - `example_basic` - Basic usage example
 
@@ -46,17 +46,17 @@ Run the CLI tool:
 
 ```bash
 # After building
-./build/src/ag-cli
+./build/src/ag
 
 # Example usage (to be implemented):
 # Fit a model to data
-./build/src/ag-cli fit --data timeseries.csv --arima 1,1,1 --garch 1,1
+./build/src/ag fit --data timeseries.csv --arima 1,1,1 --garch 1,1
 
 # Forecast future values
-./build/src/ag-cli forecast --model model.bin --horizon 10
+./build/src/ag forecast --model model.bin --horizon 10
 
 # Simulate synthetic data
-./build/src/ag-cli simulate --arima 1,1,1 --garch 1,1 --samples 1000
+./build/src/ag simulate --arima 1,1,1 --garch 1,1 --samples 1000
 ```
 
 ### Library Usage

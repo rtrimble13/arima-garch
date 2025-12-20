@@ -8,8 +8,8 @@ target_include_directories(arimagarch PUBLIC
 )
 
 # CLI executable target
-add_executable(ag-cli
+add_executable(ag
     main.cpp
 )
 
-target_link_libraries(ag-cli PRIVATE arimagarch)
+target_link_libraries(ag PRIVATE arimagarch)
