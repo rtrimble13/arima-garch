@@ -99,6 +99,8 @@ All code must conform to the project's style guide documented in [docs/style.md]
   - 4 spaces for indentation (no tabs)
   - 100 character line limit
   - K&R brace style
+  - Use `./scripts/format.sh` to automatically format all code
+  - Check formatting with `./scripts/check-format.sh`
 - **Headers**: Use `#pragma once`
 - **Namespace**: All library code in `ag` namespace
 
@@ -131,6 +133,7 @@ All code must conform to the project's style guide documented in [docs/style.md]
    - Run existing tests
    - Add new tests for new functionality
    - Test your changes manually when applicable
+   - **Format your code**: Run `./scripts/format.sh` to ensure consistent formatting
 
 4. **Update documentation**:
    - Update relevant documentation for your changes
@@ -199,7 +202,7 @@ Before submitting, ensure:
 - [ ] Code builds without errors or warnings
 - [ ] All existing tests pass
 - [ ] New tests added for new functionality
-- [ ] Code follows [style guide](docs/style.md)
+- [ ] Code follows [style guide](docs/style.md) and passes formatting check (`./scripts/check-format.sh`)
 - [ ] Documentation updated
 - [ ] Commit messages are clear and descriptive
 - [ ] PR description explains the changes
@@ -274,9 +277,23 @@ valgrind --leak-check=full ./build/src/ag
 
 The repository includes an `.editorconfig` file. Use an editor or plugin that supports EditorConfig for consistent formatting.
 
+### Code Formatting
+
+The project uses clang-format to ensure consistent code formatting. Before submitting a pull request:
+
+```bash
+# Format all C++ files automatically
+./scripts/format.sh
+
+# Check if formatting is correct (without modifying files)
+./scripts/check-format.sh
+```
+
+The CI pipeline will automatically check formatting and fail if code is not properly formatted.
+
 ### Recommended Tools
 
-- **clang-format**: Automatic code formatting
+- **clang-format**: Automatic code formatting (required for contributions)
 - **clang-tidy**: Static analysis
 - **valgrind**: Memory leak detection
 - **gdb/lldb**: Debugging

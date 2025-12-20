@@ -6,4 +6,4 @@ namespace ag {
 // This will contain functions for fitting, forecasting, and simulating
 // ARIMA-GARCH time series models
 
-} // namespace ag
+}  // namespace ag
