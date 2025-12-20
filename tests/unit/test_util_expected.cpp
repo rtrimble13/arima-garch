@@ -78,8 +78,7 @@ TEST(expected_value_throws_on_error) {
     
     bool threw = false;
     try {
-        int val = e1.value();
-        (void)val;  // Suppress unused variable warning
+        [[maybe_unused]] int val = e1.value();
     } catch (const std::exception&) {
         threw = true;
     }
@@ -92,8 +91,7 @@ TEST(expected_error_throws_on_value) {
     
     bool threw = false;
     try {
-        std::string err = e1.error();
-        (void)err;  // Suppress unused variable warning
+        [[maybe_unused]] std::string err = e1.error();
     } catch (const std::exception&) {
         threw = true;
     }

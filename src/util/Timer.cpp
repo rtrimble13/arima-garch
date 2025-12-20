@@ -39,9 +39,7 @@ double Timer::elapsedUs() const {
 }
 
 long long Timer::elapsedNs() const {
-    TimePoint end_time = running_ ? Clock::now() : stop_time_;
-    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time_);
-    return elapsed.count();
+    return static_cast<long long>(elapsed() * 1000000000.0);
 }
 
 ScopedTimer::ScopedTimer(const std::string& name) : name_(name) {
