@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <span>
 #include <vector>
@@ -166,8 +167,13 @@ public:
      * @param start Starting index (inclusive)
      * @param count Number of elements in the view
      * @return A SeriesView spanning the specified subsequence
+     * @note If start + count exceeds the size, count is adjusted to fit within bounds
      */
     [[nodiscard]] SeriesView view(std::size_t start, std::size_t count) const noexcept {
+        // Clamp start to valid range
+        start = std::min(start, data_.size());
+        // Clamp count to not exceed available elements
+        count = std::min(count, data_.size() - start);
         return SeriesView(data_.data() + start, count);
     }
 

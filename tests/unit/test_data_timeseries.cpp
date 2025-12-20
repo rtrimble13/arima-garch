@@ -234,6 +234,32 @@ TEST(seriesview_reflects_underlying_data) {
     REQUIRE_APPROX(view.mean(), 4.4, 1e-10);  // (1+2+10+4+5)/5 = 4.4
 }
 
+// Test SeriesView bounds checking on subview creation
+TEST(seriesview_bounds_checking) {
+    TimeSeries ts{1.0, 2.0, 3.0, 4.0, 5.0};
+
+    // Valid subview
+    SeriesView valid = ts.view(1, 3);
+    REQUIRE(valid.size() == 3);
+    REQUIRE(valid[0] == 2.0);
+
+    // Start beyond size - should create empty view
+    SeriesView beyond_start = ts.view(10, 3);
+    REQUIRE(beyond_start.size() == 0);
+    REQUIRE(beyond_start.empty());
+
+    // Count exceeds available elements - should be clamped
+    SeriesView clamped_count = ts.view(3, 10);
+    REQUIRE(clamped_count.size() == 2);  // Only 2 elements from index 3
+    REQUIRE(clamped_count[0] == 4.0);
+    REQUIRE(clamped_count[1] == 5.0);
+
+    // Start + count exceeds size - should be clamped
+    SeriesView clamped_both = ts.view(4, 5);
+    REQUIRE(clamped_both.size() == 1);  // Only 1 element from index 4
+    REQUIRE(clamped_both[0] == 5.0);
+}
+
 int main() {
     report_test_results("TimeSeries and SeriesView Tests");
     return get_test_result();
