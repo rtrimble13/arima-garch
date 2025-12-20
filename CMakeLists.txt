@@ -5,6 +5,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Fetch external dependencies
+include(FetchContent)
+
+# fmt library for formatting and logging
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG        10.2.1
+)
+FetchContent_MakeAvailable(fmt)
+
 # Enable testing
 enable_testing()
 
