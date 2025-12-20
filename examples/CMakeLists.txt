@@ -5,3 +5,9 @@ add_executable(example_basic
 )
 
 target_link_libraries(example_basic PRIVATE arimagarch)
+
+add_executable(example_csv_io
+    example_csv_io.cpp
+)
+
+target_link_libraries(example_csv_io PRIVATE arimagarch)

@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace ag::io {
@@ -27,9 +28,11 @@ expected<std::string, CsvWriteError> CsvWriter::write_to_string(
     }
 
     // Write header if configured
-    bool write_header = !options.value_header.empty() || !options.index_header.empty();
+    bool has_index = !options.index_column.empty();
+    bool write_header = !options.value_header.empty() ||
+                        (has_index && !options.index_header.empty());
     if (write_header) {
-        if (!options.index_column.empty() && !options.index_header.empty()) {
+        if (has_index && !options.index_header.empty()) {
             oss << options.index_header << options.delimiter;
         }
         if (!options.value_header.empty()) {
