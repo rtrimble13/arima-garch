@@ -16,6 +16,10 @@ ARIMA-GARCH models combine autoregressive integrated moving average (ARIMA) for 
 This project uses CMake for building. Requirements:
 - CMake 3.14 or higher
 - C++20 compatible compiler (GCC 10+, Clang 10+, MSVC 2019+)
+- Git (for automatic dependency fetching)
+- Internet connection (first build only)
+
+Dependencies are automatically downloaded and built using CMake FetchContent. See [docs/dependencies.md](docs/dependencies.md) for details on dependency management strategy.
 
 ### Building from Source
 
@@ -93,7 +97,8 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 Quick overview:
 - Code follows C++20 best practices (see [docs/style.md](docs/style.md))
-- Use standard library and Boost where appropriate
+- Dependencies are managed via CMake FetchContent (see [docs/dependencies.md](docs/dependencies.md))
+- Use standard library and approved dependencies (fmt, nlohmann/json, CLI11, Catch2)
 - Update documentation for new features
 - Add tests for new functionality
 

@@ -107,7 +107,7 @@ All code must conform to the project's style guide documented in [docs/style.md]
 - Write clear, self-documenting code
 - Add comments to explain complex logic or algorithms
 - Follow modern C++ best practices
-- Use standard library and Boost where appropriate
+- Use standard library and approved dependencies (see [docs/dependencies.md](docs/dependencies.md))
 - Avoid raw pointers; prefer smart pointers
 - Use const correctness throughout
 
