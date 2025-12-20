@@ -1,34 +1,6 @@
 #include "ag/util/Expected.hpp"
+#include "test_framework.hpp"
 #include <string>
-#include <iostream>
-
-// Simple test framework
-int test_count = 0;
-int test_passed = 0;
-
-#define TEST(name) \
-    void test_##name(); \
-    struct test_##name##_runner { \
-        test_##name##_runner() { \
-            test_count++; \
-            std::cout << "Running test: " << #name << "... "; \
-            try { \
-                test_##name(); \
-                test_passed++; \
-                std::cout << "PASSED\n"; \
-            } catch (const std::exception& e) { \
-                std::cout << "FAILED: " << e.what() << "\n"; \
-            } catch (...) { \
-                std::cout << "FAILED: unknown exception\n"; \
-            } \
-        } \
-    } test_##name##_instance; \
-    void test_##name()
-
-#define REQUIRE(expr) \
-    if (!(expr)) { \
-        throw std::runtime_error("Assertion failed: " #expr); \
-    }
 
 // Test basic value construction
 TEST(expected_value_construction) {
@@ -129,7 +101,6 @@ TEST(expected_error_throws_on_value) {
 }
 
 int main() {
-    std::cout << "\n=== Expected Tests ===\n";
-    std::cout << "\nResults: " << test_passed << "/" << test_count << " tests passed\n";
-    return test_passed == test_count ? 0 : 1;
+    ag_test::report_test_results("Expected Tests");
+    return ag_test::get_test_result();
 }
