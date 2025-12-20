@@ -8,11 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
@@ -26,9 +22,7 @@ jobs:
     - name: Cache CMake build directory
       uses: actions/cache@v4
       with:
-        path: |
-          build
-          !build/**/CMakeFiles/
+        path: build
         key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-cmake-
