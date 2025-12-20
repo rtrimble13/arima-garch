@@ -284,4 +284,5 @@ For now, FetchContent provides the right balance of simplicity and functionality
 
 - [CMake FetchContent Documentation](https://cmake.org/cmake/help/latest/module/FetchContent.html)
 - [Modern CMake Best Practices](https://cliutils.gitlab.io/modern-cmake/)
-- [C++ Package Manager Comparison](https://www.reddit.com/r/cpp/comments/kqr1q7/package_managers_comparison/)
+- [C++ Dependency Management - Comparison of Tools](https://isocpp.org/blog/2021/01/dependency-management-for-c-projects-with-cmake)
+- [Professional CMake: A Practical Guide](https://crascit.com/professional-cmake/)
