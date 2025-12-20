@@ -2,42 +2,25 @@
 # clang-format configuration for arima-garch project
 # Based on style guide in docs/style.md
 
-# Base style (similar to what we need)
-BasedOnStyle: LLVM
+# Base style (Google) with overrides for our preferences
+BasedOnStyle: Google
 
 # Language and standard
 Language: Cpp
 Standard: c++20
 
-# Indentation - 4 spaces, no tabs
+# Indentation - 4 spaces, no tabs (override Google's 2 spaces)
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 ContinuationIndentWidth: 4
 ConstructorInitializerIndentWidth: 4
 
-# Line length - 100 characters max
+# Line length - 100 characters max (override Google's 80)
 ColumnLimit: 100
 
-# Brace style - K&R (opening brace on same line)
+# Brace style - K&R/Attach (opening brace on same line, like Google)
 BreakBeforeBraces: Attach
-BraceWrapping:
-  AfterCaseLabel: false
-  AfterClass: false
-  AfterControlStatement: Never
-  AfterEnum: false
-  AfterFunction: false
-  AfterNamespace: false
-  AfterStruct: false
-  AfterUnion: false
-  AfterExternBlock: false
-  BeforeCatch: false
-  BeforeElse: false
-  BeforeLambdaBody: false
-  BeforeWhile: false
-  SplitEmptyFunction: false
-  SplitEmptyRecord: false
-  SplitEmptyNamespace: false
 
 # Spacing
 SpaceAfterCStyleCast: false
@@ -67,7 +50,7 @@ AlignEscapedNewlines: Right
 AlignOperands: Align
 AlignTrailingComments: true
 
-# Pointer and reference alignment
+# Pointer and reference alignment (left-aligned like Google)
 DerivePointerAlignment: false
 PointerAlignment: Left
 ReferenceAlignment: Left
@@ -118,7 +101,7 @@ ConstructorInitializerAllOnOneLineOrOnePerLine: false
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
 
-# Access modifiers
+# Access modifiers - outdent by 4 to align with class definition
 AccessModifierOffset: -4
 IndentAccessModifiers: false
 
@@ -138,7 +121,7 @@ PenaltyIndentedWhitespace: 0
 
 # Other formatting options
 Cpp11BracedListStyle: true
-IndentCaseLabels: true
+IndentCaseLabels: false
 IndentWrappedFunctionNames: false
 ReflowComments: true
 SortUsingDeclarations: true

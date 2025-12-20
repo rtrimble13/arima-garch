@@ -33,6 +33,7 @@ find "${PROJECT_ROOT}" \
   -type f \
   \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" -o -name "*.cc" -o -name "*.cxx" -o -name "*.hxx" \) \
   -not -path "*/build/*" \
+  -not -path "*/_codeql_build_dir/*" \
   -not -path "*/.*/*" \
   -print0 | while IFS= read -r -d '' file; do
     echo "Formatting: ${file#${PROJECT_ROOT}/}"
