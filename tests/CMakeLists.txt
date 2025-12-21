@@ -54,6 +54,20 @@ add_executable(test_stats_descriptive
 target_link_libraries(test_stats_descriptive PRIVATE arimagarch)
 add_test(NAME test_stats_descriptive COMMAND test_stats_descriptive)
 
+add_executable(test_stats_acf
+    unit/test_stats_acf.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_acf PRIVATE arimagarch)
+add_test(NAME test_stats_acf COMMAND test_stats_acf)
+
+add_executable(test_stats_pacf
+    unit/test_stats_pacf.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_pacf PRIVATE arimagarch)
+add_test(NAME test_stats_pacf COMMAND test_stats_pacf)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
