@@ -24,7 +24,12 @@ double log_gamma_lanczos(double x) {
 
     if (x < 0.5) {
         // Use reflection formula: Γ(x) * Γ(1-x) = π / sin(πx)
-        return std::log(M_PI) - std::log(std::sin(M_PI * x)) - log_gamma_lanczos(1.0 - x);
+        // For numerical stability, avoid values very close to 0 where sin(πx) ≈ 0
+        double sin_val = std::sin(M_PI * x);
+        if (std::abs(sin_val) < 1e-15) {
+            throw std::invalid_argument("Gamma function evaluation unstable for x very close to 0");
+        }
+        return std::log(M_PI) - std::log(std::abs(sin_val)) - log_gamma_lanczos(1.0 - x);
     }
 
     x -= 1.0;
