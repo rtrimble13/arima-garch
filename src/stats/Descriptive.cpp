@@ -96,9 +96,9 @@ double kurtosis(std::span<const double> data) {
     double kurt = m4 / (m2 * m2);
 
     // Apply adjustment for sample kurtosis and subtract 3 for excess kurtosis
-    double adjustment = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * 
-                       ((n + 1.0) * kurt - 3.0 * (n - 1.0));
-    
+    double adjustment =
+        ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * kurt - 3.0 * (n - 1.0));
+
     return adjustment;
 }
 

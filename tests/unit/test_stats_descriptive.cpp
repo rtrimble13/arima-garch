@@ -120,10 +120,10 @@ TEST(descriptive_known_values) {
     // Mean = 40/8 = 5.0
     // Variance = sum((x-5)^2) / (n-1) = (9+1+1+1+0+0+4+16) / 7 = 32/7 ≈ 4.571
     std::vector<double> data = {2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0};
-    
+
     double m = ag::stats::mean(data);
     REQUIRE_APPROX(m, 5.0, 1e-10);
-    
+
     double v = ag::stats::variance(data);
     REQUIRE_APPROX(v, 32.0 / 7.0, 1e-10);
 }

@@ -16,9 +16,9 @@ namespace ag::stats {
 
 /**
  * @brief Calculate the sample variance of a data sequence.
- * 
+ *
  * Uses Bessel's correction (dividing by n-1) for unbiased estimation.
- * 
+ *
  * @param data Span of data values
  * @return The sample variance
  * @throws std::invalid_argument if data has fewer than 2 elements
@@ -27,10 +27,10 @@ namespace ag::stats {
 
 /**
  * @brief Calculate the skewness of a data sequence.
- * 
+ *
  * Skewness measures the asymmetry of the distribution.
  * Uses the adjusted Fisher-Pearson standardized moment coefficient (G1).
- * 
+ *
  * @param data Span of data values
  * @return The skewness coefficient
  * @throws std::invalid_argument if data has fewer than 3 elements
@@ -39,11 +39,11 @@ namespace ag::stats {
 
 /**
  * @brief Calculate the excess kurtosis of a data sequence.
- * 
+ *
  * Kurtosis measures the "tailedness" of the distribution.
  * Returns excess kurtosis (kurtosis - 3), where normal distribution has excess kurtosis of 0.
  * Uses the adjusted estimator for sample kurtosis.
- * 
+ *
  * @param data Span of data values
  * @return The excess kurtosis coefficient
  * @throws std::invalid_argument if data has fewer than 4 elements
