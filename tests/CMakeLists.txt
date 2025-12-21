@@ -46,6 +46,14 @@ add_executable(test_io_csv
 target_link_libraries(test_io_csv PRIVATE arimagarch)
 add_test(NAME test_io_csv COMMAND test_io_csv)
 
+# Stats tests
+add_executable(test_stats_descriptive
+    unit/test_stats_descriptive.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_descriptive PRIVATE arimagarch)
+add_test(NAME test_stats_descriptive COMMAND test_stats_descriptive)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

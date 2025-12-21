@@ -4,6 +4,7 @@ add_library(arimagarch STATIC
     data/TimeSeries.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
+    stats/Descriptive.cpp
     util/Logging.cpp
     util/Timer.cpp
 )
