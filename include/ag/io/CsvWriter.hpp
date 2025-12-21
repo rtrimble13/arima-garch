@@ -1,11 +1,11 @@
 #pragma once
 
+#include "ag/data/TimeSeries.hpp"
+#include "ag/util/Expected.hpp"
+
 #include <filesystem>
 #include <string>
 #include <vector>
-
-#include "ag/data/TimeSeries.hpp"
-#include "ag/util/Expected.hpp"
 
 namespace ag::io {
 
@@ -102,8 +102,8 @@ public:
      * @return Expected containing Success on success, or CsvWriteError on failure
      */
     static expected<Success, CsvWriteError> write(const std::filesystem::path& filepath,
-                                                   const data::TimeSeries& timeseries,
-                                                   const CsvWriterOptions& options = {});
+                                                  const data::TimeSeries& timeseries,
+                                                  const CsvWriterOptions& options = {});
 
     /**
      * @brief Write a time series to a CSV string.
@@ -112,8 +112,8 @@ public:
      * @param options Writer configuration options
      * @return Expected containing CSV string on success, or CsvWriteError on failure
      */
-    static expected<std::string, CsvWriteError> write_to_string(
-        const data::TimeSeries& timeseries, const CsvWriterOptions& options = {});
+    static expected<std::string, CsvWriteError>
+    write_to_string(const data::TimeSeries& timeseries, const CsvWriterOptions& options = {});
 };
 
 }  // namespace ag::io

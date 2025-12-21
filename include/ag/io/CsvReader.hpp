@@ -1,11 +1,11 @@
 #pragma once
 
+#include "ag/data/TimeSeries.hpp"
+#include "ag/util/Expected.hpp"
+
 #include <filesystem>
 #include <string>
 #include <string_view>
-
-#include "ag/data/TimeSeries.hpp"
-#include "ag/util/Expected.hpp"
 
 namespace ag::io {
 
@@ -74,7 +74,7 @@ public:
      * @return Expected containing TimeSeries on success, or CsvReadError on failure
      */
     static expected<data::TimeSeries, CsvReadError> read(const std::filesystem::path& filepath,
-                                                          const CsvReaderOptions& options = {});
+                                                         const CsvReaderOptions& options = {});
 
     /**
      * @brief Read a time series from a CSV string.
@@ -83,8 +83,8 @@ public:
      * @param options Reader configuration options
      * @return Expected containing TimeSeries on success, or CsvReadError on failure
      */
-    static expected<data::TimeSeries, CsvReadError> read_from_string(
-        std::string_view csv_content, const CsvReaderOptions& options = {});
+    static expected<data::TimeSeries, CsvReadError>
+    read_from_string(std::string_view csv_content, const CsvReaderOptions& options = {});
 };
 
 }  // namespace ag::io

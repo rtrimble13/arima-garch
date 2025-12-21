@@ -7,14 +7,13 @@
 
 namespace ag::io {
 
-expected<std::string, CsvWriteError> CsvWriter::write_to_string(
-    const data::TimeSeries& timeseries, const CsvWriterOptions& options) {
+expected<std::string, CsvWriteError> CsvWriter::write_to_string(const data::TimeSeries& timeseries,
+                                                                const CsvWriterOptions& options) {
     // Check for index column size mismatch
     if (!options.index_column.empty() && options.index_column.size() != timeseries.size()) {
-        return unexpected(CsvWriteError{"Index column size (" +
-                                        std::to_string(options.index_column.size()) +
-                                        ") does not match time series size (" +
-                                        std::to_string(timeseries.size()) + ")"});
+        return unexpected(CsvWriteError{
+            "Index column size (" + std::to_string(options.index_column.size()) +
+            ") does not match time series size (" + std::to_string(timeseries.size()) + ")"});
     }
 
     std::ostringstream oss;
@@ -29,8 +28,8 @@ expected<std::string, CsvWriteError> CsvWriter::write_to_string(
 
     // Write header if configured
     bool has_index = !options.index_column.empty();
-    bool write_header = !options.value_header.empty() ||
-                        (has_index && !options.index_header.empty());
+    bool write_header =
+        !options.value_header.empty() || (has_index && !options.index_header.empty());
     if (write_header) {
         if (has_index && !options.index_header.empty()) {
             oss << options.index_header << options.delimiter;
@@ -56,8 +55,8 @@ expected<std::string, CsvWriteError> CsvWriter::write_to_string(
 }
 
 expected<Success, CsvWriteError> CsvWriter::write(const std::filesystem::path& filepath,
-                                                   const data::TimeSeries& timeseries,
-                                                   const CsvWriterOptions& options) {
+                                                  const data::TimeSeries& timeseries,
+                                                  const CsvWriterOptions& options) {
     // Generate CSV content
     auto content_result = write_to_string(timeseries, options);
     if (!content_result) {

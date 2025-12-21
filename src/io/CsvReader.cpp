@@ -55,7 +55,7 @@ expected<double, CsvReadError> parse_double(const std::string& str) {
 }  // namespace
 
 expected<data::TimeSeries, CsvReadError> CsvReader::read(const std::filesystem::path& filepath,
-                                                          const CsvReaderOptions& options) {
+                                                         const CsvReaderOptions& options) {
     // Check if file exists
     if (!std::filesystem::exists(filepath)) {
         return unexpected(CsvReadError{"File not found: " + filepath.string()});
@@ -76,8 +76,8 @@ expected<data::TimeSeries, CsvReadError> CsvReader::read(const std::filesystem::
     return read_from_string(buffer.str(), options);
 }
 
-expected<data::TimeSeries, CsvReadError> CsvReader::read_from_string(
-    std::string_view csv_content, const CsvReaderOptions& options) {
+expected<data::TimeSeries, CsvReadError>
+CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions& options) {
     std::vector<double> values;
     std::string content_str{csv_content};
     std::istringstream stream{content_str};
@@ -109,11 +109,10 @@ expected<data::TimeSeries, CsvReadError> CsvReader::read_from_string(
 
         // Check if value column index is valid
         if (options.value_column >= columns.size()) {
-            return unexpected(CsvReadError{"Value column index " +
-                                           std::to_string(options.value_column) +
-                                           " out of range on line " + std::to_string(line_number) +
-                                           " (found " + std::to_string(columns.size()) +
-                                           " columns)"});
+            return unexpected(
+                CsvReadError{"Value column index " + std::to_string(options.value_column) +
+                             " out of range on line " + std::to_string(line_number) + " (found " +
+                             std::to_string(columns.size()) + " columns)"});
         }
 
         // Parse value
