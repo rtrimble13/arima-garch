@@ -261,8 +261,7 @@ TEST(adf_test_too_few_observations) {
 
     bool caught = false;
     try {
-        [[maybe_unused]] auto result =
-            ag::stats::adf_test(data, 1, ag::stats::ADFRegressionForm::Constant);
+        (void)ag::stats::adf_test(data, 1, ag::stats::ADFRegressionForm::Constant);
     } catch (const std::invalid_argument&) {
         caught = true;
     }
@@ -275,8 +274,7 @@ TEST(adf_test_too_many_lags) {
 
     bool caught = false;
     try {
-        [[maybe_unused]] auto result =
-            ag::stats::adf_test(data, 30, ag::stats::ADFRegressionForm::Constant);
+        (void)ag::stats::adf_test(data, 30, ag::stats::ADFRegressionForm::Constant);
     } catch (const std::invalid_argument&) {
         caught = true;
     }

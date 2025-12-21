@@ -209,7 +209,10 @@ double compute_ols_tstat(const std::vector<double>& y, const std::vector<std::ve
         rss += resid * resid;
     }
 
-    // Estimate variance
+    // Estimate variance - ensure we have sufficient degrees of freedom
+    if (n <= k) {
+        throw std::runtime_error("Insufficient degrees of freedom in OLS regression");
+    }
     double sigma2 = rss / static_cast<double>(n - k);
 
     // Compute (X'X)^{-1} for standard errors
