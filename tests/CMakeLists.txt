@@ -68,6 +68,13 @@ add_executable(test_stats_pacf
 target_link_libraries(test_stats_pacf PRIVATE arimagarch)
 add_test(NAME test_stats_pacf COMMAND test_stats_pacf)
 
+add_executable(test_stats_ljungbox
+    unit/test_stats_ljungbox.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_ljungbox PRIVATE arimagarch)
+add_test(NAME test_stats_ljungbox COMMAND test_stats_ljungbox)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
