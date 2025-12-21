@@ -20,7 +20,7 @@ namespace ag::stats {
  *
  * @param data Span of time series data
  * @param max_lag Maximum lag to compute PACF for (must be less than data.size())
- * @return Vector of PACF values from lag 1 to max_lag (lag 0 not included as PACF[0] = 1)
+ * @return Vector of PACF values from lag 1 to max_lag (PACF is only defined for lag >= 1)
  * @throws std::invalid_argument if data is too short or max_lag is invalid
  */
 [[nodiscard]] std::vector<double> pacf(std::span<const double> data, std::size_t max_lag);
