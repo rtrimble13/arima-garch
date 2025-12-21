@@ -38,6 +38,14 @@ add_executable(test_data_timeseries
 target_link_libraries(test_data_timeseries PRIVATE arimagarch)
 add_test(NAME test_data_timeseries COMMAND test_data_timeseries)
 
+# IO tests
+add_executable(test_io_csv
+    unit/test_io_csv.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_io_csv PRIVATE arimagarch)
+add_test(NAME test_io_csv COMMAND test_io_csv)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

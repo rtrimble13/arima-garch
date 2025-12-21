@@ -2,6 +2,8 @@
 add_library(arimagarch STATIC
     arima_garch.cpp
     data/TimeSeries.cpp
+    io/CsvReader.cpp
+    io/CsvWriter.cpp
     util/Logging.cpp
     util/Timer.cpp
 )
