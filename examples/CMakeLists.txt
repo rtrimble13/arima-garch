@@ -17,3 +17,9 @@ add_executable(example_acf_pacf
 )
 
 target_link_libraries(example_acf_pacf PRIVATE arimagarch)
+
+add_executable(example_ljung_box
+    example_ljung_box.cpp
+)
+
+target_link_libraries(example_ljung_box PRIVATE arimagarch)
