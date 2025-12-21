@@ -1,11 +1,11 @@
 #include "ag/stats/PACF.hpp"
 
+#include "ag/stats/ACF.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
-
-#include "ag/stats/ACF.hpp"
 
 namespace ag::stats {
 

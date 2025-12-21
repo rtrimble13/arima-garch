@@ -37,7 +37,7 @@ namespace ag::stats {
 
 // Convenience overloads for std::vector
 [[nodiscard]] inline std::vector<double> pacf(const std::vector<double>& data,
-                                               std::size_t max_lag) {
+                                              std::size_t max_lag) {
     return pacf(std::span<const double>(data), max_lag);
 }
 

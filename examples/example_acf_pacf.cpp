@@ -4,9 +4,10 @@
 #include "ag/stats/ACF.hpp"
 #include "ag/stats/PACF.hpp"
 
-#include <fmt/core.h>
 #include <random>
 #include <vector>
+
+#include <fmt/core.h>
 
 int main() {
     fmt::print("=== ACF/PACF Example ===\n\n");

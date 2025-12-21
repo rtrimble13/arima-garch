@@ -35,8 +35,7 @@ namespace ag::stats {
 [[nodiscard]] double acf_at_lag(std::span<const double> data, std::size_t lag);
 
 // Convenience overloads for std::vector
-[[nodiscard]] inline std::vector<double> acf(const std::vector<double>& data,
-                                              std::size_t max_lag) {
+[[nodiscard]] inline std::vector<double> acf(const std::vector<double>& data, std::size_t max_lag) {
     return acf(std::span<const double>(data), max_lag);
 }
 
