@@ -2,6 +2,7 @@
 add_library(arimagarch STATIC
     arima_garch.cpp
     data/TimeSeries.cpp
+    estimation/Constraints.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
     stats/ACF.cpp

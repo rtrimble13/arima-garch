@@ -193,4 +193,83 @@ private:
     ParameterVector garch_params_;  // Serialization-friendly: no raw pointers
 };
 
+/**
+ * @brief Transform unconstrained parameters to constrained GARCH parameters.
+ *
+ * ArimaGarchTransform maps unconstrained optimizer parameters (theta) to
+ * constrained GARCH parameters that satisfy:
+ * - omega > 0 (intercept term)
+ * - alpha_i >= 0 (ARCH coefficients)
+ * - beta_j >= 0 (GARCH coefficients)
+ * - sum(alpha) + sum(beta) < 1 (stationarity condition)
+ *
+ * The transformation uses:
+ * - Exponential transform for positive parameters (omega)
+ * - Logistic transform for sum constraint (ensures sum < 1)
+ * - Exponential transform for non-negative coefficients (alpha, beta)
+ *
+ * This class is designed for use with numerical optimizers that work in
+ * unconstrained space.
+ */
+class ArimaGarchTransform {
+public:
+    /**
+     * @brief Transform unconstrained theta to constrained GARCH parameters.
+     *
+     * The theta vector should contain:
+     * - theta[0]: unconstrained value for omega (will be exp-transformed)
+     * - theta[1:p]: unconstrained values for ARCH coefficients (alpha)
+     * - theta[p+1:p+q]: unconstrained values for GARCH coefficients (beta)
+     *
+     * The transformation ensures:
+     * - omega = exp(theta[0]) > 0
+     * - alpha_i, beta_j are transformed to be >= 0
+     * - sum(alpha) + sum(beta) < 1
+     *
+     * @param theta Unconstrained parameter vector from optimizer
+     * @param p Number of ARCH terms (order of alpha coefficients)
+     * @param q Number of GARCH terms (order of beta coefficients)
+     * @return ParameterVector with constrained GARCH parameters [omega, alpha..., beta...]
+     * @throws std::invalid_argument if theta.size() != p + q + 1
+     */
+    static ParameterVector toConstrained(const ParameterVector& theta, int p, int q);
+
+    /**
+     * @brief Transform constrained GARCH parameters to unconstrained theta.
+     *
+     * This is the inverse operation of toConstrained. Given valid constrained
+     * GARCH parameters, it produces the unconstrained theta values that would
+     * generate those parameters via toConstrained.
+     *
+     * @param params Constrained GARCH parameters [omega, alpha..., beta...]
+     * @param p Number of ARCH terms
+     * @param q Number of GARCH terms
+     * @return ParameterVector with unconstrained theta values
+     * @throws std::invalid_argument if params.size() != p + q + 1
+     * @throws std::invalid_argument if parameters violate constraints
+     */
+    static ParameterVector toUnconstrained(const ParameterVector& params, int p, int q);
+
+    /**
+     * @brief Validate that GARCH parameters satisfy all constraints.
+     *
+     * Checks:
+     * - omega > 0
+     * - alpha_i >= 0 for all i
+     * - beta_j >= 0 for all j
+     * - sum(alpha) + sum(beta) < 1
+     *
+     * @param params GARCH parameters [omega, alpha..., beta...]
+     * @param p Number of ARCH terms
+     * @param q Number of GARCH terms
+     * @return true if all constraints are satisfied, false otherwise
+     */
+    static bool validateConstraints(const ParameterVector& params, int p, int q) noexcept;
+
+private:
+    // Small constant for numerical stability
+    static constexpr double EPSILON = 1e-8;
+    static constexpr double MAX_PERSISTENCE = 0.999;  // Upper bound for sum(alpha) + sum(beta)
+};
+
 }  // namespace ag::estimation
