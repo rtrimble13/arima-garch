@@ -89,6 +89,14 @@ add_executable(test_stats_adf
 target_link_libraries(test_stats_adf PRIVATE arimagarch)
 add_test(NAME test_stats_adf COMMAND test_stats_adf)
 
+# Model tests
+add_executable(test_models_specs
+    unit/test_models_specs.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_models_specs PRIVATE arimagarch)
+add_test(NAME test_models_specs COMMAND test_models_specs)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
