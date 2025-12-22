@@ -217,7 +217,7 @@ TEST(arima_model_ar1_with_intercept) {
 
     // Verify residuals
     for (std::size_t i = 0; i < residuals.size(); ++i) {
-        REQUIRE_APPROX(residuals[i], innovations[i], 1e-9);
+        REQUIRE_APPROX(residuals[i], innovations[i], 1e-10);
     }
 }
 
