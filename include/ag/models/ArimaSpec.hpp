@@ -27,15 +27,13 @@ struct ArimaSpec {
      * @param q_val Order of moving average component (must be >= 0)
      * @throws std::invalid_argument if any parameter is negative
      */
-    constexpr ArimaSpec(int p_val, int d_val, int q_val) : p(p_val), d(d_val), q(q_val) {
-        validate();
-    }
+    ArimaSpec(int p_val, int d_val, int q_val) : p(p_val), d(d_val), q(q_val) { validate(); }
 
     /**
      * @brief Validate ARIMA specification parameters.
      * @throws std::invalid_argument if any parameter is negative
      */
-    constexpr void validate() const {
+    void validate() const {
         if (p < 0) {
             throw std::invalid_argument("ARIMA parameter p must be non-negative, got: " +
                                         std::to_string(p));

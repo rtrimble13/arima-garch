@@ -30,7 +30,7 @@ struct ArimaGarchSpec {
      * @param arima ARIMA specification for the conditional mean
      * @param garch GARCH specification for the conditional variance
      */
-    constexpr ArimaGarchSpec(const ArimaSpec& arima, const GarchSpec& garch)
+    ArimaGarchSpec(const ArimaSpec& arima, const GarchSpec& garch)
         : arimaSpec(arima), garchSpec(garch) {
         // Both specs are validated in their constructors
     }
@@ -43,7 +43,7 @@ struct ArimaGarchSpec {
      * @param garch_p GARCH order
      * @param garch_q ARCH order
      */
-    constexpr ArimaGarchSpec(int arima_p, int arima_d, int arima_q, int garch_p, int garch_q)
+    ArimaGarchSpec(int arima_p, int arima_d, int arima_q, int garch_p, int garch_q)
         : arimaSpec(arima_p, arima_d, arima_q), garchSpec(garch_p, garch_q) {}
 
     /**

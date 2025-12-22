@@ -25,13 +25,13 @@ struct GarchSpec {
      * @param q_val Order of ARCH component (must be >= 1)
      * @throws std::invalid_argument if p < 1 or q < 1
      */
-    constexpr GarchSpec(int p_val, int q_val) : p(p_val), q(q_val) { validate(); }
+    GarchSpec(int p_val, int q_val) : p(p_val), q(q_val) { validate(); }
 
     /**
      * @brief Validate GARCH specification parameters.
      * @throws std::invalid_argument if p < 1 or q < 1
      */
-    constexpr void validate() const {
+    void validate() const {
         if (p < 1) {
             throw std::invalid_argument("GARCH parameter p must be >= 1, got: " +
                                         std::to_string(p));
