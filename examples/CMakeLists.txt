@@ -23,3 +23,9 @@ add_executable(example_ljung_box
 )
 
 target_link_libraries(example_ljung_box PRIVATE arimagarch)
+
+add_executable(example_constraints
+    example_constraints.cpp
+)
+
+target_link_libraries(example_constraints PRIVATE arimagarch)
