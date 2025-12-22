@@ -7,6 +7,8 @@ add_library(arimagarch STATIC
     io/CsvWriter.cpp
     models/arima/ArimaModel.cpp
     models/arima/ArimaState.cpp
+    models/garch/GarchModel.cpp
+    models/garch/GarchState.cpp
     stats/ACF.cpp
     stats/ADF.cpp
     stats/Descriptive.cpp
