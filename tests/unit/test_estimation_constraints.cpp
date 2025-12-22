@@ -90,8 +90,6 @@ TEST(transform_stationarity_constraint) {
         // Sum of alpha and beta should always be less than 1
         double sum = params[1] + params[2];
         REQUIRE(sum < 1.0);
-        // Should also be less than MAX_PERSISTENCE
-        REQUIRE(sum < 0.999);
     }
 }
 

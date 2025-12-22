@@ -107,8 +107,10 @@ ParameterVector ArimaGarchTransform::toUnconstrained(const ParameterVector& para
     // Estimate the scale factor used
     // From the forward transform: sum_coeffs ≈ MAX_PERSISTENCE * sum_exp / (1 + sum_exp)
     // Solving for sum_exp: sum_exp ≈ sum_coeffs / (MAX_PERSISTENCE - sum_coeffs)
-    double sum_exp_estimate =
-        sum_coeffs / (MAX_PERSISTENCE - sum_coeffs + EPSILON);  // Add epsilon for stability
+    // Note: EPSILON is added to the denominator to prevent division by zero when
+    // sum_coeffs is very close to MAX_PERSISTENCE (which should not happen for valid
+    // parameters, but provides numerical stability for edge cases)
+    double sum_exp_estimate = sum_coeffs / (MAX_PERSISTENCE - sum_coeffs + EPSILON);
     double scale_factor_estimate = MAX_PERSISTENCE / (1.0 + sum_exp_estimate);
 
     // Invert the transform for each coefficient
