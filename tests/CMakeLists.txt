@@ -97,6 +97,14 @@ add_executable(test_models_specs
 target_link_libraries(test_models_specs PRIVATE arimagarch)
 add_test(NAME test_models_specs COMMAND test_models_specs)
 
+# Estimation tests
+add_executable(test_estimation_parameters
+    unit/test_estimation_parameters.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_estimation_parameters PRIVATE arimagarch)
+add_test(NAME test_estimation_parameters COMMAND test_estimation_parameters)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
