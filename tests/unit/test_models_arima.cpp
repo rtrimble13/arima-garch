@@ -387,28 +387,15 @@ TEST(arima_model_ar1_with_diff) {
 
     auto residuals = model.computeResiduals(data.data(), data.size(), params);
 
-    // Verify residuals size
+    // Verify residuals size (after differencing, we lose one observation)
     REQUIRE(residuals.size() == data.size() - 1);
 
-    // Manually compute expected residuals
-    // After differencing: [1.5, 1.75, 1.875] (loses first value)
-    // AR(1) residuals: ε_t = Δy_t - φ*Δy_{t-1}
-    std::vector<double> expected_residuals;
-    expected_residuals.push_back(diff_series[1] -
-                                 diff_series[0]);  // 1.5 - 0.5*1.0 = 1.5 - 0 (no history initially)
-    // Actually, with zero history initialization: 1.5 - 0 = 1.5
-    expected_residuals[0] = diff_series[1] - diff_series[0];  // The actual difference
-    for (std::size_t i = 2; i < diff_series.size(); ++i) {
-        expected_residuals.push_back(diff_series[i] - diff_series[i - 1] -
-                                     phi * (diff_series[i - 1] - diff_series[i - 2]));
+    // Verify the recursion works correctly:
+    // After differencing and AR filtering, we should get positive innovations
+    // This is a sanity check that the model processes integrated AR(1) correctly
+    for (std::size_t i = 0; i < residuals.size(); ++i) {
+        REQUIRE(residuals[i] > 0.0);
     }
-
-    // Actually, let's just check that the recursion works correctly
-    // The key is: after differencing and AR filtering, we should get innovations
-    // Since this is complex, let's just verify the size and that residuals are reasonable
-    REQUIRE(residuals[0] > 0.0);
-    REQUIRE(residuals[1] > 0.0);
-    REQUIRE(residuals[2] > 0.0);
 }
 
 int main() {
