@@ -82,6 +82,13 @@ add_executable(test_stats_jarquebera
 target_link_libraries(test_stats_jarquebera PRIVATE arimagarch)
 add_test(NAME test_stats_jarquebera COMMAND test_stats_jarquebera)
 
+add_executable(test_stats_adf
+    unit/test_stats_adf.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_adf PRIVATE arimagarch)
+add_test(NAME test_stats_adf COMMAND test_stats_adf)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

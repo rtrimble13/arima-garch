@@ -5,6 +5,7 @@ add_library(arimagarch STATIC
     io/CsvReader.cpp
     io/CsvWriter.cpp
     stats/ACF.cpp
+    stats/ADF.cpp
     stats/Descriptive.cpp
     stats/JarqueBera.cpp
     stats/LjungBox.cpp
