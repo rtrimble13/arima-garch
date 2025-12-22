@@ -68,7 +68,7 @@ struct ArimaGarchSpec {
      */
     [[nodiscard]] constexpr int totalParamCount() const noexcept {
         // ARIMA: p AR params + q MA params + 1 intercept (if not zero-order)
-        // GARCH: p GARCH params + q ARCH params + 1 constant (omega)
+        // GARCH: p GARCH params + q ARCH params + 1 omega
         int arima_total = arimaSpec.isZeroOrder() ? 0 : (arimaSpec.p + arimaSpec.q + 1);
         int garch_total = garchSpec.p + garchSpec.q + 1;
         return arima_total + garch_total;
