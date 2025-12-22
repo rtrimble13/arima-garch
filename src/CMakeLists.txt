@@ -5,6 +5,8 @@ add_library(arimagarch STATIC
     estimation/Constraints.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
+    models/arima/ArimaModel.cpp
+    models/arima/ArimaState.cpp
     stats/ACF.cpp
     stats/ADF.cpp
     stats/Descriptive.cpp

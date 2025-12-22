@@ -29,3 +29,10 @@ add_executable(example_constraints
 )
 
 target_link_libraries(example_constraints PRIVATE arimagarch)
+
+add_executable(example_arima_residuals
+    example_arima_residuals.cpp
+)
+
+target_link_libraries(example_arima_residuals PRIVATE arimagarch)
+
