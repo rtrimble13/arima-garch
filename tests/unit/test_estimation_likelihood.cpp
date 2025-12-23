@@ -123,8 +123,7 @@ TEST(likelihood_variance_sensitivity) {
     ArimaParameters arima_params(0, 0);
     arima_params.intercept = 0.0;
 
-    // Compute sample variance
-    double mean = 0.0;
+    // Compute sample variance (assuming zero mean)
     double variance = 0.0;
     for (double x : data) {
         variance += x * x;
