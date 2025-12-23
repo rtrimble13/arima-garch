@@ -94,14 +94,8 @@ struct FitSummary {
      * @param spec ARIMA-GARCH specification
      */
     explicit FitSummary(const ag::models::ArimaGarchSpec& spec)
-        : spec(spec),
-          parameters(spec),
-          neg_log_likelihood(0.0),
-          aic(0.0),
-          bic(0.0),
-          converged(false),
-          iterations(0),
-          sample_size(0) {}
+        : spec(spec), parameters(spec), neg_log_likelihood(0.0), aic(0.0), bic(0.0),
+          converged(false), iterations(0), sample_size(0) {}
 };
 
 /**

@@ -39,7 +39,7 @@ int main() {
 
     // Step 1: Generate synthetic data from a known model
     fmt::print("Step 1: Generating synthetic data...\n");
-    
+
     ArimaGarchSpec true_spec(1, 0, 1, 1, 1);  // ARIMA(1,0,1)-GARCH(1,1)
     ArimaGarchParameters true_params(true_spec);
 
@@ -60,7 +60,7 @@ int main() {
 
     // Step 2: Initialize parameters
     fmt::print("Step 2: Initializing parameters...\n");
-    
+
     auto [arima_init, garch_init] =
         ag::estimation::initializeArimaGarchParameters(data.data(), data.size(), true_spec);
 
@@ -68,7 +68,7 @@ int main() {
 
     // Step 3: Set up optimization
     fmt::print("Step 3: Fitting model (this may take a moment)...\n");
-    
+
     ArimaGarchLikelihood likelihood(true_spec);
 
     // Pack parameters into vector
@@ -113,7 +113,7 @@ int main() {
 
     // Step 4: Create FitSummary and populate it
     fmt::print("Step 4: Creating fit summary...\n");
-    
+
     FitSummary summary(true_spec);
 
     // Unpack optimized parameters
@@ -132,7 +132,7 @@ int main() {
 
     // Set likelihood and information criteria
     summary.neg_log_likelihood = result.objective_value;
-    
+
     std::size_t k = true_spec.totalParamCount();
     std::size_t n = data.size();
     summary.aic = 2.0 * k + 2.0 * summary.neg_log_likelihood;
@@ -142,7 +142,7 @@ int main() {
 
     // Step 5: Compute diagnostics
     fmt::print("Step 5: Computing diagnostic tests...\n");
-    
+
     auto diagnostics = computeDiagnostics(true_spec, summary.parameters, data, 10, true);
     summary.diagnostics = diagnostics;
 
@@ -150,9 +150,9 @@ int main() {
 
     // Step 6: Generate and display text report
     fmt::print("Step 6: Generating text report...\n\n");
-    
+
     std::string report = generateTextReport(summary);
-    
+
     // Display the report
     std::cout << report << std::endl;
 
@@ -161,30 +161,30 @@ int main() {
     fmt::print("Comparison with true parameters:\n");
     fmt::print("  Parameter          True       Estimated   Error\n");
     fmt::print("  ------------------------------------------------\n");
-    fmt::print("  Intercept        {: .6f}   {: .6f}   {: .6f}\n",
-               true_params.arima_params.intercept,
-               summary.parameters.arima_params.intercept,
-               std::abs(true_params.arima_params.intercept - summary.parameters.arima_params.intercept));
-    fmt::print("  AR(1)            {: .6f}   {: .6f}   {: .6f}\n",
-               true_params.arima_params.ar_coef[0],
-               summary.parameters.arima_params.ar_coef[0],
-               std::abs(true_params.arima_params.ar_coef[0] - summary.parameters.arima_params.ar_coef[0]));
-    fmt::print("  MA(1)            {: .6f}   {: .6f}   {: .6f}\n",
-               true_params.arima_params.ma_coef[0],
-               summary.parameters.arima_params.ma_coef[0],
-               std::abs(true_params.arima_params.ma_coef[0] - summary.parameters.arima_params.ma_coef[0]));
-    fmt::print("  Omega            {: .6f}   {: .6f}   {: .6f}\n",
-               true_params.garch_params.omega,
+    fmt::print(
+        "  Intercept        {: .6f}   {: .6f}   {: .6f}\n", true_params.arima_params.intercept,
+        summary.parameters.arima_params.intercept,
+        std::abs(true_params.arima_params.intercept - summary.parameters.arima_params.intercept));
+    fmt::print(
+        "  AR(1)            {: .6f}   {: .6f}   {: .6f}\n", true_params.arima_params.ar_coef[0],
+        summary.parameters.arima_params.ar_coef[0],
+        std::abs(true_params.arima_params.ar_coef[0] - summary.parameters.arima_params.ar_coef[0]));
+    fmt::print(
+        "  MA(1)            {: .6f}   {: .6f}   {: .6f}\n", true_params.arima_params.ma_coef[0],
+        summary.parameters.arima_params.ma_coef[0],
+        std::abs(true_params.arima_params.ma_coef[0] - summary.parameters.arima_params.ma_coef[0]));
+    fmt::print("  Omega            {: .6f}   {: .6f}   {: .6f}\n", true_params.garch_params.omega,
                summary.parameters.garch_params.omega,
                std::abs(true_params.garch_params.omega - summary.parameters.garch_params.omega));
     fmt::print("  Alpha            {: .6f}   {: .6f}   {: .6f}\n",
                true_params.garch_params.alpha_coef[0],
                summary.parameters.garch_params.alpha_coef[0],
-               std::abs(true_params.garch_params.alpha_coef[0] - summary.parameters.garch_params.alpha_coef[0]));
+               std::abs(true_params.garch_params.alpha_coef[0] -
+                        summary.parameters.garch_params.alpha_coef[0]));
     fmt::print("  Beta             {: .6f}   {: .6f}   {: .6f}\n",
-               true_params.garch_params.beta_coef[0],
-               summary.parameters.garch_params.beta_coef[0],
-               std::abs(true_params.garch_params.beta_coef[0] - summary.parameters.garch_params.beta_coef[0]));
+               true_params.garch_params.beta_coef[0], summary.parameters.garch_params.beta_coef[0],
+               std::abs(true_params.garch_params.beta_coef[0] -
+                        summary.parameters.garch_params.beta_coef[0]));
     fmt::print("\n");
 
     fmt::print("✓ Example complete! The FitSummary provides a comprehensive\n");

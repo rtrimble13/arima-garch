@@ -10,7 +10,8 @@ std::string generateTextReport(const FitSummary& summary) {
     // Header
     report += "================================================================================\n";
     report += "                    ARIMA-GARCH Model Fit Summary\n";
-    report += "================================================================================\n\n";
+    report +=
+        "================================================================================\n\n";
 
     // 1. Model Specification
     report += "1. Model Specification\n";
@@ -26,13 +27,15 @@ std::string generateTextReport(const FitSummary& summary) {
     report += "2. Estimated Parameters\n";
     report += "   --------------------\n";
     report += "   ARIMA:\n";
-    report += fmt::format("     Intercept:        {:.6f}\n", summary.parameters.arima_params.intercept);
+    report +=
+        fmt::format("     Intercept:        {:.6f}\n", summary.parameters.arima_params.intercept);
 
     // AR coefficients
     if (summary.spec.arimaSpec.p > 0) {
         report += "     AR coefficients:  ";
         for (std::size_t i = 0; i < summary.spec.arimaSpec.p; ++i) {
-            if (i > 0) report += ", ";
+            if (i > 0)
+                report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.arima_params.ar_coef[i]);
         }
         report += "\n";
@@ -42,7 +45,8 @@ std::string generateTextReport(const FitSummary& summary) {
     if (summary.spec.arimaSpec.q > 0) {
         report += "     MA coefficients:  ";
         for (std::size_t i = 0; i < summary.spec.arimaSpec.q; ++i) {
-            if (i > 0) report += ", ";
+            if (i > 0)
+                report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.arima_params.ma_coef[i]);
         }
         report += "\n";
@@ -55,7 +59,8 @@ std::string generateTextReport(const FitSummary& summary) {
     if (summary.spec.garchSpec.p > 0) {
         report += "     ARCH (alpha):     ";
         for (std::size_t i = 0; i < summary.spec.garchSpec.p; ++i) {
-            if (i > 0) report += ", ";
+            if (i > 0)
+                report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.garch_params.alpha_coef[i]);
         }
         report += "\n";
@@ -65,7 +70,8 @@ std::string generateTextReport(const FitSummary& summary) {
     if (summary.spec.garchSpec.q > 0) {
         report += "     GARCH (beta):     ";
         for (std::size_t i = 0; i < summary.spec.garchSpec.q; ++i) {
-            if (i > 0) report += ", ";
+            if (i > 0)
+                report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.garch_params.beta_coef[i]);
         }
         report += "\n";
@@ -75,7 +81,8 @@ std::string generateTextReport(const FitSummary& summary) {
     // 3. Convergence Information
     report += "3. Convergence Information\n";
     report += "   -----------------------\n";
-    report += fmt::format("   Status:             {}\n", summary.converged ? "✓ Converged" : "✗ Not converged");
+    report += fmt::format("   Status:             {}\n",
+                          summary.converged ? "✓ Converged" : "✗ Not converged");
     report += fmt::format("   Iterations:         {}\n", summary.iterations);
     report += fmt::format("   Message:            {}\n\n", summary.message);
 
@@ -93,7 +100,7 @@ std::string generateTextReport(const FitSummary& summary) {
     // 5. Diagnostic Tests (if available)
     if (summary.diagnostics.has_value()) {
         const auto& diag = summary.diagnostics.value();
-        
+
         report += "5. Diagnostic Tests\n";
         report += "   ----------------\n\n";
 
@@ -102,7 +109,8 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "       Tests for autocorrelation in conditional mean residuals.\n";
         report += fmt::format("       Lags:           {}\n", diag.ljung_box_residuals.lags);
         report += fmt::format("       DOF:            {}\n", diag.ljung_box_residuals.dof);
-        report += fmt::format("       Statistic:      {:.4f}\n", diag.ljung_box_residuals.statistic);
+        report +=
+            fmt::format("       Statistic:      {:.4f}\n", diag.ljung_box_residuals.statistic);
         report += fmt::format("       P-value:        {:.4f}\n", diag.ljung_box_residuals.p_value);
         if (diag.ljung_box_residuals.p_value > 0.05) {
             report += "       Result:         ✓ PASS - No significant autocorrelation\n";

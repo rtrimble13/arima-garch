@@ -1,7 +1,7 @@
-#include "ag/report/FitSummary.hpp"
 #include "ag/diagnostics/DiagnosticReport.hpp"
 #include "ag/models/ArimaGarchSpec.hpp"
 #include "ag/models/composite/ArimaGarchModel.hpp"
+#include "ag/report/FitSummary.hpp"
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
 #include <cmath>
