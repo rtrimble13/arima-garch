@@ -207,6 +207,14 @@ add_executable(test_report_fit_summary
 target_link_libraries(test_report_fit_summary PRIVATE arimagarch)
 add_test(NAME test_report_fit_summary COMMAND test_report_fit_summary)
 
+# Selection tests
+add_executable(test_selection_candidate_grid
+    unit/test_selection_candidate_grid.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_selection_candidate_grid PRIVATE arimagarch)
+add_test(NAME test_selection_candidate_grid COMMAND test_selection_candidate_grid)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
