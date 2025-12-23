@@ -279,7 +279,10 @@ TEST(diagnostic_report_too_many_lags) {
 // Test with insufficient lags (lags <= number of parameters)
 TEST(diagnostic_report_insufficient_lags) {
     // ARIMA(2,0,2)-GARCH(1,1)
-    // Total parameters via spec.totalParamCount() = (2+2+1) + (1+1+1) = 8
+    // Total parameters via spec.totalParamCount():
+    //   ARIMA: p=2 AR + q=2 MA + 1 intercept = 5
+    //   GARCH: p=1 GARCH + q=1 ARCH + 1 omega = 3
+    //   Total = 8
     ArimaGarchSpec spec(2, 0, 2, 1, 1);
     ArimaGarchParameters params(spec);
 
