@@ -77,3 +77,9 @@ add_executable(example_fit_summary
 
 target_link_libraries(example_fit_summary PRIVATE arimagarch)
 
+# Example: CandidateGrid for model specification generation
+add_executable(example_candidate_grid
+    example_candidate_grid.cpp
+)
+
+target_link_libraries(example_candidate_grid PRIVATE arimagarch)
