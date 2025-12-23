@@ -140,6 +140,13 @@ add_executable(test_estimation_numerical_derivatives
 target_link_libraries(test_estimation_numerical_derivatives PRIVATE arimagarch)
 add_test(NAME test_estimation_numerical_derivatives COMMAND test_estimation_numerical_derivatives)
 
+add_executable(test_estimation_optimizer
+    unit/test_estimation_optimizer.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_estimation_optimizer PRIVATE arimagarch)
+add_test(NAME test_estimation_optimizer COMMAND test_estimation_optimizer)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
