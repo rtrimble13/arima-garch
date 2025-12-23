@@ -12,6 +12,12 @@ add_executable(example_csv_io
 
 target_link_libraries(example_csv_io PRIVATE arimagarch)
 
+add_executable(example_json_io
+    example_json_io.cpp
+)
+
+target_link_libraries(example_json_io PRIVATE arimagarch)
+
 add_executable(example_acf_pacf
     example_acf_pacf.cpp
 )

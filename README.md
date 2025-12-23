@@ -39,9 +39,10 @@ cmake --install build
 The build produces the following targets:
 - `arimagarch` - Static library for ARIMA-GARCH modeling
 - `ag` - Command-line interface executable
-- Unit test executables (24 test suites)
+- Unit test executables (28 test suites)
 - Example programs:
   - `example_simulation` - Demonstrates simulation of ARIMA-GARCH paths
+  - `example_json_io` - Demonstrates model serialization to/from JSON
   - `example_basic` - Basic usage example
   - Additional examples in `examples/` directory
 
@@ -65,7 +66,7 @@ Run the CLI tool:
 ./build/src/ag fit --data timeseries.csv --arima 1,1,1 --garch 1,1
 
 # Forecast future values
-./build/src/ag forecast --model model.bin --horizon 10
+./build/src/ag forecast --model model.json --horizon 10
 
 # Simulate synthetic data
 ./build/src/ag simulate --arima 1,1,1 --garch 1,1 --samples 1000
@@ -115,6 +116,50 @@ The simulator supports two innovation distributions:
 - **Student-t**: Optional, produces heavier tails (higher kurtosis), useful for modeling extreme events and fat-tailed distributions
 
 See `examples/example_simulation.cpp` for a complete working example with statistical analysis and comparisons between both distributions.
+
+#### Saving and Loading Models
+
+Models can be serialized to JSON format for persistence, versioning, and reproducibility:
+
+```cpp
+#include "ag/io/Json.hpp"
+#include "ag/models/ArimaGarchSpec.hpp"
+#include "ag/models/composite/ArimaGarchModel.hpp"
+
+int main() {
+    // Create and configure a model
+    ag::models::ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ag::models::composite::ArimaGarchParameters params(spec);
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+    
+    ag::models::composite::ArimaGarchModel model(spec, params);
+    
+    // Save model to JSON file
+    auto save_result = ag::io::JsonWriter::saveModel("model.json", model);
+    
+    // Load model from JSON file
+    auto load_result = ag::io::JsonReader::loadModel("model.json");
+    if (load_result.has_value()) {
+        auto loaded_model = *load_result;
+        // Use loaded_model for forecasting...
+    }
+    
+    return 0;
+}
+```
+
+The JSON format includes:
+- Model specification (ARIMA and GARCH orders)
+- All fitted parameters (coefficients, intercepts)
+- Model state (histories for sequential forecasting)
+- Metadata (timestamp, version)
+
+This enables reproducible forecasts and easy model deployment. See `examples/example_json_io.cpp` for a complete demonstration.
 
 ## Project Structure
 
