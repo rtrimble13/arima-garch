@@ -37,11 +37,11 @@ ResidualSeries computeResiduals(const ag::models::ArimaGarchSpec& spec,
         double h_t = output.h_t;
 
         // Compute standardized residual: std_eps_t = eps_t / sqrt(h_t)
-        // Guard against division by zero or negative variance
-        double std_eps_t = 0.0;
-        if (h_t > 0.0) {
-            std_eps_t = eps_t / std::sqrt(h_t);
+        // h_t should always be > 0 for valid GARCH parameters
+        if (h_t <= 0.0) {
+            throw std::runtime_error("Invalid conditional variance h_t <= 0 detected");
         }
+        double std_eps_t = eps_t / std::sqrt(h_t);
 
         // Verify no NaNs or Infs in results
         if (!std::isfinite(eps_t) || !std::isfinite(h_t) || !std::isfinite(std_eps_t)) {
