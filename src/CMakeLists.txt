@@ -12,6 +12,7 @@ add_library(arimagarch STATIC
     forecasting/Forecaster.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
+    report/FitSummary.cpp
     models/arima/ArimaModel.cpp
     models/arima/ArimaState.cpp
     models/garch/GarchModel.cpp

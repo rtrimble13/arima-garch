@@ -192,6 +192,14 @@ add_executable(test_diagnostics_report
 target_link_libraries(test_diagnostics_report PRIVATE arimagarch)
 add_test(NAME test_diagnostics_report COMMAND test_diagnostics_report)
 
+# Report tests
+add_executable(test_report_fit_summary
+    unit/test_report_fit_summary.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_report_fit_summary PRIVATE arimagarch)
+add_test(NAME test_report_fit_summary COMMAND test_report_fit_summary)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

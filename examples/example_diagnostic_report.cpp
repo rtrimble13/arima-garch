@@ -61,9 +61,9 @@ void printDiagnosticReport(const ag::diagnostics::DiagnosticReport& report,
         fmt::print("   Statistic:  {:.4f}\n", report.adf->statistic);
         fmt::print("   P-value:    {:.4f}\n", report.adf->p_value);
         fmt::print("   Critical values:\n");
-        fmt::print("     1%%:  {:.4f}\n", report.adf->critical_value_1pct);
-        fmt::print("     5%%:  {:.4f}\n", report.adf->critical_value_5pct);
-        fmt::print("     10%%: {:.4f}\n", report.adf->critical_value_10pct);
+        fmt::print("     1%:  {:.4f}\n", report.adf->critical_value_1pct);
+        fmt::print("     5%:  {:.4f}\n", report.adf->critical_value_5pct);
+        fmt::print("     10%: {:.4f}\n", report.adf->critical_value_10pct);
         if (report.adf->p_value < 0.05) {
             fmt::print("   Result:     ✓ PASS - Residuals are stationary\n");
         } else {
