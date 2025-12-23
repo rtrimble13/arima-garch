@@ -154,9 +154,9 @@ std::string generateTextReport(const FitSummary& summary) {
             report += fmt::format("       Statistic:      {:.4f}\n", diag.adf->statistic);
             report += fmt::format("       P-value:        {:.4f}\n", diag.adf->p_value);
             report += "       Critical values:\n";
-            report += fmt::format("         1%%:  {:.4f}\n", diag.adf->critical_value_1pct);
-            report += fmt::format("         5%%:  {:.4f}\n", diag.adf->critical_value_5pct);
-            report += fmt::format("         10%%: {:.4f}\n", diag.adf->critical_value_10pct);
+            report += fmt::format("         1%:  {:.4f}\n", diag.adf->critical_value_1pct);
+            report += fmt::format("         5%:  {:.4f}\n", diag.adf->critical_value_5pct);
+            report += fmt::format("         10%: {:.4f}\n", diag.adf->critical_value_10pct);
             if (diag.adf->p_value < 0.05) {
                 report += "       Result:         ✓ PASS - Residuals are stationary\n";
             } else {
