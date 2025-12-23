@@ -20,6 +20,7 @@ add_library(arimagarch STATIC
     models/garch/GarchState.cpp
     models/composite/ArimaGarchModel.cpp
     selection/CandidateGrid.cpp
+    selection/InformationCriteria.cpp
     simulation/ArimaGarchSimulator.cpp
     simulation/Innovations.cpp
     stats/ACF.cpp
