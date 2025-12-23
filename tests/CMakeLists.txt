@@ -104,6 +104,13 @@ add_executable(test_models_arima
 target_link_libraries(test_models_arima PRIVATE arimagarch)
 add_test(NAME test_models_arima COMMAND test_models_arima)
 
+add_executable(test_models_garch
+    unit/test_models_garch.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_models_garch PRIVATE arimagarch)
+add_test(NAME test_models_garch COMMAND test_models_garch)
+
 # Estimation tests
 add_executable(test_estimation_parameters
     unit/test_estimation_parameters.cpp
