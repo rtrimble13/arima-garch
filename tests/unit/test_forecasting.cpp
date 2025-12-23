@@ -80,7 +80,7 @@ TEST(forecaster_invalid_horizon) {
     // Test zero horizon
     bool caught_exception = false;
     try {
-        [[maybe_unused]] auto result = forecaster.forecast(0);
+        forecaster.forecast(0);
     } catch (const std::invalid_argument&) {
         caught_exception = true;
     }
@@ -89,7 +89,7 @@ TEST(forecaster_invalid_horizon) {
     // Test negative horizon
     caught_exception = false;
     try {
-        [[maybe_unused]] auto result = forecaster.forecast(-5);
+        forecaster.forecast(-5);
     } catch (const std::invalid_argument&) {
         caught_exception = true;
     }

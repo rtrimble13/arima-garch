@@ -5,6 +5,11 @@
 
 namespace ag::forecasting {
 
+namespace {
+// Minimum variance threshold to guard against numerical issues
+constexpr double MIN_VARIANCE = 1e-10;
+}  // namespace
+
 Forecaster::Forecaster(const ag::models::composite::ArimaGarchModel& model) : model_(model) {}
 
 ForecastResult Forecaster::forecast(int horizon) const {
@@ -121,7 +126,7 @@ double Forecaster::forecastVarianceOneStep(const std::vector<double>& var_histor
     }
 
     // Ensure variance is positive (guard against numerical issues)
-    var_forecast = std::max(var_forecast, 1e-10);
+    var_forecast = std::max(var_forecast, MIN_VARIANCE);
 
     return var_forecast;
 }
