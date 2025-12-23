@@ -36,6 +36,13 @@ add_executable(example_arima_residuals
 
 target_link_libraries(example_arima_residuals PRIVATE arimagarch)
 
+# Example: ARIMA-GARCH residuals diagnostics
+add_executable(example_residuals
+    example_residuals.cpp
+)
+
+target_link_libraries(example_residuals PRIVATE arimagarch)
+
 # Example: Parameter initialization and random restarts
 add_executable(example_initialization
     example_initialization.cpp
