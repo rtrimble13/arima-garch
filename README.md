@@ -39,8 +39,16 @@ cmake --install build
 The build produces the following targets:
 - `arimagarch` - Static library for ARIMA-GARCH modeling
 - `ag` - Command-line interface executable
-- `test_placeholder` - Unit tests (placeholder)
-- `example_basic` - Basic usage example
+- Unit test executables (24 test suites)
+- Example programs:
+  - `example_simulation` - Demonstrates simulation of ARIMA-GARCH paths
+  - `example_basic` - Basic usage example
+  - Additional examples in `examples/` directory
+
+To run a specific example:
+```bash
+./build/examples/example_simulation
+```
 
 ## Usage
 
@@ -65,17 +73,48 @@ Run the CLI tool:
 
 ### Library Usage
 
+#### Simulating Time Series
+
 ```cpp
-#include "ag/arima_garch.hpp"
+#include "ag/models/ArimaGarchSpec.hpp"
+#include "ag/models/composite/ArimaGarchModel.hpp"
+#include "ag/simulation/ArimaGarchSimulator.hpp"
 
 int main() {
-    // Future: Example of using the library API
-    // ag::ARIMAGARCHModel model(p, d, q, P, Q);
-    // model.fit(data);
-    // auto forecast = model.forecast(horizon);
+    // Define an ARIMA(1,0,1)-GARCH(1,1) model
+    ag::models::ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ag::models::composite::ArimaGarchParameters params(spec);
+    
+    // Set model parameters
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+    
+    // Create simulator and generate synthetic data with Normal innovations (default)
+    ag::simulation::ArimaGarchSimulator simulator(spec, params);
+    auto result = simulator.simulate(1000, 42);  // 1000 observations, seed=42
+    
+    // Or use Student-t innovations for heavier tails (better for modeling extreme events)
+    auto result_t = simulator.simulate(1000, 42, 
+                                       ag::simulation::InnovationDistribution::StudentT, 
+                                       5.0);  // df=5
+    
+    // Access simulated returns and volatilities
+    std::vector<double>& returns = result.returns;
+    std::vector<double>& volatilities = result.volatilities;
+    
     return 0;
 }
 ```
+
+The simulator supports two innovation distributions:
+- **Normal (N(0,1))**: Default, suitable for most applications
+- **Student-t**: Optional, produces heavier tails (higher kurtosis), useful for modeling extreme events and fat-tailed distributions
+
+See `examples/example_simulation.cpp` for a complete working example with statistical analysis and comparisons between both distributions.
 
 ## Project Structure
 

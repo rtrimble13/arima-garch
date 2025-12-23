@@ -43,3 +43,10 @@ add_executable(example_initialization
 
 target_link_libraries(example_initialization PRIVATE arimagarch)
 
+# Example: ARIMA-GARCH simulation
+add_executable(example_simulation
+    example_simulation.cpp
+)
+
+target_link_libraries(example_simulation PRIVATE arimagarch)
+
