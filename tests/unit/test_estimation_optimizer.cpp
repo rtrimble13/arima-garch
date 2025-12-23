@@ -180,7 +180,7 @@ TEST(optimizer_simple_1d_quadratic) {
 
     REQUIRE(result.converged);
     REQUIRE(result.parameters.size() == 1);
-    REQUIRE_APPROX(result.parameters[0], 5.0, 5e-4);  // Slightly relaxed tolerance for 1D
+    REQUIRE_APPROX(result.parameters[0], 5.0, 5e-4);
     REQUIRE_APPROX(result.objective_value, 0.0, 1e-6);
 }
 

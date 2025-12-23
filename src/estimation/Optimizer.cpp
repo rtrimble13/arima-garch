@@ -55,10 +55,13 @@ NelderMeadOptimizer::initializeSimplex(const std::vector<double>& initial_params
 
     // Create simplex by perturbing each coordinate
     // Use adaptive step based on parameter magnitude
+    static constexpr double SIMPLEX_PERTURBATION_RATIO = 0.05;  // 5% of parameter value
+    static constexpr double SIMPLEX_MIN_STEP_SIZE = 0.00025;    // Minimum step for small params
+
     for (std::size_t i = 0; i < n; ++i) {
-        double step = std::abs(initial_params[i]) * 0.05;
-        if (step < 0.00025) {
-            step = 0.00025;  // Minimum step size
+        double step = std::abs(initial_params[i]) * SIMPLEX_PERTURBATION_RATIO;
+        if (step < SIMPLEX_MIN_STEP_SIZE) {
+            step = SIMPLEX_MIN_STEP_SIZE;
         }
         simplex[i + 1][i] += step;
     }
