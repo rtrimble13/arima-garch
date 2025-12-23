@@ -7,6 +7,7 @@ add_library(arimagarch STATIC
     estimation/NumericalDerivatives.cpp
     estimation/Optimizer.cpp
     estimation/ParameterInitialization.cpp
+    forecasting/Forecaster.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
     models/arima/ArimaModel.cpp
