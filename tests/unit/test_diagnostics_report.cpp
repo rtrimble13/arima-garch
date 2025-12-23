@@ -276,6 +276,34 @@ TEST(diagnostic_report_too_many_lags) {
     REQUIRE(caught_exception);
 }
 
+// Test with insufficient lags (lags <= number of parameters)
+TEST(diagnostic_report_insufficient_lags) {
+    // ARIMA(2,0,2)-GARCH(1,1) has 1+2+2+1+1+1 = 8 parameters
+    ArimaGarchSpec spec(2, 0, 2, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.0;
+    params.arima_params.ar_coef[0] = 0.3;
+    params.arima_params.ar_coef[1] = 0.2;
+    params.arima_params.ma_coef[0] = 0.1;
+    params.arima_params.ma_coef[1] = 0.1;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    std::vector<double> data(100, 1.0);
+
+    bool caught_exception = false;
+    try {
+        // Use only 8 lags, which equals the number of parameters (8)
+        (void)computeDiagnostics(spec, params, data, 8, false);
+    } catch (const std::invalid_argument&) {
+        caught_exception = true;
+    }
+
+    REQUIRE(caught_exception);
+}
+
 // ============================================================================
 // Main test runner
 // ============================================================================

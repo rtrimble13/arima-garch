@@ -91,12 +91,17 @@ struct DiagnosticReport {
  * @param params Fitted model parameters
  * @param data Time series data used for fitting
  * @param ljung_box_lags Number of lags to use for Ljung-Box tests (default: 10)
+ *                       Must be greater than the total number of model parameters
  * @param include_adf Whether to include ADF test in the report (default: false)
  * @return DiagnosticReport containing all test results
  * @throws std::invalid_argument if data is empty or parameters are invalid
+ * @throws std::invalid_argument if ljung_box_lags <= number of model parameters
+ *         (insufficient degrees of freedom for meaningful test results)
  *
  * @note The degrees of freedom for Ljung-Box tests are automatically adjusted
  *       to account for the number of estimated parameters in the model.
+ *       For an ARIMA(p,d,q)-GARCH(P,Q) model, the total number of parameters is:
+ *       (1 + p + q) + (1 + P + Q), accounting for intercept, AR, MA, omega, alpha, beta.
  */
 [[nodiscard]] DiagnosticReport
 computeDiagnostics(const ag::models::ArimaGarchSpec& spec,

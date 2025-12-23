@@ -46,8 +46,16 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     std::size_t num_garch_params = 1 + spec.garchSpec.p + spec.garchSpec.q;  // omega + alpha + beta
     std::size_t total_params = num_arima_params + num_garch_params;
 
-    // Ensure DOF is positive
-    std::size_t dof = (ljung_box_lags > total_params) ? (ljung_box_lags - total_params) : 1;
+    // Ensure DOF is positive and meaningful
+    // If lags <= total_params, the Ljung-Box test lacks sufficient DOF
+    if (ljung_box_lags <= total_params) {
+        throw std::invalid_argument(
+            "Number of lags for Ljung-Box test must be greater than the number of estimated "
+            "parameters (" +
+            std::to_string(total_params) + "). Increase lags or use a simpler model.");
+    }
+
+    std::size_t dof = ljung_box_lags - total_params;
 
     // Step 4: Perform Ljung-Box test on residuals
     stats::LjungBoxResult lb_residuals =
