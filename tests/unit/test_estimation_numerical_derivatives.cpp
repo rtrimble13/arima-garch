@@ -9,7 +9,7 @@
 using ag::estimation::NumericalDerivatives;
 
 // ============================================================================
-// Test Functions with Known Derivatives
+// Test Functions with Analytical Derivatives for Validation
 // ============================================================================
 
 // Simple quadratic function: f(x) = x1^2 + x2^2
@@ -202,11 +202,7 @@ TEST(gradient_adaptive_varying_scales) {
     // Parameters with vastly different magnitudes
     std::vector<double> x = {1000.0, 1.0, 0.001};
 
-    auto objective = [](const std::vector<double>& params) {
-        return params[0] * params[0] + params[1] * params[1] + params[2] * params[2];
-    };
-
-    auto grad = nd.computeGradientAdaptive(objective, x);
+    auto grad = nd.computeGradientAdaptive(sum_of_squares, x);
 
     REQUIRE(grad.size() == 3);
     // For large parameters, gradient should be accurate

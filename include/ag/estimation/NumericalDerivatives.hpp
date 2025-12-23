@@ -99,7 +99,8 @@ public:
 private:
     double step_size_;  // Step size for finite differences
 
-    // Default step size: sqrt(machine epsilon) for double precision
+    // Default step size: approximately sqrt(machine epsilon) for double precision
+    // which is theoretically optimal for central differences
     static constexpr double DEFAULT_STEP_SIZE = 1.5e-8;
 
     // Minimum step size to prevent numerical instability
