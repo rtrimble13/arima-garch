@@ -2,6 +2,7 @@
 add_library(arimagarch STATIC
     arima_garch.cpp
     data/TimeSeries.cpp
+    diagnostics/DiagnosticReport.cpp
     diagnostics/Residuals.cpp
     estimation/Constraints.cpp
     estimation/Likelihood.cpp

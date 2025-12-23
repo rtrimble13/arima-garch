@@ -185,6 +185,13 @@ add_executable(test_diagnostics_residuals
 target_link_libraries(test_diagnostics_residuals PRIVATE arimagarch)
 add_test(NAME test_diagnostics_residuals COMMAND test_diagnostics_residuals)
 
+add_executable(test_diagnostics_report
+    unit/test_diagnostics_report.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_diagnostics_report PRIVATE arimagarch)
+add_test(NAME test_diagnostics_report COMMAND test_diagnostics_report)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
