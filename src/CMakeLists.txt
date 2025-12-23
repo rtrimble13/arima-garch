@@ -12,6 +12,7 @@ add_library(arimagarch STATIC
     forecasting/Forecaster.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
+    io/Json.cpp
     report/FitSummary.cpp
     models/arima/ArimaModel.cpp
     models/arima/ArimaState.cpp
@@ -34,7 +35,7 @@ target_include_directories(arimagarch PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(arimagarch PUBLIC fmt::fmt)
+target_link_libraries(arimagarch PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
 
 # CLI executable target
 add_executable(ag
