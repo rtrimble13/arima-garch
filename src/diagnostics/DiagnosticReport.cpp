@@ -39,12 +39,8 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
 
     // Step 3: Calculate degrees of freedom for Ljung-Box tests
     // DOF = lags - number_of_estimated_parameters
-    // For ARIMA-GARCH, estimated parameters include:
-    // - ARIMA: intercept + AR coefficients + MA coefficients
-    // - GARCH: omega + alpha coefficients + beta coefficients
-    std::size_t num_arima_params = 1 + spec.arimaSpec.p + spec.arimaSpec.q;  // intercept + AR + MA
-    std::size_t num_garch_params = 1 + spec.garchSpec.p + spec.garchSpec.q;  // omega + alpha + beta
-    std::size_t total_params = num_arima_params + num_garch_params;
+    // Use the spec's totalParamCount() which correctly handles zero-order ARIMA models
+    std::size_t total_params = static_cast<std::size_t>(spec.totalParamCount());
 
     // Ensure DOF is positive and meaningful
     // If lags <= total_params, the Ljung-Box test lacks sufficient DOF

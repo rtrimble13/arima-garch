@@ -100,8 +100,8 @@ struct DiagnosticReport {
  *
  * @note The degrees of freedom for Ljung-Box tests are automatically adjusted
  *       to account for the number of estimated parameters in the model.
- *       For an ARIMA(p,d,q)-GARCH(P,Q) model, the total number of parameters is:
- *       (1 + p + q) + (1 + P + Q), accounting for intercept, AR, MA, omega, alpha, beta.
+ *       The total parameter count is computed using spec.totalParamCount(),
+ *       which correctly handles zero-order ARIMA models.
  */
 [[nodiscard]] DiagnosticReport
 computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
