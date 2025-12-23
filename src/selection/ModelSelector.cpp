@@ -1,5 +1,6 @@
 #include "ag/selection/ModelSelector.hpp"
 
+#include "ag/diagnostics/DiagnosticReport.hpp"
 #include "ag/estimation/Likelihood.hpp"
 #include "ag/estimation/Optimizer.hpp"
 #include "ag/estimation/ParameterInitialization.hpp"
