@@ -177,6 +177,14 @@ add_executable(test_simulation
 target_link_libraries(test_simulation PRIVATE arimagarch)
 add_test(NAME test_simulation COMMAND test_simulation)
 
+# Diagnostics tests
+add_executable(test_diagnostics_residuals
+    unit/test_diagnostics_residuals.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_diagnostics_residuals PRIVATE arimagarch)
+add_test(NAME test_diagnostics_residuals COMMAND test_diagnostics_residuals)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
