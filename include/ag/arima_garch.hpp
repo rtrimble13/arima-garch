@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ag/data/TimeSeries.hpp"
+#include "ag/diagnostics/DiagnosticReport.hpp"
 #include "ag/diagnostics/Residuals.hpp"
 #include "ag/estimation/Constraints.hpp"
 #include "ag/estimation/Likelihood.hpp"

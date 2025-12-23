@@ -43,6 +43,13 @@ add_executable(example_residuals
 
 target_link_libraries(example_residuals PRIVATE arimagarch)
 
+# Example: Comprehensive diagnostic report with Ljung-Box, JB, and ADF tests
+add_executable(example_diagnostic_report
+    example_diagnostic_report.cpp
+)
+
+target_link_libraries(example_diagnostic_report PRIVATE arimagarch)
+
 # Example: Parameter initialization and random restarts
 add_executable(example_initialization
     example_initialization.cpp
