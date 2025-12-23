@@ -147,6 +147,13 @@ add_executable(test_estimation_optimizer
 target_link_libraries(test_estimation_optimizer PRIVATE arimagarch)
 add_test(NAME test_estimation_optimizer COMMAND test_estimation_optimizer)
 
+add_executable(test_estimation_initialization
+    unit/test_estimation_initialization.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_estimation_initialization PRIVATE arimagarch)
+add_test(NAME test_estimation_initialization COMMAND test_estimation_initialization)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

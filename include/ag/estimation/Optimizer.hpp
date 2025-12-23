@@ -249,4 +249,51 @@ private:
                 const std::vector<double>& best_point) const;
 };
 
+/**
+ * @brief Optimization result with restart information.
+ *
+ * OptimizationResultWithRestarts extends OptimizationResult with information
+ * about multiple restart attempts and their outcomes.
+ */
+struct OptimizationResultWithRestarts : public OptimizationResult {
+    int restarts_performed;   // Number of restarts attempted (0 = initial run only)
+    int successful_restarts;  // Number of restarts that improved the objective
+
+    OptimizationResultWithRestarts()
+        : OptimizationResult{}, restarts_performed(0), successful_restarts(0) {}
+
+    explicit OptimizationResultWithRestarts(const OptimizationResult& base)
+        : OptimizationResult(base), restarts_performed(0), successful_restarts(0) {}
+};
+
+/**
+ * @brief Optimize with random restarts for improved global convergence.
+ *
+ * This function performs optimization with multiple random restarts to improve
+ * the chance of finding the global optimum. It starts from the initial parameters,
+ * then generates perturbed starting points and re-optimizes from each.
+ *
+ * The best result across all attempts is returned.
+ *
+ * Algorithm:
+ * 1. Run optimization from initial_params
+ * 2. For i = 1 to num_restarts:
+ *    a. Generate perturbed starting point
+ *    b. Run optimization from perturbed point
+ *    c. Keep best result so far
+ *
+ * @param optimizer The optimizer to use for each attempt
+ * @param objective The objective function to minimize
+ * @param initial_params Starting point for first optimization
+ * @param num_restarts Number of additional restarts (0 = no restarts, just initial run)
+ * @param perturbation_scale Scale for parameter perturbation (typically 0.1 to 0.3)
+ * @param seed Random seed for reproducibility (0 = random seed from clock)
+ * @return OptimizationResultWithRestarts containing best result and restart statistics
+ * @throws std::invalid_argument if initial_params is empty or num_restarts is negative
+ */
+[[nodiscard]] OptimizationResultWithRestarts
+optimizeWithRestarts(IOptimizer& optimizer, const IOptimizer::ObjectiveFunction& objective,
+                     const std::vector<double>& initial_params, int num_restarts = 5,
+                     double perturbation_scale = 0.2, unsigned int seed = 0);
+
 }  // namespace ag::estimation
