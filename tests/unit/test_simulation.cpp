@@ -8,6 +8,7 @@
 using ag::models::ArimaGarchSpec;
 using ag::models::composite::ArimaGarchParameters;
 using ag::simulation::ArimaGarchSimulator;
+using ag::simulation::InnovationDistribution;
 using ag::simulation::Innovations;
 
 // ============================================================================
@@ -58,13 +59,41 @@ TEST(innovations_reseed) {
     REQUIRE_APPROX(val1, val2, 1e-15);
 }
 
-// Test Student-t stub throws error
-TEST(innovations_student_t_stub) {
+// Test Student-t functionality
+TEST(innovations_student_t_basic) {
+    Innovations innov(42);
+    double val = innov.drawStudentT(5.0);
+    // Just verify it returns a finite value
+    REQUIRE(std::isfinite(val));
+}
+
+// Test Student-t reproducibility
+TEST(innovations_student_t_reproducibility) {
+    Innovations innov1(12345);
+    Innovations innov2(12345);
+
+    for (int i = 0; i < 100; ++i) {
+        double val1 = innov1.drawStudentT(5.0);
+        double val2 = innov2.drawStudentT(5.0);
+        REQUIRE_APPROX(val1, val2, 1e-15);
+    }
+}
+
+// Test Student-t with invalid df throws error
+TEST(innovations_student_t_invalid_df) {
     Innovations innov(42);
     bool caught_exception = false;
     try {
-        innov.drawStudentT(5.0);
-    } catch (const std::runtime_error&) {
+        innov.drawStudentT(2.0);  // df <= 2 is invalid
+    } catch (const std::invalid_argument&) {
+        caught_exception = true;
+    }
+    REQUIRE(caught_exception);
+
+    caught_exception = false;
+    try {
+        innov.drawStudentT(1.5);  // df <= 2 is invalid
+    } catch (const std::invalid_argument&) {
         caught_exception = true;
     }
     REQUIRE(caught_exception);
@@ -266,6 +295,152 @@ TEST(simulation_invalid_length) {
         caught_exception = true;
     }
     REQUIRE(caught_exception);
+}
+
+// ============================================================================
+// Student-T Simulation Tests
+// ============================================================================
+
+// Test simulation with Student-t innovations
+TEST(simulation_student_t_basic) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    // White noise mean
+    params.arima_params.intercept = 0.0;
+
+    // Simple GARCH(1,1)
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+    auto result = simulator.simulate(100, 12345, InnovationDistribution::StudentT, 5.0);
+
+    REQUIRE(result.returns.size() == 100);
+    REQUIRE(result.volatilities.size() == 100);
+}
+
+// Test reproducibility with Student-t innovations
+TEST(simulation_student_t_reproducibility) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+
+    auto result1 = simulator.simulate(200, 42, InnovationDistribution::StudentT, 5.0);
+    auto result2 = simulator.simulate(200, 42, InnovationDistribution::StudentT, 5.0);
+
+    // Check all returns are identical
+    for (size_t i = 0; i < result1.returns.size(); ++i) {
+        REQUIRE_APPROX(result1.returns[i], result2.returns[i], 1e-15);
+    }
+
+    // Check all volatilities are identical
+    for (size_t i = 0; i < result1.volatilities.size(); ++i) {
+        REQUIRE_APPROX(result1.volatilities[i], result2.volatilities[i], 1e-15);
+    }
+}
+
+// Test Student-t vs Normal produce different results (same seed)
+TEST(simulation_student_t_vs_normal) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+
+    auto result_normal = simulator.simulate(100, 42, InnovationDistribution::Normal);
+    auto result_student_t = simulator.simulate(100, 42, InnovationDistribution::StudentT, 5.0);
+
+    // At least one return should be different
+    bool found_difference = false;
+    for (size_t i = 0; i < result_normal.returns.size(); ++i) {
+        if (std::abs(result_normal.returns[i] - result_student_t.returns[i]) > 1e-10) {
+            found_difference = true;
+            break;
+        }
+    }
+    REQUIRE(found_difference);
+}
+
+// Test Student-t without df throws exception
+TEST(simulation_student_t_missing_df) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+
+    bool caught_exception = false;
+    try {
+        simulator.simulate(100, 42, InnovationDistribution::StudentT);
+    } catch (const std::invalid_argument&) {
+        caught_exception = true;
+    }
+    REQUIRE(caught_exception);
+}
+
+// Test Student-t with invalid df throws exception
+TEST(simulation_student_t_invalid_df) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+
+    bool caught_exception = false;
+    try {
+        simulator.simulate(100, 42, InnovationDistribution::StudentT, 2.0);
+    } catch (const std::invalid_argument&) {
+        caught_exception = true;
+    }
+    REQUIRE(caught_exception);
+}
+
+// Test positive volatilities with Student-t
+TEST(simulation_student_t_positive_volatilities) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.0;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.15;
+    params.garch_params.beta_coef[0] = 0.75;
+
+    ArimaGarchSimulator simulator(spec, params);
+    auto result = simulator.simulate(500, 42, InnovationDistribution::StudentT, 5.0);
+
+    for (double vol : result.volatilities) {
+        REQUIRE(vol > 0.0);
+    }
 }
 
 // ============================================================================

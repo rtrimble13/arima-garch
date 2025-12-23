@@ -14,7 +14,7 @@ namespace ag::simulation {
  *
  * Currently supports:
  * - Normal (Gaussian) distribution with mean 0 and variance 1
- * - Student-t distribution (stub for future implementation)
+ * - Student-t distribution with specified degrees of freedom
  */
 class Innovations {
 public:
@@ -37,14 +37,18 @@ public:
     [[nodiscard]] double drawNormal();
 
     /**
-     * @brief Generate a Student-t innovation (stub).
+     * @brief Generate a standardized Student-t innovation.
      *
-     * This is a placeholder for future Student-t distribution support.
-     * Currently throws std::runtime_error.
+     * Produces a random draw from a Student-t distribution with specified
+     * degrees of freedom, scaled to have variance 1 (when df > 2).
      *
-     * @param df Degrees of freedom (unused in current implementation)
-     * @return A Student-t random variable
-     * @throws std::runtime_error Always, as this is not yet implemented
+     * The raw Student-t distribution has variance df/(df-2) for df > 2.
+     * This method returns a standardized value with variance 1:
+     * z_t = t_raw / sqrt(df/(df-2))
+     *
+     * @param df Degrees of freedom (must be > 2 for finite variance)
+     * @return A standardized Student-t random variable
+     * @throws std::invalid_argument if df <= 2
      */
     [[nodiscard]] double drawStudentT(double df);
 
@@ -59,8 +63,9 @@ public:
     void reseed(unsigned int seed);
 
 private:
-    std::mt19937 rng_;                         // Mersenne Twister RNG engine
-    std::normal_distribution<double> normal_;  // Standard normal distribution N(0,1)
+    std::mt19937 rng_;                               // Mersenne Twister RNG engine
+    std::normal_distribution<double> normal_;        // Standard normal distribution N(0,1)
+    std::student_t_distribution<double> student_t_;  // Student-t distribution
 };
 
 }  // namespace ag::simulation

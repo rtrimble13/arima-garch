@@ -34,9 +34,23 @@ ArimaGarchSimulator::ArimaGarchSimulator(const ag::models::ArimaGarchSpec& spec,
     }
 }
 
-SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed) const {
+SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed,
+                                               InnovationDistribution dist_type,
+                                               std::optional<double> df) const {
     if (length <= 0) {
         throw std::invalid_argument("Simulation length must be positive");
+    }
+
+    // Validate Student-t parameters
+    if (dist_type == InnovationDistribution::StudentT) {
+        if (!df.has_value()) {
+            throw std::invalid_argument(
+                "Degrees of freedom must be specified for Student-t distribution");
+        }
+        if (df.value() <= 2.0) {
+            throw std::invalid_argument(
+                "Degrees of freedom must be > 2 for Student-t with finite variance");
+        }
     }
 
     // Initialize result
@@ -50,16 +64,13 @@ SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed) co
 
     // Simulate path
     for (int t = 0; t < length; ++t) {
-        // Draw standard normal innovation
-        double z_t = innovations.drawNormal();
-
-        // Get current conditional mean and variance from model
-        // For first few observations, the model will use initialization values
-        // We need to "peek" at what the model would predict, then generate y_t
-
-        // Create a temporary observation to get the current state
-        // The approach: we'll compute conditional mean directly from current state,
-        // then generate y_t, then update the model
+        // Draw innovation from specified distribution
+        double z_t;
+        if (dist_type == InnovationDistribution::Normal) {
+            z_t = innovations.drawNormal();
+        } else {
+            z_t = innovations.drawStudentT(df.value());
+        }
 
         // Get current states before update
         const auto& mean_state = model.getArimaState();

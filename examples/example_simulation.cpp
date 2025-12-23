@@ -108,11 +108,49 @@ int main() {
     std::cout << std::endl;
 
     // Show first 10 simulated values
-    std::cout << "First 10 simulated returns:" << std::endl;
+    std::cout << "First 10 simulated returns (Normal):" << std::endl;
     for (int i = 0; i < 10; ++i) {
         std::cout << "  t=" << i + 1 << ": return=" << result.returns[i]
                   << ", volatility=" << result.volatilities[i] << std::endl;
     }
+    std::cout << std::endl;
+
+    // Demonstrate Student-t innovations
+    std::cout << "=== Simulation with Student-t Innovations ===" << std::endl << std::endl;
+
+    double df = 5.0;  // Degrees of freedom
+    std::cout << "Simulating with Student-t(" << df << ") innovations..." << std::endl;
+
+    auto result_t = simulator.simulate(simulation_length, seed,
+                                       ag::simulation::InnovationDistribution::StudentT, df);
+
+    std::cout << "Simulation complete!" << std::endl << std::endl;
+
+    // Compute statistics for Student-t simulation
+    double mean_ret_t = ag::stats::mean(result_t.returns);
+    double std_ret_t = std::sqrt(ag::stats::variance(result_t.returns));
+    double skew_ret_t = ag::stats::skewness(result_t.returns);
+    double kurt_ret_t = ag::stats::kurtosis(result_t.returns);
+
+    std::cout << "Summary statistics (Student-t):" << std::endl;
+    std::cout << "  Mean: " << mean_ret_t << std::endl;
+    std::cout << "  Std Dev: " << std_ret_t << std::endl;
+    std::cout << "  Skewness: " << skew_ret_t << std::endl;
+    std::cout << "  Kurtosis: " << kurt_ret_t << " (expect higher than Normal)" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "First 10 simulated returns (Student-t):" << std::endl;
+    for (int i = 0; i < 10; ++i) {
+        std::cout << "  t=" << i + 1 << ": return=" << result_t.returns[i]
+                  << ", volatility=" << result_t.volatilities[i] << std::endl;
+    }
+    std::cout << std::endl;
+
+    std::cout << "Note: Student-t innovations typically produce heavier tails (higher kurtosis)"
+              << std::endl;
+    std::cout
+        << "      compared to normal innovations, which is useful for modeling extreme events."
+        << std::endl;
 
     return 0;
 }

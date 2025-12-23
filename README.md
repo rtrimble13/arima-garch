@@ -93,9 +93,14 @@ int main() {
     params.garch_params.alpha_coef[0] = 0.1;
     params.garch_params.beta_coef[0] = 0.85;
     
-    // Create simulator and generate synthetic data
+    // Create simulator and generate synthetic data with Normal innovations (default)
     ag::simulation::ArimaGarchSimulator simulator(spec, params);
     auto result = simulator.simulate(1000, 42);  // 1000 observations, seed=42
+    
+    // Or use Student-t innovations for heavier tails (better for modeling extreme events)
+    auto result_t = simulator.simulate(1000, 42, 
+                                       ag::simulation::InnovationDistribution::StudentT, 
+                                       5.0);  // df=5
     
     // Access simulated returns and volatilities
     std::vector<double>& returns = result.returns;
@@ -105,7 +110,11 @@ int main() {
 }
 ```
 
-See `examples/example_simulation.cpp` for a complete working example with statistical analysis.
+The simulator supports two innovation distributions:
+- **Normal (N(0,1))**: Default, suitable for most applications
+- **Student-t**: Optional, produces heavier tails (higher kurtosis), useful for modeling extreme events and fat-tailed distributions
+
+See `examples/example_simulation.cpp` for a complete working example with statistical analysis and comparisons between both distributions.
 
 ## Project Structure
 
