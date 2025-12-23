@@ -222,6 +222,13 @@ add_executable(test_selection_information_criteria
 target_link_libraries(test_selection_information_criteria PRIVATE arimagarch)
 add_test(NAME test_selection_information_criteria COMMAND test_selection_information_criteria)
 
+add_executable(test_selection_model_selector
+    unit/test_selection_model_selector.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_selection_model_selector PRIVATE arimagarch)
+add_test(NAME test_selection_model_selector COMMAND test_selection_model_selector)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

@@ -83,3 +83,10 @@ add_executable(example_candidate_grid
 )
 
 target_link_libraries(example_candidate_grid PRIVATE arimagarch)
+
+# Example: ModelSelector for automatic model selection
+add_executable(example_model_selector
+    example_model_selector.cpp
+)
+
+target_link_libraries(example_model_selector PRIVATE arimagarch)
