@@ -113,7 +113,7 @@ int main() {
     // Step 3: Save the model to a JSON file
     fmt::print("\n\nStep 3: Saving model to JSON file...\n");
 
-    std::filesystem::path model_file = "/tmp/arima_garch_model.json";
+    auto model_file = std::filesystem::temp_directory_path() / "arima_garch_model.json";
     auto save_result = JsonWriter::saveModel(model_file, model, 2);
 
     if (!save_result.has_value()) {

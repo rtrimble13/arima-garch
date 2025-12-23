@@ -160,7 +160,7 @@ TEST(json_arima_garch_parameters_roundtrip) {
 
 // Test file writing and reading
 TEST(json_file_write_read_roundtrip) {
-    std::filesystem::path test_file = "/tmp/test_model.json";
+    auto test_file = std::filesystem::temp_directory_path() / "test_model.json";
 
     // Create a simple JSON object
     nlohmann::json test_json = {{"key", "value"}, {"number", 42}, {"array", {1, 2, 3}}};
@@ -233,7 +233,7 @@ TEST(json_model_save_load_parameters) {
 
 // Test that saved model produces identical forecasts (via update)
 TEST(json_model_identical_forecasts) {
-    std::filesystem::path model_file = "/tmp/test_model_forecast.json";
+    auto model_file = std::filesystem::temp_directory_path() / "test_model_forecast.json";
 
     // Create a model
     ArimaGarchSpec spec(1, 0, 1, 1, 1);

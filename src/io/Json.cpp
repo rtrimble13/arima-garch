@@ -11,8 +11,18 @@ namespace ag::io {
 static std::string getCurrentTimestamp() {
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
+
+    // Use thread-safe time conversion
+    std::tm tm_buf;
+#ifdef _WIN32
+    gmtime_s(&tm_buf, &time_t);
+    std::tm* tm_ptr = &tm_buf;
+#else
+    std::tm* tm_ptr = gmtime_r(&time_t, &tm_buf);
+#endif
+
     std::stringstream ss;
-    ss << std::put_time(std::gmtime(&time_t), "%Y-%m-%dT%H:%M:%SZ");
+    ss << std::put_time(tm_ptr, "%Y-%m-%dT%H:%M:%SZ");
     return ss.str();
 }
 
