@@ -130,10 +130,9 @@ private:
      * Uses the ARIMA model to compute the expected value based on historical
      * observations and residuals.
      *
-     * @param y_t The current observation
      * @return The conditional mean μ_t
      */
-    [[nodiscard]] double computeConditionalMean(double y_t) const;
+    [[nodiscard]] double computeConditionalMean() const;
 };
 
 }  // namespace ag::models::composite

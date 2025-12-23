@@ -48,7 +48,7 @@ ArimaGarchModel::ArimaGarchModel(const ag::models::ArimaGarchSpec& spec,
 
 ArimaGarchOutput ArimaGarchModel::update(double y_t) {
     // Step 1: Compute conditional mean using ARIMA model
-    double mu_t = computeConditionalMean(y_t);
+    double mu_t = computeConditionalMean();
 
     // Step 2: Compute residual
     double eps_t = y_t - mu_t;
@@ -84,7 +84,7 @@ ArimaGarchOutput ArimaGarchModel::update(double y_t) {
     return ArimaGarchOutput{mu_t, h_t};
 }
 
-double ArimaGarchModel::computeConditionalMean(double y_t) const {
+double ArimaGarchModel::computeConditionalMean() const {
     double mean = params_.arima_params.intercept;
 
     // Add AR component: φ₁*y_{t-1} + φ₂*y_{t-2} + ... + φₚ*y_{t-p}
