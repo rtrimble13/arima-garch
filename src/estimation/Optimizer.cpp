@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <random>
 #include <stdexcept>
 
 namespace ag::estimation {
@@ -263,6 +264,73 @@ OptimizationResult NelderMeadOptimizer::minimize(const ObjectiveFunction& object
     }
 
     return result;
+}
+
+// ============================================================================
+// Random Restart Optimization
+// ============================================================================
+
+OptimizationResultWithRestarts optimizeWithRestarts(IOptimizer& optimizer,
+                                                    const IOptimizer::ObjectiveFunction& objective,
+                                                    const std::vector<double>& initial_params,
+                                                    int num_restarts, double perturbation_scale,
+                                                    unsigned int seed) {
+    if (initial_params.empty()) {
+        throw std::invalid_argument("Initial parameters cannot be empty");
+    }
+    if (num_restarts < 0) {
+        throw std::invalid_argument("Number of restarts must be non-negative");
+    }
+    if (perturbation_scale < 0.0) {
+        throw std::invalid_argument("Perturbation scale must be non-negative");
+    }
+
+    // Initialize random number generator
+    std::mt19937 rng;
+    if (seed == 0) {
+        std::random_device rd;
+        rng.seed(rd());
+    } else {
+        rng.seed(seed);
+    }
+
+    // Run initial optimization
+    OptimizationResult best_result = optimizer.minimize(objective, initial_params);
+    OptimizationResultWithRestarts final_result(best_result);
+
+    // Perform random restarts
+    for (int i = 0; i < num_restarts; ++i) {
+        // Generate perturbed starting point
+        std::vector<double> perturbed_params = initial_params;
+        std::normal_distribution<double> dist(0.0, 1.0);
+
+        for (std::size_t j = 0; j < perturbed_params.size(); ++j) {
+            double param_scale = std::max(std::abs(initial_params[j]), 0.01);
+            double noise = perturbation_scale * param_scale * dist(rng);
+            perturbed_params[j] += noise;
+        }
+
+        // Run optimization from perturbed starting point
+        OptimizationResult restart_result = optimizer.minimize(objective, perturbed_params);
+
+        final_result.restarts_performed++;
+
+        // Keep the best result
+        if (restart_result.converged &&
+            restart_result.objective_value < best_result.objective_value) {
+            best_result = restart_result;
+            final_result.successful_restarts++;
+
+            // Update final result with new best
+            final_result.parameters = best_result.parameters;
+            final_result.objective_value = best_result.objective_value;
+            final_result.converged = best_result.converged;
+            final_result.iterations = best_result.iterations;
+            final_result.message = best_result.message;
+        }
+    }
+
+    return final_result;
 }
 
 }  // namespace ag::estimation

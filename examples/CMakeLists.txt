@@ -36,3 +36,10 @@ add_executable(example_arima_residuals
 
 target_link_libraries(example_arima_residuals PRIVATE arimagarch)
 
+# Example: Parameter initialization and random restarts
+add_executable(example_initialization
+    example_initialization.cpp
+)
+
+target_link_libraries(example_initialization PRIVATE arimagarch)
+
