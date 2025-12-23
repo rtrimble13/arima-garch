@@ -111,6 +111,13 @@ add_executable(test_models_garch
 target_link_libraries(test_models_garch PRIVATE arimagarch)
 add_test(NAME test_models_garch COMMAND test_models_garch)
 
+add_executable(test_models_composite
+    unit/test_models_composite.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_models_composite PRIVATE arimagarch)
+add_test(NAME test_models_composite COMMAND test_models_composite)
+
 # Estimation tests
 add_executable(test_estimation_parameters
     unit/test_estimation_parameters.cpp

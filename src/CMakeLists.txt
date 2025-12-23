@@ -13,6 +13,7 @@ add_library(arimagarch STATIC
     models/arima/ArimaState.cpp
     models/garch/GarchModel.cpp
     models/garch/GarchState.cpp
+    models/composite/ArimaGarchModel.cpp
     stats/ACF.cpp
     stats/ADF.cpp
     stats/Descriptive.cpp
