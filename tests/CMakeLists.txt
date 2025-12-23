@@ -126,6 +126,13 @@ add_executable(test_estimation_constraints
 target_link_libraries(test_estimation_constraints PRIVATE arimagarch)
 add_test(NAME test_estimation_constraints COMMAND test_estimation_constraints)
 
+add_executable(test_estimation_likelihood
+    unit/test_estimation_likelihood.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_estimation_likelihood PRIVATE arimagarch)
+add_test(NAME test_estimation_likelihood COMMAND test_estimation_likelihood)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
