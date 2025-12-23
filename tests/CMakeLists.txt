@@ -161,6 +161,14 @@ add_executable(test_estimation_initialization
 target_link_libraries(test_estimation_initialization PRIVATE arimagarch)
 add_test(NAME test_estimation_initialization COMMAND test_estimation_initialization)
 
+# Forecasting tests
+add_executable(test_forecasting
+    unit/test_forecasting.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_forecasting PRIVATE arimagarch)
+add_test(NAME test_forecasting COMMAND test_forecasting)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
