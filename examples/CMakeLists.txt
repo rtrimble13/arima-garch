@@ -64,3 +64,10 @@ add_executable(example_simulation
 
 target_link_libraries(example_simulation PRIVATE arimagarch)
 
+# Example: FitSummary and text report generation
+add_executable(example_fit_summary
+    example_fit_summary.cpp
+)
+
+target_link_libraries(example_fit_summary PRIVATE arimagarch)
+
