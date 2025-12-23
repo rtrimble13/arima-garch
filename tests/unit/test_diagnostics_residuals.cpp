@@ -120,7 +120,7 @@ TEST(residuals_standardized_variance_one) {
         double diff = val - mean_std;
         var_std += diff * diff;
     }
-    var_std /= residuals.std_eps_t.size();
+    var_std /= (residuals.std_eps_t.size() - 1);  // Sample variance (n-1)
 
     // For a correctly specified model, standardized residuals should have variance ~1
     // Allow some tolerance due to finite sample effects
@@ -160,7 +160,7 @@ TEST(residuals_standardized_variance_large_sample) {
         double diff = val - mean_std;
         var_std += diff * diff;
     }
-    var_std /= residuals.std_eps_t.size();
+    var_std /= (residuals.std_eps_t.size() - 1);  // Sample variance (n-1)
 
     // With larger sample, variance should be closer to 1
     REQUIRE(var_std > 0.9);

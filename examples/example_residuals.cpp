@@ -62,7 +62,7 @@ int main() {
         double diff = val - mean_eps;
         var_eps += diff * diff;
     }
-    var_eps /= residuals.eps_t.size();
+    var_eps /= (residuals.eps_t.size() - 1);  // Sample variance (n-1)
 
     fmt::print("\nRaw Residuals (eps_t):\n");
     fmt::print("  Mean: {:.6f}\n", mean_eps);
@@ -101,7 +101,7 @@ int main() {
         double diff = val - mean_std;
         var_std += diff * diff;
     }
-    var_std /= residuals.std_eps_t.size();
+    var_std /= (residuals.std_eps_t.size() - 1);  // Sample variance (n-1)
 
     fmt::print("\nStandardized Residuals (std_eps_t = eps_t / sqrt(h_t)):\n");
     fmt::print("  Mean: {:.6f}\n", mean_std);
