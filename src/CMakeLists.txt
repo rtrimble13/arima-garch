@@ -4,6 +4,7 @@ add_library(arimagarch STATIC
     data/TimeSeries.cpp
     estimation/Constraints.cpp
     estimation/Likelihood.cpp
+    estimation/NumericalDerivatives.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
     models/arima/ArimaModel.cpp
