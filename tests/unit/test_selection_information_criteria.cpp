@@ -336,6 +336,64 @@ TEST(criteria_large_sample_size) {
     REQUIRE_APPROX(aicc, aic, 0.001);
 }
 
+// ============================================================================
+// AICc Validation Tests
+// ============================================================================
+
+// Test AICc throws exception when n <= k+1
+TEST(aicc_invalid_n_equals_k_plus_one) {
+    double loglik = -100.0;
+    int k = 5;
+    std::size_t n = 6;  // n = k+1
+
+    bool caught_exception = false;
+    try {
+        [[maybe_unused]] double result = computeAICc(loglik, k, n);
+    } catch (const std::invalid_argument& e) {
+        caught_exception = true;
+        std::string msg(e.what());
+        REQUIRE(msg.find("n > k+1") != std::string::npos);
+        REQUIRE(msg.find("n=6") != std::string::npos);
+        REQUIRE(msg.find("k=5") != std::string::npos);
+    }
+    REQUIRE(caught_exception);
+}
+
+// Test AICc throws exception when n < k+1
+TEST(aicc_invalid_n_less_than_k_plus_one) {
+    double loglik = -100.0;
+    int k = 10;
+    std::size_t n = 8;  // n < k+1
+
+    bool caught_exception = false;
+    try {
+        [[maybe_unused]] double result = computeAICc(loglik, k, n);
+    } catch (const std::invalid_argument& e) {
+        caught_exception = true;
+        std::string msg(e.what());
+        REQUIRE(msg.find("n > k+1") != std::string::npos);
+    }
+    REQUIRE(caught_exception);
+}
+
+// Test AICc works when n = k+2 (minimum valid case)
+TEST(aicc_valid_n_equals_k_plus_two) {
+    double loglik = -100.0;
+    int k = 5;
+    std::size_t n = 7;  // n = k+2, minimum valid
+
+    // Should not throw
+    double aicc = computeAICc(loglik, k, n);
+
+    // Should be a valid number
+    REQUIRE(!std::isnan(aicc));
+    REQUIRE(!std::isinf(aicc));
+
+    // Should be greater than AIC due to correction
+    double aic = computeAIC(loglik, k);
+    REQUIRE(aicc > aic);
+}
+
 int main() {
     report_test_results("Information Criteria Selection");
     return get_test_result();
