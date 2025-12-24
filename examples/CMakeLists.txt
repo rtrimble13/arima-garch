@@ -97,3 +97,11 @@ add_executable(example_cross_validation
 )
 
 target_link_libraries(example_cross_validation PRIVATE arimagarch)
+
+# Example: Engine API facade for complete modeling workflow
+add_executable(example_engine_api
+    example_engine_api.cpp
+)
+
+target_link_libraries(example_engine_api PRIVATE arimagarch)
+
