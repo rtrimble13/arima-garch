@@ -20,6 +20,7 @@ add_library(arimagarch STATIC
     models/garch/GarchState.cpp
     models/composite/ArimaGarchModel.cpp
     selection/CandidateGrid.cpp
+    selection/CrossValidation.cpp
     selection/InformationCriteria.cpp
     selection/ModelSelector.cpp
     simulation/ArimaGarchSimulator.cpp

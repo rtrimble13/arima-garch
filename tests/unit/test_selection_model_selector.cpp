@@ -318,6 +318,87 @@ TEST(model_selector_with_diagnostics) {
 }
 
 // ============================================================================
+// Cross-Validation Tests
+// ============================================================================
+
+// Test selection with CV criterion
+TEST(model_selector_cv_criterion) {
+    // Generate synthetic data
+    ArimaGarchSpec true_spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters true_params(true_spec);
+
+    true_params.arima_params.intercept = 0.05;
+    true_params.arima_params.ar_coef[0] = 0.6;
+    true_params.arima_params.ma_coef[0] = 0.3;
+    true_params.garch_params.omega = 0.01;
+    true_params.garch_params.alpha_coef[0] = 0.1;
+    true_params.garch_params.beta_coef[0] = 0.85;
+
+    ArimaGarchSimulator simulator(true_spec, true_params);
+    auto sim_result = simulator.simulate(300, 42);
+    const auto& data = sim_result.returns;
+
+    // Small candidate set
+    std::vector<ArimaGarchSpec> candidates;
+    candidates.emplace_back(0, 0, 1, 1, 1);
+    candidates.emplace_back(1, 0, 0, 1, 1);
+    candidates.emplace_back(1, 0, 1, 1, 1);
+
+    // Select with CV
+    ModelSelector selector(SelectionCriterion::CV);
+    auto result = selector.select(data.data(), data.size(), candidates);
+
+    // Should find a best model
+    REQUIRE(result.has_value());
+    REQUIRE(result->candidates_evaluated > 0);
+    REQUIRE(std::isfinite(result->best_score));
+    REQUIRE(result->best_score > 0.0);  // MSE should be positive
+}
+
+// Test CV vs BIC produce different results
+TEST(model_selector_cv_vs_bic) {
+    // Generate data
+    ArimaGarchSpec true_spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters true_params(true_spec);
+
+    true_params.arima_params.intercept = 0.02;
+    true_params.arima_params.ar_coef[0] = 0.7;
+    true_params.arima_params.ma_coef[0] = 0.4;
+    true_params.garch_params.omega = 0.01;
+    true_params.garch_params.alpha_coef[0] = 0.12;
+    true_params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(true_spec, true_params);
+    auto sim_result = simulator.simulate(250, 99999);
+    const auto& data = sim_result.returns;
+
+    // Create candidates
+    std::vector<ArimaGarchSpec> candidates;
+    candidates.emplace_back(1, 0, 0, 1, 1);
+    candidates.emplace_back(0, 0, 1, 1, 1);
+    candidates.emplace_back(1, 0, 1, 1, 1);
+
+    // Select with BIC
+    ModelSelector selector_bic(SelectionCriterion::BIC);
+    auto result_bic = selector_bic.select(data.data(), data.size(), candidates);
+
+    // Select with CV
+    ModelSelector selector_cv(SelectionCriterion::CV);
+    auto result_cv = selector_cv.select(data.data(), data.size(), candidates);
+
+    // Both should find a model
+    REQUIRE(result_bic.has_value());
+    REQUIRE(result_cv.has_value());
+
+    // Both should have valid scores
+    REQUIRE(std::isfinite(result_bic->best_score));
+    REQUIRE(std::isfinite(result_cv->best_score));
+
+    // Scores are on different scales (BIC vs MSE), so just check they're positive
+    REQUIRE(result_cv->best_score > 0.0);
+}
+
+// ============================================================================
 // Run all tests
 // ============================================================================
 

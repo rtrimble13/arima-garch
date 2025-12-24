@@ -90,3 +90,10 @@ add_executable(example_model_selector
 )
 
 target_link_libraries(example_model_selector PRIVATE arimagarch)
+
+# Example: Cross-validation for model selection
+add_executable(example_cross_validation
+    example_cross_validation.cpp
+)
+
+target_link_libraries(example_cross_validation PRIVATE arimagarch)
