@@ -24,6 +24,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+# CLI11 library for command-line parsing
+FetchContent_Declare(
+    cli11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG        v2.4.1
+)
+FetchContent_MakeAvailable(cli11)
+
 # Enable testing
 enable_testing()
 

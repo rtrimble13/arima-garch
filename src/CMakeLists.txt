@@ -44,7 +44,7 @@ target_link_libraries(arimagarch PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
 
 # CLI executable target
 add_executable(ag
-    main.cpp
+    cli/main.cpp
 )
 
-target_link_libraries(ag PRIVATE arimagarch)
+target_link_libraries(ag PRIVATE arimagarch CLI11::CLI11)
