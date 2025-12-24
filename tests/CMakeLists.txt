@@ -229,6 +229,13 @@ add_executable(test_selection_model_selector
 target_link_libraries(test_selection_model_selector PRIVATE arimagarch)
 add_test(NAME test_selection_model_selector COMMAND test_selection_model_selector)
 
+add_executable(test_selection_cross_validation
+    unit/test_selection_cross_validation.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_selection_cross_validation PRIVATE arimagarch)
+add_test(NAME test_selection_cross_validation COMMAND test_selection_cross_validation)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

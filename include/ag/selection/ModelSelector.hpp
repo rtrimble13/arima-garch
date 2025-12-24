@@ -21,11 +21,14 @@ namespace ag::selection {
  *   May favor more complex models.
  * - AICc (Corrected AIC): Corrected version of AIC for small sample sizes.
  *   Use when n/k < 40.
+ * - CV (Cross-Validation): Uses rolling origin cross-validation with MSE of
+ *   1-step-ahead forecasts. Selects based on out-of-sample forecast performance.
  */
 enum class SelectionCriterion {
     BIC,   // Bayesian Information Criterion (default)
     AIC,   // Akaike Information Criterion
     AICc,  // Corrected Akaike Information Criterion
+    CV,    // Cross-Validation (rolling origin, 1-step-ahead MSE)
 };
 
 /**
@@ -47,7 +50,8 @@ struct SelectionResult {
     /**
      * @brief The information criterion score of the best model.
      *
-     * Lower values indicate better models.
+     * Lower values indicate better models. For IC-based selection (BIC, AIC, AICc),
+     * this is the IC score. For CV-based selection, this is the MSE score.
      */
     double best_score;
 
@@ -134,12 +138,19 @@ public:
      * @brief Select the best model from a list of candidates.
      *
      * This method fits each candidate specification to the provided data and
-     * selects the model with the lowest information criterion score.
+     * selects the model with the lowest score (IC or CV MSE).
      *
      * The fitting process uses:
      * - Parameter initialization from the data
      * - Nelder-Mead optimization with random restarts
      * - Standard convergence criteria
+     *
+     * For IC-based selection (BIC, AIC, AICc), models are scored using the
+     * specified information criterion on the full dataset.
+     *
+     * For CV-based selection, models are scored using rolling origin
+     * cross-validation with 1-step-ahead MSE. This is more computationally
+     * expensive but provides a better measure of out-of-sample forecast performance.
      *
      * Candidates that fail to fit (e.g., convergence failure, numerical issues)
      * are automatically skipped. If all candidates fail, the method returns
@@ -148,14 +159,14 @@ public:
      * @param data Pointer to time series data array
      * @param n_obs Number of observations in the data
      * @param candidates Vector of candidate specifications to evaluate
-     * @param compute_diagnostics If true, compute diagnostic tests for best model
+     * @param compute_diagnostics If true, compute diagnostic tests for best model (IC only)
      * @return SelectionResult with best model, or empty if all candidates failed
      *
      * @throws std::invalid_argument if data is nullptr, n_obs is 0, or candidates is empty
      *
-     * @note This method can be computationally expensive for large candidate sets.
-     *       Consider using a smaller candidate grid or adding early stopping logic
-     *       for production use cases.
+     * @note CV-based selection is computationally expensive: it requires fitting
+     *       each candidate multiple times (once per rolling window). Consider using
+     *       a smaller candidate set or IC-based selection for large datasets.
      */
     [[nodiscard]] std::optional<SelectionResult>
     select(const double* data, std::size_t n_obs,
