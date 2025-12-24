@@ -39,10 +39,11 @@ cmake --install build
 The build produces the following targets:
 - `arimagarch` - Static library for ARIMA-GARCH modeling
 - `ag` - Command-line interface executable
-- Unit test executables (28 test suites)
+- Unit test executables (29 test suites, including cross-validation tests)
 - Example programs:
   - `example_simulation` - Demonstrates simulation of ARIMA-GARCH paths
   - `example_json_io` - Demonstrates model serialization to/from JSON
+  - `example_model_selector` - Demonstrates automatic model selection with BIC/AIC/AICc/CV
   - `example_basic` - Basic usage example
   - Additional examples in `examples/` directory
 
@@ -160,6 +161,40 @@ The JSON format includes:
 - Metadata (timestamp, version)
 
 This enables reproducible forecasts and easy model deployment. See `examples/example_json_io.cpp` for a complete demonstration.
+
+#### Model Selection
+
+The library supports automatic model selection from a grid of candidate specifications using either information criteria or cross-validation:
+
+```cpp
+#include "ag/selection/ModelSelector.hpp"
+#include "ag/selection/CandidateGrid.hpp"
+
+// Generate candidate specifications
+ag::selection::CandidateGridConfig config(2, 0, 2, 1, 1);  // ARIMA(0-2,0,0-2)-GARCH(1,1)
+ag::selection::CandidateGrid grid(config);
+auto candidates = grid.generate();
+
+// Option 1: Select using BIC (fast, good for large candidate sets)
+ag::selection::ModelSelector selector_bic(ag::selection::SelectionCriterion::BIC);
+auto result_bic = selector_bic.select(data.data(), data.size(), candidates);
+
+// Option 2: Select using Cross-Validation (slower, better forecast performance assessment)
+ag::selection::ModelSelector selector_cv(ag::selection::SelectionCriterion::CV);
+auto result_cv = selector_cv.select(data.data(), data.size(), candidates);
+
+// Use the best model
+if (result_bic.has_value()) {
+    auto best_model = ag::models::composite::ArimaGarchModel(
+        result_bic->best_spec, result_bic->best_parameters);
+}
+```
+
+**Selection Criteria:**
+- **BIC/AIC/AICc**: Fast, uses information criteria to balance fit and complexity
+- **CV (Cross-Validation)**: Slower but more direct measure of out-of-sample forecast performance using rolling origin validation with 1-step-ahead MSE
+
+See `examples/example_model_selector.cpp` for a complete demonstration.
 
 ## Project Structure
 
