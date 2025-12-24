@@ -236,6 +236,14 @@ add_executable(test_selection_cross_validation
 target_link_libraries(test_selection_cross_validation PRIVATE arimagarch)
 add_test(NAME test_selection_cross_validation COMMAND test_selection_cross_validation)
 
+# API tests
+add_executable(test_api_engine
+    unit/test_api_engine.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_api_engine PRIVATE arimagarch)
+add_test(NAME test_api_engine COMMAND test_api_engine)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp

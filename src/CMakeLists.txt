@@ -1,6 +1,7 @@
 # Library target
 add_library(arimagarch STATIC
     arima_garch.cpp
+    api/Engine.cpp
     data/TimeSeries.cpp
     diagnostics/DiagnosticReport.cpp
     diagnostics/Residuals.cpp

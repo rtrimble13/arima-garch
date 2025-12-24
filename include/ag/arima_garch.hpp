@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ag/api/Engine.hpp"
 #include "ag/data/TimeSeries.hpp"
 #include "ag/diagnostics/DiagnosticReport.hpp"
 #include "ag/diagnostics/Residuals.hpp"
