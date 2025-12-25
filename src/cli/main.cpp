@@ -391,12 +391,13 @@ int main(int argc, char* argv[]) {
     std::string fit_garch_order;
     std::string fit_output_file;
 
-    fit->add_option("-d,--data", fit_data_file, "Input data file (CSV format, first column)")
+    fit->add_option("-d,--data,-i,--input", fit_data_file,
+                    "Input data file (CSV format, first column)")
         ->required();
     fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)")
         ->required();
     fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)")->required();
-    fit->add_option("-o,--output", fit_output_file, "Output model file (JSON format)");
+    fit->add_option("-o,--output,--out", fit_output_file, "Output model file (JSON format)");
 
     fit->callback([&]() {
         return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file);
