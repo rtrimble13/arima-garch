@@ -414,7 +414,9 @@ int main(int argc, char* argv[]) {
     std::string select_criterion = "BIC";
     std::string select_output_file;
 
-    select->add_option("-d,--data", select_data_file, "Input data file (CSV format, first column)")
+    select
+        ->add_option("-d,--data,-i,--input", select_data_file,
+                     "Input data file (CSV format, first column)")
         ->required();
     select->add_option("--max-p", select_max_p, "Maximum ARIMA AR order (default: 2)");
     select->add_option("--max-d", select_max_d, "Maximum ARIMA differencing order (default: 1)");
@@ -423,7 +425,7 @@ int main(int argc, char* argv[]) {
     select->add_option("--max-garch-q", select_max_garch_q, "Maximum GARCH q order (default: 1)");
     select->add_option("-c,--criterion", select_criterion,
                        "Selection criterion: BIC, AIC, AICc, or CV (default: BIC)");
-    select->add_option("-o,--output", select_output_file, "Output model file (JSON format)");
+    select->add_option("-o,--output,--out", select_output_file, "Output model file (JSON format)");
 
     select->callback([&]() {
         return handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
@@ -441,7 +443,8 @@ int main(int argc, char* argv[]) {
         ->required();
     forecast->add_option("-n,--horizon", forecast_horizon,
                          "Forecast horizon (number of steps ahead, default: 10)");
-    forecast->add_option("-o,--output", forecast_output_file, "Output forecast file (CSV format)");
+    forecast->add_option("-o,--output,--out", forecast_output_file,
+                         "Output forecast file (CSV format)");
 
     forecast->callback([&]() {
         return handleForecast(forecast_model_file, forecast_horizon, forecast_output_file);
@@ -462,7 +465,7 @@ int main(int argc, char* argv[]) {
     simulate->add_option("-n,--length", sim_length,
                          "Number of observations to simulate (default: 1000)");
     simulate->add_option("-s,--seed", sim_seed, "Random seed (default: 42)");
-    simulate->add_option("-o,--output", sim_output_file, "Output data file (CSV format)")
+    simulate->add_option("-o,--output,--out", sim_output_file, "Output data file (CSV format)")
         ->required();
 
     simulate->callback([&]() {
@@ -478,9 +481,9 @@ int main(int argc, char* argv[]) {
 
     diagnostics->add_option("-m,--model", diag_model_file, "Input model file (JSON format)")
         ->required();
-    diagnostics->add_option("-d,--data", diag_data_file, "Input data file (CSV format)")
+    diagnostics->add_option("-d,--data,-i,--input", diag_data_file, "Input data file (CSV format)")
         ->required();
-    diagnostics->add_option("-o,--output", diag_output_file,
+    diagnostics->add_option("-o,--output,--out", diag_output_file,
                             "Output diagnostics file (JSON format)");
 
     diagnostics->callback(
