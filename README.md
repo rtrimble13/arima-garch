@@ -62,15 +62,20 @@ Run the CLI tool:
 # After building
 ./build/src/ag
 
-# Example usage (to be implemented):
 # Fit a model to data
-./build/src/ag fit --data timeseries.csv --arima 1,1,1 --garch 1,1
+./build/src/ag fit --input examples/returns.csv --arima 1,0,1 --garch 1,1 --out model.json
+
+# Automatic model selection
+./build/src/ag select --input examples/returns.csv --max-p 2 --max-q 2 --out model.json
 
 # Forecast future values
-./build/src/ag forecast --model model.json --horizon 10
+./build/src/ag forecast --model model.json --horizon 10 --out forecasts.csv
 
 # Simulate synthetic data
-./build/src/ag simulate --arima 1,1,1 --garch 1,1 --samples 1000
+./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --out simulated.csv
+
+# Run diagnostics on a fitted model
+./build/src/ag diagnostics --model model.json --data examples/returns.csv --out diagnostics.json
 ```
 
 ### Library Usage
