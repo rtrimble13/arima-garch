@@ -253,6 +253,17 @@ Quick overview:
 - Update documentation for new features
 - Add tests for new functionality
 
+## Documentation
+
+- [CLI Documentation](docs/cli.md) - Command-line interface usage and examples
+- [File Formats](docs/file_formats.md) - CSV and JSON format specifications
+- [Model Selection](docs/model_selection.md) - Automatic model selection strategies
+- [Parameter Constraints](docs/parameter_constraints.md) - Parameter validation rules
+- [Parameter Initialization](docs/parameter_initialization.md) - Parameter initialization strategies
+- [ARIMA Residuals](docs/arima_residuals.md) - ARIMA residual handling
+- [Dependencies](docs/dependencies.md) - Dependency management
+- [Style Guide](docs/style.md) - Code style guidelines
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
