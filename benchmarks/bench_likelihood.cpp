@@ -65,9 +65,13 @@ void runLikelihoodBenchmark(const BenchmarkConfig& config, const models::ArimaGa
         garch_params.beta_coef[i] = 0.85 / (i + 1);
     }
 
-    // Warm-up run (not timed)
-    [[maybe_unused]] double warmup_nll = likelihood.computeNegativeLogLikelihood(
-        data.data(), data.size(), arima_params, garch_params);
+    // Warm-up run (not timed) - also validates that parameters are valid
+    double warmup_nll = likelihood.computeNegativeLogLikelihood(data.data(), data.size(),
+                                                                arima_params, garch_params);
+    if (!std::isfinite(warmup_nll)) {
+        fmt::print("  Warning: Invalid warmup NLL for {}: {}\n", config.description, warmup_nll);
+        return;
+    }
 
     // Benchmark iterations
     Timer timer;
@@ -136,8 +140,8 @@ int main() {
         {models::ArimaGarchSpec(0, 0, 0, 1, 1), "ARIMA(0,0,0)-GARCH(1,1)"},
         {models::ArimaGarchSpec(1, 0, 0, 1, 1), "ARIMA(1,0,0)-GARCH(1,1)"},
         {models::ArimaGarchSpec(1, 0, 1, 1, 1), "ARIMA(1,0,1)-GARCH(1,1)"},
+        {models::ArimaGarchSpec(2, 0, 1, 1, 1), "ARIMA(2,0,1)-GARCH(1,1)"},
         {models::ArimaGarchSpec(2, 0, 2, 1, 1), "ARIMA(2,0,2)-GARCH(1,1)"},
-        {models::ArimaGarchSpec(1, 0, 1, 2, 2), "ARIMA(1,0,1)-GARCH(2,2)"},
     };
 
     for (const auto& [spec, description] : specs) {

@@ -53,7 +53,7 @@ void runOptimizerBenchmark(const BenchmarkConfig& config, const models::ArimaGar
     auto [arima_init, garch_init] = initializeArimaGarchParameters(data.data(), data.size(), spec);
 
     // Create objective function
-    auto objective = [&](const std::vector<double>& params) -> double {
+    auto objective = [&likelihood, &spec, &data](const std::vector<double>& params) -> double {
         // Unpack parameters
         int arima_param_count = 1 + spec.arimaSpec.p + spec.arimaSpec.q;  // intercept + AR + MA
 
@@ -102,8 +102,11 @@ void runOptimizerBenchmark(const BenchmarkConfig& config, const models::ArimaGar
         initial_params.push_back(garch_init.beta_coef[i]);
     }
 
-    // Warm-up run (not timed)
-    [[maybe_unused]] auto warmup_result = optimizer.minimize(objective, initial_params);
+    // Warm-up run (not timed) - also validates that optimization setup is correct
+    auto warmup_result = optimizer.minimize(objective, initial_params);
+    if (!warmup_result.converged) {
+        fmt::print("  Warning: Warmup did not converge for {}\n", config.description);
+    }
 
     // Benchmark runs
     Timer timer;
