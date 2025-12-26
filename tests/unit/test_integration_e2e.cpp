@@ -70,9 +70,8 @@ TEST(integration_e2e_fit_forecast_simulate) {
         REQUIRE(forecast_result.value().variance_forecasts[i] > 0.0);
     }
 
-    // Step 4: Simulate with steps=10, paths=3, fixed seed
+    // Step 4: Simulate with steps=10, fixed seed
     const int sim_steps = 10;
-    const int sim_paths = 3;
     const unsigned int sim_seed = 42;
 
     // Extract fitted parameters for simulation
