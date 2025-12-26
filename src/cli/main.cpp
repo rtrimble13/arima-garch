@@ -494,9 +494,9 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
             fmt::print("  P-value: {:.4f}\n", diagnostics.adf->p_value);
             fmt::print("  Lags: {}\n", diagnostics.adf->lags);
             fmt::print("  Critical values:\n");
-            fmt::print("    1%%:  {:.4f}\n", diagnostics.adf->critical_value_1pct);
-            fmt::print("    5%%:  {:.4f}\n", diagnostics.adf->critical_value_5pct);
-            fmt::print("    10%%: {:.4f}\n\n", diagnostics.adf->critical_value_10pct);
+            fmt::print("    1%:  {:.4f}\n", diagnostics.adf->critical_value_1pct);
+            fmt::print("    5%:  {:.4f}\n", diagnostics.adf->critical_value_5pct);
+            fmt::print("    10%: {:.4f}\n\n", diagnostics.adf->critical_value_10pct);
         }
 
         // Save diagnostics to JSON file if requested
