@@ -46,11 +46,35 @@ The build produces the following targets:
   - `example_model_selector` - Demonstrates automatic model selection with BIC/AIC/AICc/CV
   - `example_basic` - Basic usage example
   - Additional examples in `examples/` directory
+- Benchmark programs:
+  - `bench_likelihood` - Benchmarks likelihood computation performance
+  - `bench_optimizer` - Benchmarks optimizer performance
 
 To run a specific example:
 ```bash
 ./build/examples/example_simulation
 ```
+
+### Running Benchmarks
+
+To track performance and detect regressions:
+
+```bash
+# Run likelihood computation benchmark
+./build/benchmarks/bench_likelihood
+
+# Run optimizer benchmark
+./build/benchmarks/bench_optimizer
+```
+
+The benchmarks measure:
+- **Likelihood computation**: Throughput (observations/second) on mid-size data (5000 observations)
+- **Optimizer performance**: Average optimization time and convergence rate on standard fitting tasks (1000 observations)
+
+Benchmarks are useful for:
+- Tracking performance over time
+- Detecting performance regressions
+- Comparing different model specifications
 
 ## Usage
 
