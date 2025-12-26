@@ -101,8 +101,9 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         // Compute information criteria
         std::size_t k = spec.totalParamCount();
         std::size_t n = data.size();
-        summary.aic = selection::computeAIC(opt_result.objective_value, k);
-        summary.bic = selection::computeBIC(opt_result.objective_value, k, n);
+        double log_lik = -opt_result.objective_value;  // Convert NLL to log-likelihood
+        summary.aic = selection::computeAIC(log_lik, k);
+        summary.bic = selection::computeBIC(log_lik, k, n);
 
         // Step 9: Compute diagnostics if requested
         if (compute_diagnostics) {
@@ -129,7 +130,7 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
 expected<SelectionResult, EngineError>
 Engine::auto_select(const std::vector<double>& data,
                     const std::vector<models::ArimaGarchSpec>& candidates,
-                    selection::SelectionCriterion criterion) {
+                    selection::SelectionCriterion criterion, bool build_ranking) {
     // Validate input
     if (data.size() < 10) {
         return unexpected<EngineError>({"Insufficient data: need at least 10 observations, got " +
@@ -143,7 +144,8 @@ Engine::auto_select(const std::vector<double>& data,
     try {
         // Step 1: Run model selection
         selection::ModelSelector selector(criterion);
-        auto selection_result = selector.select(data.data(), data.size(), candidates, false);
+        auto selection_result =
+            selector.select(data.data(), data.size(), candidates, false, build_ranking);
 
         if (!selection_result) {
             return unexpected<EngineError>(
@@ -158,10 +160,13 @@ Engine::auto_select(const std::vector<double>& data,
                 {"Failed to fit selected model: " + fit_result.error().message});
         }
 
-        // Step 3: Create SelectionResult
-        return SelectionResult(selection_result->best_spec, fit_result.value().model,
+        // Step 3: Create SelectionResult and transfer ranking
+        SelectionResult result(selection_result->best_spec, fit_result.value().model,
                                fit_result.value().summary, selection_result->candidates_evaluated,
                                selection_result->candidates_failed);
+        result.ranking = std::move(selection_result->ranking);
+
+        return result;
 
     } catch (const std::exception& e) {
         return unexpected<EngineError>({"Auto-selection failed: " + std::string(e.what())});

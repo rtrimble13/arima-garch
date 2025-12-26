@@ -128,7 +128,8 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
 
 // Select subcommand handler
 int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int maxGarchP,
-                 int maxGarchQ, const std::string& criterion, const std::string& outputFile) {
+                 int maxGarchQ, const std::string& criterion, const std::string& outputFile,
+                 int topK) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
         auto data = loadData(dataFile);
@@ -153,7 +154,8 @@ int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int 
         }
 
         Engine engine;
-        auto select_result = engine.auto_select(data, candidates, crit);
+        bool build_ranking = (topK > 0);
+        auto select_result = engine.auto_select(data, candidates, crit, build_ranking);
 
         if (!select_result) {
             fmt::print("Error: {}\n", select_result.error().message);
@@ -170,6 +172,25 @@ int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int 
         fmt::print("Candidates failed: {}\n", result.candidates_failed);
         fmt::print("AIC: {:.4f}\n", result.summary.aic);
         fmt::print("BIC: {:.4f}\n", result.summary.bic);
+
+        // Print ranking table if requested
+        if (topK > 0 && !result.ranking.empty()) {
+            fmt::print("\n=== Model Ranking (Top {}) ===\n",
+                       std::min(topK, static_cast<int>(result.ranking.size())));
+            fmt::print("{:<6} {:<20} {:<12} {:<12}\n", "Rank", "Model", criterion, "Converged");
+            fmt::print("{:-<52}\n", "");
+
+            int rank = 1;
+            int display_count = std::min(topK, static_cast<int>(result.ranking.size()));
+            for (int i = 0; i < display_count; ++i) {
+                const auto& entry = result.ranking[i];
+                std::string model_str = fmt::format("ARIMA({},{},{})-GARCH({},{})", entry.p,
+                                                    entry.d, entry.q, entry.garch_p, entry.garch_q);
+                fmt::print("{:<6} {:<20} {:<12.4f} {:<12}\n", rank++, model_str, entry.score,
+                           entry.converged ? "Yes" : "No");
+            }
+            fmt::print("\n");
+        }
 
         // Save model to file
         if (!outputFile.empty()) {
@@ -525,6 +546,7 @@ int main(int argc, char* argv[]) {
     int select_max_garch_q = 1;
     std::string select_criterion = "BIC";
     std::string select_output_file;
+    int select_top_k = 0;
 
     select
         ->add_option("-d,--data,-i,--input", select_data_file,
@@ -538,11 +560,13 @@ int main(int argc, char* argv[]) {
     select->add_option("-c,--criterion", select_criterion,
                        "Selection criterion: BIC, AIC, AICc, or CV (default: BIC)");
     select->add_option("-o,--output,--out", select_output_file, "Output model file (JSON format)");
+    select->add_option("--top-k", select_top_k,
+                       "Display top K models in ranking table (default: 0, disabled)");
 
     select->callback([&]() {
         return handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
                             select_max_garch_p, select_max_garch_q, select_criterion,
-                            select_output_file);
+                            select_output_file, select_top_k);
     });
 
     // Forecast subcommand

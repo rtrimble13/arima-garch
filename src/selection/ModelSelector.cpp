@@ -7,6 +7,7 @@
 #include "ag/selection/CrossValidation.hpp"
 #include "ag/selection/InformationCriteria.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -18,7 +19,7 @@ ModelSelector::ModelSelector(SelectionCriterion criterion) : criterion_(criterio
 std::optional<SelectionResult>
 ModelSelector::select(const double* data, std::size_t n_obs,
                       const std::vector<ag::models::ArimaGarchSpec>& candidates,
-                      bool compute_diagnostics) {
+                      bool compute_diagnostics, bool build_ranking) {
     // Validate inputs
     if (data == nullptr) {
         throw std::invalid_argument("ModelSelector::select: data cannot be nullptr");
@@ -34,6 +35,9 @@ ModelSelector::select(const double* data, std::size_t n_obs,
     std::optional<SelectionResult> best_result;
     double best_score = std::numeric_limits<double>::infinity();
 
+    // Track all successful fits for ranking
+    std::vector<CandidateRanking> all_rankings;
+
     std::size_t evaluated = 0;
     std::size_t failed = 0;
 
@@ -48,6 +52,11 @@ ModelSelector::select(const double* data, std::size_t n_obs,
             // Successful fit
             evaluated++;
             double score = score_opt.value();
+
+            // Add to ranking if requested
+            if (build_ranking) {
+                all_rankings.emplace_back(candidate, score, fit_summary.converged);
+            }
 
             // Check if this is the best model so far
             if (score < best_score) {
@@ -67,6 +76,15 @@ ModelSelector::select(const double* data, std::size_t n_obs,
     if (best_result.has_value()) {
         best_result->candidates_evaluated = evaluated;
         best_result->candidates_failed = failed;
+
+        // Sort and store ranking if requested
+        if (build_ranking) {
+            std::sort(all_rankings.begin(), all_rankings.end(),
+                      [](const CandidateRanking& a, const CandidateRanking& b) {
+                          return a.score < b.score;
+                      });
+            best_result->ranking = std::move(all_rankings);
+        }
 
         // Compute diagnostics for best model if requested
         if (compute_diagnostics && best_result->best_fit_summary.has_value()) {
