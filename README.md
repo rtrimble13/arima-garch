@@ -71,8 +71,11 @@ Run the CLI tool:
 # Forecast future values
 ./build/src/ag forecast --model model.json --horizon 10 --out forecasts.csv
 
-# Simulate synthetic data
+# Simulate synthetic data with default parameters
 ./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --out simulated.csv
+
+# Simulate multiple paths from a fitted model
+./build/src/ag simulate --model model.json --paths 10 --length 1000 --seed 42 --out sim_returns.csv --stats
 
 # Run diagnostics on a fitted model
 ./build/src/ag diagnostics --model model.json --data examples/returns.csv --out diagnostics.json

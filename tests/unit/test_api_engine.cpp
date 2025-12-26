@@ -5,6 +5,7 @@
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 
@@ -289,6 +290,88 @@ TEST(engine_fit_forecast_serialize) {
                        forecast_result2.value().mean_forecasts[i], 1e-6);
         REQUIRE_APPROX(forecast_result1.value().variance_forecasts[i],
                        forecast_result2.value().variance_forecasts[i], 1e-6);
+    }
+}
+
+// ============================================================================
+// Engine simulate from loaded model Tests
+// ============================================================================
+
+TEST(engine_simulate_from_loaded_model) {
+    // Step 1: Create and save a model
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+
+    auto model = std::make_shared<ag::models::composite::ArimaGarchModel>(spec, params);
+
+    // Save model to temporary location
+    auto temp_file = std::filesystem::temp_directory_path() / "test_simulate_model.json";
+    auto save_result = ag::io::JsonWriter::saveModel(temp_file.string(), *model);
+    REQUIRE(save_result.has_value());
+
+    // Step 2: Load the model
+    auto load_result = ag::io::JsonReader::loadModel(temp_file.string());
+    REQUIRE(load_result.has_value());
+
+    // Step 3: Extract parameters and simulate
+    auto& loaded_model = *load_result;
+    ArimaGarchParameters loaded_params(loaded_model.getSpec());
+    loaded_params.arima_params = loaded_model.getArimaParams();
+    loaded_params.garch_params = loaded_model.getGarchParams();
+
+    Engine engine;
+    auto sim_result = engine.simulate(loaded_model.getSpec(), loaded_params, 100, 42);
+    REQUIRE(sim_result.has_value());
+    REQUIRE(sim_result.value().returns.size() == 100);
+    REQUIRE(sim_result.value().volatilities.size() == 100);
+}
+
+TEST(engine_simulate_from_loaded_model_reproducibility) {
+    // Create and save a model
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+
+    auto model = std::make_shared<ag::models::composite::ArimaGarchModel>(spec, params);
+
+    auto temp_file = std::filesystem::temp_directory_path() / "test_simulate_repro.json";
+    auto save_result = ag::io::JsonWriter::saveModel(temp_file.string(), *model);
+    REQUIRE(save_result.has_value());
+
+    // Load model
+    auto load_result = ag::io::JsonReader::loadModel(temp_file.string());
+    REQUIRE(load_result.has_value());
+
+    auto& loaded_model = *load_result;
+    ArimaGarchParameters loaded_params(loaded_model.getSpec());
+    loaded_params.arima_params = loaded_model.getArimaParams();
+    loaded_params.garch_params = loaded_model.getGarchParams();
+
+    // Simulate twice with same seed
+    Engine engine;
+    auto sim1 = engine.simulate(loaded_model.getSpec(), loaded_params, 50, 12345);
+    auto sim2 = engine.simulate(loaded_model.getSpec(), loaded_params, 50, 12345);
+
+    REQUIRE(sim1.has_value());
+    REQUIRE(sim2.has_value());
+
+    // Verify reproducibility
+    for (size_t i = 0; i < 50; ++i) {
+        REQUIRE_APPROX(sim1.value().returns[i], sim2.value().returns[i], 1e-15);
+        REQUIRE_APPROX(sim1.value().volatilities[i], sim2.value().volatilities[i], 1e-15);
     }
 }
 

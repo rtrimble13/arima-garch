@@ -16,8 +16,12 @@
 #include "ag/models/ArimaGarchSpec.hpp"
 #include "ag/report/FitSummary.hpp"
 #include "ag/selection/CandidateGrid.hpp"
+#include "ag/simulation/ArimaGarchSimulator.hpp"
+#include "ag/stats/Descriptive.hpp"
 
+#include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -297,6 +301,114 @@ int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder,
     }
 }
 
+// Simulate from saved model subcommand handler
+int handleSimulateFromModel(const std::string& modelFile, int numPaths, int length,
+                            unsigned int seed, const std::string& outputFile, bool computeStats) {
+    try {
+        fmt::print("Loading model from {}...\n", modelFile);
+        auto model_result = ag::io::JsonReader::loadModel(modelFile);
+        if (!model_result) {
+            fmt::print("Error: Failed to load model from {}\n", modelFile);
+            return 1;
+        }
+
+        auto& model = *model_result;
+        const auto& spec = model.getSpec();
+
+        fmt::print("Model: ARIMA({},{},{})-GARCH({},{})\n", spec.arimaSpec.p, spec.arimaSpec.d,
+                   spec.arimaSpec.q, spec.garchSpec.p, spec.garchSpec.q);
+
+        // Get parameters from the loaded model
+        ag::models::composite::ArimaGarchParameters params(spec);
+        params.arima_params = model.getArimaParams();
+        params.garch_params = model.getGarchParams();
+
+        fmt::print("Simulating {} paths of {} observations each (seed={})...\n", numPaths, length,
+                   seed);
+
+        // Create simulator with loaded parameters
+        ag::simulation::ArimaGarchSimulator simulator(spec, params);
+
+        // Generate all paths
+        std::vector<ag::simulation::SimulationResult> all_paths;
+        all_paths.reserve(numPaths);
+
+        for (int path = 0; path < numPaths; ++path) {
+            // Use hash-based seeding to avoid overflow and ensure good distribution
+            // Each path gets a unique but reproducible seed based on the base seed
+            unsigned int path_seed = seed ^ (std::hash<int>{}(path) + 0x9e3779b9);
+            auto result = simulator.simulate(length, path_seed);
+            all_paths.push_back(std::move(result));
+        }
+
+        fmt::print("✅ Simulation completed\n");
+
+        // Save results to CSV
+        if (!outputFile.empty()) {
+            std::ofstream file(outputFile);
+            if (!file) {
+                fmt::print("Error: Failed to open output file {}\n", outputFile);
+                return 1;
+            }
+
+            // Write header
+            file << "path,observation,return,volatility\n";
+
+            // Write all paths
+            for (int path = 0; path < numPaths; ++path) {
+                const auto& result = all_paths[path];
+                for (size_t i = 0; i < result.returns.size(); ++i) {
+                    file << (path + 1) << "," << (i + 1) << "," << result.returns[i] << ","
+                         << result.volatilities[i] << "\n";
+                }
+            }
+
+            fmt::print("Simulation results saved to {}\n", outputFile);
+        }
+
+        // Compute and display summary statistics if requested
+        if (computeStats) {
+            fmt::print("\n=== Summary Statistics Across All Paths ===\n");
+
+            // Aggregate all returns
+            std::vector<double> all_returns;
+            all_returns.reserve(numPaths * length);
+            for (const auto& result : all_paths) {
+                all_returns.insert(all_returns.end(), result.returns.begin(), result.returns.end());
+            }
+
+            double mean_ret = ag::stats::mean(all_returns);
+            double std_ret = std::sqrt(ag::stats::variance(all_returns));
+            double min_ret = *std::min_element(all_returns.begin(), all_returns.end());
+            double max_ret = *std::max_element(all_returns.begin(), all_returns.end());
+            double skew_ret = ag::stats::skewness(all_returns);
+            double kurt_ret = ag::stats::kurtosis(all_returns);
+
+            fmt::print("Returns (aggregated over {} paths):\n", numPaths);
+            fmt::print("  Mean:     {:.6f}\n", mean_ret);
+            fmt::print("  Std Dev:  {:.6f}\n", std_ret);
+            fmt::print("  Min:      {:.6f}\n", min_ret);
+            fmt::print("  Max:      {:.6f}\n", max_ret);
+            fmt::print("  Skewness: {:.6f}\n", skew_ret);
+            fmt::print("  Kurtosis: {:.6f}\n", kurt_ret);
+
+            // First path statistics
+            fmt::print("\nFirst path statistics (for reproducibility check):\n");
+            const auto& first_path = all_paths[0];
+            fmt::print("  First 5 returns: ");
+            for (int i = 0; i < std::min(5, static_cast<int>(first_path.returns.size())); ++i) {
+                fmt::print("{:.6f} ", first_path.returns[i]);
+            }
+            fmt::print("\n");
+        }
+
+        return 0;
+    } catch (const std::exception& e) {
+        fmt::print("Error: {}\n", e.what());
+        return 1;
+    }
+}
+
 // Diagnostics subcommand handler
 int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
                       const std::string& outputFile) {
@@ -471,6 +583,35 @@ int main(int argc, char* argv[]) {
     simulate->callback([&]() {
         return handleSimulate(sim_arima_order, sim_garch_order, sim_length, sim_seed,
                               sim_output_file);
+    });
+
+    // Simulate from saved model subcommand
+    auto* simulate_model =
+        app.add_subcommand("simulate", "Simulate multiple paths from a saved model");
+    std::string simmodel_model_file;
+    int simmodel_num_paths = 1;
+    int simmodel_length = 1000;
+    unsigned int simmodel_seed = 42;
+    std::string simmodel_output_file;
+    bool simmodel_compute_stats = false;
+
+    simulate_model->add_option("-m,--model", simmodel_model_file, "Input model file (JSON format)")
+        ->required();
+    simulate_model->add_option("-p,--paths", simmodel_num_paths,
+                               "Number of simulation paths (default: 1)");
+    simulate_model->add_option("-n,--length", simmodel_length,
+                               "Number of observations per path (default: 1000)");
+    simulate_model->add_option("-s,--seed", simmodel_seed, "Random seed (default: 42)");
+    simulate_model
+        ->add_option("-o,--output,--out", simmodel_output_file,
+                     "Output CSV file (e.g., sim_returns.csv)")
+        ->required();
+    simulate_model->add_flag("--stats", simmodel_compute_stats,
+                             "Compute and display summary statistics");
+
+    simulate_model->callback([&]() {
+        return handleSimulateFromModel(simmodel_model_file, simmodel_num_paths, simmodel_length,
+                                       simmodel_seed, simmodel_output_file, simmodel_compute_stats);
     });
 
     // Diagnostics subcommand

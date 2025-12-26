@@ -159,7 +159,47 @@ ag sim -a 2,0,1 -g 1,1 -n 5000 -s 12345 -o large_sample.csv
 
 **Note:** The simulation uses default parameter values. For custom parameters, use the library API directly or modify and re-save a model JSON file.
 
-### 5. `diagnostics` - Run Diagnostic Tests
+### 5. `simulate` - Simulate from Saved Model
+
+Generate multiple simulation paths from a saved model file.
+
+**Usage:**
+```bash
+ag simulate -m <model_file> [-p <num_paths>] [-n <length>] [-s <seed>] -o <output_file> [--stats]
+```
+
+**Options:**
+- `-m, --model` (required): Input model file in JSON format
+- `-p, --paths` (default: 1): Number of simulation paths to generate
+- `-n, --length` (default: 1000): Number of observations per path
+- `-s, --seed` (default: 42): Random seed for reproducibility
+- `-o, --output` (required): Output CSV file (e.g., `sim_returns.csv`)
+- `--stats`: Compute and display summary statistics
+
+**Example:**
+```bash
+# Simulate 3 paths of 1000 observations each from a fitted model
+ag simulate -m fitted_model.json -p 3 -n 1000 -s 42 -o sim_returns.csv
+
+# Simulate single path with statistics
+ag simulate -m best_model.json -p 1 -n 500 -s 123 -o sim_path.csv --stats
+
+# Generate many paths for Monte Carlo analysis
+ag simulate -m model.json -p 100 -n 252 -s 42 -o monte_carlo.csv
+```
+
+**Output:**
+- CSV file with columns: `path`, `observation`, `return`, `volatility`
+- Optional summary statistics (mean, std dev, min, max, skewness, kurtosis)
+- First path values displayed for reproducibility verification
+
+**Key Features:**
+- **Reproducibility**: Same seed produces identical first path values
+- **Multiple paths**: Generate N independent simulation paths with different realizations
+- **Loaded parameters**: Uses the exact parameters from your fitted model
+- **Statistical summary**: Optional aggregate statistics across all paths
+
+### 6. `diagnostics` - Run Diagnostic Tests
 
 Run diagnostic tests on a fitted model with the original data.
 
@@ -274,7 +314,7 @@ ag diagnostics -m best_model.json -d my_returns.csv -o diag_results.json
 ### Example 3: Simulation Study
 
 ```bash
-# 1. Simulate synthetic data
+# 1. Simulate synthetic data with default parameters
 ag sim -a 1,1,1 -g 1,1 -n 1000 -s 42 -o synthetic.csv
 
 # 2. Fit a model to the synthetic data
@@ -282,6 +322,34 @@ ag fit -d synthetic.csv -a 1,1,1 -g 1,1 -o recovered_model.json
 
 # 3. Compare recovered parameters with true parameters
 # (inspect recovered_model.json to verify parameter recovery)
+```
+
+### Example 4: Monte Carlo Simulation from Fitted Model
+
+```bash
+# 1. Fit a model to real data
+ag fit -d market_returns.csv -a 1,0,1 -g 1,1 -o market_model.json
+
+# 2. Generate multiple simulation paths for risk analysis
+ag simulate -m market_model.json -p 1000 -n 252 -s 42 -o mc_simulations.csv --stats
+
+# 3. Analyze the distribution of simulated paths
+# (use external tools or Python/R to analyze mc_simulations.csv)
+```
+
+### Example 5: Reproducibility Check
+
+```bash
+# 1. Fit and save a model
+ag fit -d data.csv -a 1,1,1 -g 1,1 -o model.json
+
+# 2. Generate simulation with specific seed
+ag simulate -m model.json -p 1 -n 100 -s 12345 -o sim1.csv --stats
+
+# 3. Verify reproducibility - should produce identical first path
+ag simulate -m model.json -p 1 -n 100 -s 12345 -o sim2.csv --stats
+
+# 4. Compare the first path values (should be identical)
 ```
 
 ## Tips and Best Practices
