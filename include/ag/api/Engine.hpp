@@ -46,6 +46,7 @@ struct SelectionResult {
     report::FitSummary summary;
     std::size_t candidates_evaluated;
     std::size_t candidates_failed;
+    std::vector<selection::CandidateRanking> ranking;
 
     SelectionResult(const models::ArimaGarchSpec& spec,
                     std::shared_ptr<models::composite::ArimaGarchModel> m,
@@ -131,13 +132,15 @@ public:
      * @param data Time series data (must have at least 10 observations)
      * @param candidates Vector of candidate ARIMA-GARCH specifications
      * @param criterion Selection criterion (default: BIC)
+     * @param build_ranking If true, include ranking of all models in result
      * @return SelectionResult on success, EngineError if all candidates fail
      * @throws None - all errors returned via expected
      */
     [[nodiscard]] expected<SelectionResult, EngineError>
     auto_select(const std::vector<double>& data,
                 const std::vector<models::ArimaGarchSpec>& candidates,
-                selection::SelectionCriterion criterion = selection::SelectionCriterion::BIC);
+                selection::SelectionCriterion criterion = selection::SelectionCriterion::BIC,
+                bool build_ranking = false);
 
     /**
      * @brief Generate forecasts from a fitted model.

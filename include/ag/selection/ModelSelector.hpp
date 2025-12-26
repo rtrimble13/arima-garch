@@ -32,6 +32,23 @@ enum class SelectionCriterion {
 };
 
 /**
+ * @brief Information about a single evaluated candidate model.
+ *
+ * Contains the specification and selection score for a candidate that was
+ * successfully fitted during the selection process.
+ */
+struct CandidateRanking {
+    int p, d, q;           // ARIMA orders
+    int garch_p, garch_q;  // GARCH orders
+    double score;          // IC or CV score (lower is better)
+    bool converged;
+
+    CandidateRanking(const ag::models::ArimaGarchSpec& s, double sc, bool conv)
+        : p(s.arimaSpec.p), d(s.arimaSpec.d), q(s.arimaSpec.q), garch_p(s.garchSpec.p),
+          garch_q(s.garchSpec.q), score(sc), converged(conv) {}
+};
+
+/**
  * @brief Result of model selection containing the best model and metadata.
  *
  * SelectionResult encapsulates the outcome of model selection, including:
@@ -40,6 +57,7 @@ enum class SelectionCriterion {
  * - The fitted parameters of the best model
  * - A full FitSummary with convergence info and diagnostics (optional)
  * - Statistics about the selection process
+ * - Ranking of all evaluated candidates (optional)
  */
 struct SelectionResult {
     /**
@@ -76,6 +94,13 @@ struct SelectionResult {
      * @brief Number of candidates that failed to fit.
      */
     std::size_t candidates_failed;
+
+    /**
+     * @brief Ranking of all successfully fitted candidates (sorted by score, best first).
+     *
+     * Empty if ranking was not requested during selection.
+     */
+    std::vector<CandidateRanking> ranking;
 
     /**
      * @brief Construct a SelectionResult with required fields.
@@ -160,6 +185,7 @@ public:
      * @param n_obs Number of observations in the data
      * @param candidates Vector of candidate specifications to evaluate
      * @param compute_diagnostics If true, compute diagnostic tests for best model (IC only)
+     * @param build_ranking If true, populate the ranking field with all fitted models
      * @return SelectionResult with best model, or empty if all candidates failed
      *
      * @throws std::invalid_argument if data is nullptr, n_obs is 0, or candidates is empty
@@ -171,7 +197,7 @@ public:
     [[nodiscard]] std::optional<SelectionResult>
     select(const double* data, std::size_t n_obs,
            const std::vector<ag::models::ArimaGarchSpec>& candidates,
-           bool compute_diagnostics = false);
+           bool compute_diagnostics = false, bool build_ranking = false);
 
     /**
      * @brief Get the selection criterion being used.
