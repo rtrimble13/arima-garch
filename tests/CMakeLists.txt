@@ -244,6 +244,14 @@ add_executable(test_api_engine
 target_link_libraries(test_api_engine PRIVATE arimagarch)
 add_test(NAME test_api_engine COMMAND test_api_engine)
 
+# Integration tests
+add_executable(test_integration_e2e
+    unit/test_integration_e2e.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_integration_e2e PRIVATE arimagarch)
+add_test(NAME test_integration_e2e COMMAND test_integration_e2e)
+
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder
     test_placeholder.cpp
