@@ -99,6 +99,8 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         summary.neg_log_likelihood = opt_result.objective_value;
 
         // Compute information criteria
+        // IMPORTANT: computeAIC/computeBIC expect log-likelihood (positive),
+        // but optimization returns negative log-likelihood (NLL), so we negate it
         std::size_t k = spec.totalParamCount();
         std::size_t n = data.size();
         double log_lik = -opt_result.objective_value;  // Convert NLL to log-likelihood

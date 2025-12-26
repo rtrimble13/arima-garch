@@ -177,8 +177,16 @@ int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int 
         if (topK > 0 && !result.ranking.empty()) {
             fmt::print("\n=== Model Ranking (Top {}) ===\n",
                        std::min(topK, static_cast<int>(result.ranking.size())));
+
+            // Calculate dynamic table width based on column widths
+            const int rank_width = 6;
+            const int model_width = 20;
+            const int score_width = 12;
+            const int converged_width = 12;
+            const int total_width = rank_width + model_width + score_width + converged_width;
+
             fmt::print("{:<6} {:<20} {:<12} {:<12}\n", "Rank", "Model", criterion, "Converged");
-            fmt::print("{:-<52}\n", "");
+            fmt::print("{:-<{}}\n", "", total_width);
 
             int rank = 1;
             int display_count = std::min(topK, static_cast<int>(result.ranking.size()));
