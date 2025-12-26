@@ -488,6 +488,17 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
         fmt::print("  Statistic: {:.4f}\n", diagnostics.jarque_bera.statistic);
         fmt::print("  P-value: {:.4f}\n\n", diagnostics.jarque_bera.p_value);
 
+        if (diagnostics.adf.has_value()) {
+            fmt::print("Augmented Dickey-Fuller Test:\n");
+            fmt::print("  Statistic: {:.4f}\n", diagnostics.adf->statistic);
+            fmt::print("  P-value: {:.4f}\n", diagnostics.adf->p_value);
+            fmt::print("  Lags: {}\n", diagnostics.adf->lags);
+            fmt::print("  Critical values:\n");
+            fmt::print("    1%%:  {:.4f}\n", diagnostics.adf->critical_value_1pct);
+            fmt::print("    5%%:  {:.4f}\n", diagnostics.adf->critical_value_5pct);
+            fmt::print("    10%%: {:.4f}\n\n", diagnostics.adf->critical_value_10pct);
+        }
+
         // Save diagnostics to JSON file if requested
         if (!outputFile.empty()) {
             nlohmann::json j;
@@ -503,6 +514,15 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
 
             j["jarque_bera"]["statistic"] = diagnostics.jarque_bera.statistic;
             j["jarque_bera"]["p_value"] = diagnostics.jarque_bera.p_value;
+
+            if (diagnostics.adf.has_value()) {
+                j["adf"]["statistic"] = diagnostics.adf->statistic;
+                j["adf"]["p_value"] = diagnostics.adf->p_value;
+                j["adf"]["lags"] = diagnostics.adf->lags;
+                j["adf"]["critical_value_1pct"] = diagnostics.adf->critical_value_1pct;
+                j["adf"]["critical_value_5pct"] = diagnostics.adf->critical_value_5pct;
+                j["adf"]["critical_value_10pct"] = diagnostics.adf->critical_value_10pct;
+            }
 
             std::ofstream file(outputFile);
             if (file) {
