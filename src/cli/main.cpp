@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -333,9 +334,10 @@ int handleSimulateFromModel(const std::string& modelFile, int numPaths, int leng
         all_paths.reserve(numPaths);
 
         for (int path = 0; path < numPaths; ++path) {
-            // Use seed + path for each simulation to get different paths
-            // but still reproducible with same base seed
-            auto result = simulator.simulate(length, seed + path);
+            // Use hash-based seeding to avoid overflow and ensure good distribution
+            // Each path gets a unique but reproducible seed based on the base seed
+            unsigned int path_seed = seed ^ (std::hash<int>{}(path) + 0x9e3779b9);
+            auto result = simulator.simulate(length, path_seed);
             all_paths.push_back(std::move(result));
         }
 

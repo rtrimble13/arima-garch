@@ -5,6 +5,7 @@
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 
@@ -311,12 +312,12 @@ TEST(engine_simulate_from_loaded_model) {
     auto model = std::make_shared<ag::models::composite::ArimaGarchModel>(spec, params);
 
     // Save model to temporary location
-    std::string temp_file = "/tmp/test_simulate_model.json";
-    auto save_result = ag::io::JsonWriter::saveModel(temp_file, *model);
+    auto temp_file = std::filesystem::temp_directory_path() / "test_simulate_model.json";
+    auto save_result = ag::io::JsonWriter::saveModel(temp_file.string(), *model);
     REQUIRE(save_result.has_value());
 
     // Step 2: Load the model
-    auto load_result = ag::io::JsonReader::loadModel(temp_file);
+    auto load_result = ag::io::JsonReader::loadModel(temp_file.string());
     REQUIRE(load_result.has_value());
 
     // Step 3: Extract parameters and simulate
@@ -346,12 +347,12 @@ TEST(engine_simulate_from_loaded_model_reproducibility) {
 
     auto model = std::make_shared<ag::models::composite::ArimaGarchModel>(spec, params);
 
-    std::string temp_file = "/tmp/test_simulate_repro.json";
-    auto save_result = ag::io::JsonWriter::saveModel(temp_file, *model);
+    auto temp_file = std::filesystem::temp_directory_path() / "test_simulate_repro.json";
+    auto save_result = ag::io::JsonWriter::saveModel(temp_file.string(), *model);
     REQUIRE(save_result.has_value());
 
     // Load model
-    auto load_result = ag::io::JsonReader::loadModel(temp_file);
+    auto load_result = ag::io::JsonReader::loadModel(temp_file.string());
     REQUIRE(load_result.has_value());
 
     auto& loaded_model = *load_result;
