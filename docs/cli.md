@@ -101,6 +101,8 @@ ag select -d data.csv -c CV -o cv_selected_model.json
 - Model fit statistics and diagnostics
 - Full fit summary report for the selected model
 
+**For detailed information about selection criteria, candidate generation, and best practices, see [Model Selection Documentation](model_selection.md).**
+
 ### 3. `forecast` - Generate Forecasts
 
 Generate h-step ahead forecasts from a fitted model.
@@ -251,6 +253,8 @@ date,returns,volume
 ...
 ```
 
+**For detailed CSV format specifications and requirements, see [File Formats Documentation](file_formats.md).**
+
 ### Model Files (JSON)
 
 Models are saved and loaded in JSON format containing:
@@ -282,6 +286,8 @@ Example model JSON structure:
   ...
 }
 ```
+
+**For complete model JSON schema and field descriptions, see [File Formats Documentation](file_formats.md#model-files-json).**
 
 ## Workflow Examples
 
@@ -401,6 +407,8 @@ ag diagnostics --help
 
 For library usage and advanced features, see:
 - [README.md](../README.md) - Library overview and examples
+- [File Formats](file_formats.md) - CSV and JSON format specifications
+- [Model Selection](model_selection.md) - Selection criteria and strategies
 - [examples/](../examples/) - Complete example programs
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Development guidelines
 
