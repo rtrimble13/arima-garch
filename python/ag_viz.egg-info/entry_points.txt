@@ -1,0 +1,2 @@
+[console_scripts]
+ag-viz = ag_viz.cli:cli
