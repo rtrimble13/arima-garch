@@ -27,6 +27,39 @@ from ag_viz.io import (
 from ag_viz.utils import format_model_spec
 
 
+def _compute_acf(series: np.ndarray, nlags: int = 20) -> np.ndarray:
+    """
+    Compute autocorrelation function.
+    
+    Parameters
+    ----------
+    series : np.ndarray
+        Time series data.
+    nlags : int, optional
+        Number of lags to compute (default: 20).
+    
+    Returns
+    -------
+    np.ndarray
+        Array of autocorrelation values.
+    """
+    mean = np.mean(series)
+    var = np.var(series)
+    
+    if var == 0:
+        return np.zeros(nlags + 1)
+    
+    normalized = series - mean
+    acf = np.zeros(nlags + 1)
+    acf[0] = 1.0
+    
+    for lag in range(1, nlags + 1):
+        if lag < len(series):
+            acf[lag] = np.sum(normalized[:-lag] * normalized[lag:]) / (len(series) * var)
+    
+    return acf
+
+
 # Set default style
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 8)
@@ -285,28 +318,34 @@ def plot_residual_diagnostics(
     
     # 4. ACF of residuals
     ax4 = fig.add_subplot(gs[2, 0])
-    from pandas.plotting import autocorrelation_plot
-    pd.Series(residuals).plot(kind='line', ax=ax4, use_index=False, legend=False)
-    ax4.set_ylim([-1, 1])
+    nlags = min(20, len(residuals) // 2)
+    acf_vals = _compute_acf(residuals, nlags=nlags)
+    lags = np.arange(len(acf_vals))
+    
+    ax4.bar(lags, acf_vals, width=0.3, color='steelblue', alpha=0.7)
     ax4.axhline(0, color='black', linewidth=0.8)
-    ax4.axhline(1.96/np.sqrt(len(residuals)), color='blue', linestyle='--', alpha=0.5)
-    ax4.axhline(-1.96/np.sqrt(len(residuals)), color='blue', linestyle='--', alpha=0.5)
+    confidence_interval = 1.96 / np.sqrt(len(residuals))
+    ax4.axhline(confidence_interval, color='blue', linestyle='--', alpha=0.5)
+    ax4.axhline(-confidence_interval, color='blue', linestyle='--', alpha=0.5)
     ax4.set_xlabel('Lag')
     ax4.set_ylabel('ACF')
     ax4.set_title('ACF of Residuals', fontweight='bold')
+    ax4.set_ylim([-1, 1])
     ax4.grid(True, alpha=0.3)
     
     # 5. ACF of squared residuals
     ax5 = fig.add_subplot(gs[2, 1])
     squared_residuals = residuals ** 2
-    pd.Series(squared_residuals).plot(kind='line', ax=ax5, use_index=False, legend=False)
-    ax5.set_ylim([-1, 1])
+    acf_vals_sq = _compute_acf(squared_residuals, nlags=nlags)
+    
+    ax5.bar(lags, acf_vals_sq, width=0.3, color='steelblue', alpha=0.7)
     ax5.axhline(0, color='black', linewidth=0.8)
-    ax5.axhline(1.96/np.sqrt(len(residuals)), color='blue', linestyle='--', alpha=0.5)
-    ax5.axhline(-1.96/np.sqrt(len(residuals)), color='blue', linestyle='--', alpha=0.5)
+    ax5.axhline(confidence_interval, color='blue', linestyle='--', alpha=0.5)
+    ax5.axhline(-confidence_interval, color='blue', linestyle='--', alpha=0.5)
     ax5.set_xlabel('Lag')
     ax5.set_ylabel('ACF')
     ax5.set_title('ACF of Squared Residuals', fontweight='bold')
+    ax5.set_ylim([-1, 1])
     ax5.grid(True, alpha=0.3)
     
     fig.suptitle(f'Residual Diagnostics - {format_model_spec(model)}',
