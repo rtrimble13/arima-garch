@@ -301,6 +301,240 @@ TEST(fit_summary_information_criteria) {
 }
 
 // ============================================================================
+// Distribution Comparison Tests
+// ============================================================================
+
+TEST(fit_summary_distribution_comparison_construction) {
+    using ag::report::DistributionComparison;
+
+    DistributionComparison dc;
+    dc.normal_log_likelihood = -500.0;
+    dc.student_t_log_likelihood = -480.0;
+    dc.student_t_df = 5.0;
+    dc.lr_statistic = 40.0;
+    dc.lr_p_value = 0.001;
+    dc.prefer_student_t = true;
+    dc.normal_aic = 1012.0;
+    dc.student_t_aic = 974.0;
+    dc.normal_bic = 1041.45;
+    dc.student_t_bic = 1007.0;
+
+    // Verify values are set correctly
+    REQUIRE(dc.normal_log_likelihood == -500.0);
+    REQUIRE(dc.student_t_log_likelihood == -480.0);
+    REQUIRE(dc.student_t_df == 5.0);
+    REQUIRE(dc.lr_statistic == 40.0);
+    REQUIRE(dc.lr_p_value == 0.001);
+    REQUIRE(dc.prefer_student_t == true);
+}
+
+TEST(fit_summary_with_distribution_comparison) {
+    using ag::report::DistributionComparison;
+
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    // Populate basic summary fields
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    // Create and add distribution comparison
+    DistributionComparison dc;
+    dc.normal_log_likelihood = -500.0;
+    dc.student_t_log_likelihood = -480.0;
+    dc.student_t_df = 5.0;
+    dc.lr_statistic = 40.0;
+    dc.lr_p_value = 0.001;
+    dc.prefer_student_t = true;
+    dc.normal_aic = 1012.0;
+    dc.student_t_aic = 974.0;
+    dc.normal_bic = 1048.0;
+    dc.student_t_bic = 1011.0;
+
+    summary.distribution_comparison = dc;
+
+    // Verify distribution comparison is set
+    REQUIRE(summary.distribution_comparison.has_value());
+    REQUIRE(summary.distribution_comparison->prefer_student_t == true);
+    REQUIRE(summary.distribution_comparison->student_t_df == 5.0);
+}
+
+TEST(generate_text_report_with_distribution_comparison) {
+    using ag::report::DistributionComparison;
+
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    // Add distribution comparison
+    DistributionComparison dc;
+    dc.normal_log_likelihood = -500.0;
+    dc.student_t_log_likelihood = -480.0;
+    dc.student_t_df = 5.5;
+    dc.lr_statistic = 40.0;
+    dc.lr_p_value = 0.001;
+    dc.prefer_student_t = true;
+    dc.normal_aic = 1012.0;
+    dc.student_t_aic = 974.0;
+    dc.normal_bic = 1048.0;
+    dc.student_t_bic = 1011.0;
+
+    summary.distribution_comparison = dc;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify distribution comparison section appears
+    REQUIRE(report.find("Distribution Comparison") != std::string::npos);
+    REQUIRE(report.find("Normal Distribution:") != std::string::npos);
+    REQUIRE(report.find("Student-T Distribution:") != std::string::npos);
+    REQUIRE(report.find("Likelihood Ratio Test:") != std::string::npos);
+
+    // Verify specific values appear
+    REQUIRE(report.find("-500.000000") != std::string::npos);  // Normal LL
+    REQUIRE(report.find("-480.000000") != std::string::npos);  // Student-T LL
+    REQUIRE(report.find("5.50") != std::string::npos);         // df
+    REQUIRE(report.find("40.0000") != std::string::npos);      // LR statistic
+    REQUIRE(report.find("0.0010") != std::string::npos);       // p-value
+
+    // Verify recommendation appears
+    REQUIRE(report.find("Recommendation:") != std::string::npos);
+    REQUIRE(report.find("Use Student-T distribution") != std::string::npos);
+}
+
+TEST(generate_text_report_distribution_comparison_prefer_normal) {
+    using ag::report::DistributionComparison;
+
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    // Add distribution comparison where Normal is adequate
+    DistributionComparison dc;
+    dc.normal_log_likelihood = -500.0;
+    dc.student_t_log_likelihood = -498.0;
+    dc.student_t_df = 30.0;  // High df, close to Normal
+    dc.lr_statistic = 4.0;
+    dc.lr_p_value = 0.15;  // Not significant
+    dc.prefer_student_t = false;
+    dc.normal_aic = 1012.0;
+    dc.student_t_aic = 1010.0;
+    dc.normal_bic = 1048.0;
+    dc.student_t_bic = 1050.0;  // BIC prefers simpler model
+
+    summary.distribution_comparison = dc;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify correct recommendation
+    REQUIRE(report.find("Normal distribution adequate") != std::string::npos);
+    REQUIRE(report.find("Normal distribution is adequate") != std::string::npos);
+}
+
+TEST(generate_text_report_with_both_distribution_and_diagnostics) {
+    using ag::report::DistributionComparison;
+
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    // Add distribution comparison
+    DistributionComparison dc;
+    dc.normal_log_likelihood = -500.0;
+    dc.student_t_log_likelihood = -480.0;
+    dc.student_t_df = 5.0;
+    dc.lr_statistic = 40.0;
+    dc.lr_p_value = 0.001;
+    dc.prefer_student_t = true;
+    dc.normal_aic = 1012.0;
+    dc.student_t_aic = 974.0;
+    dc.normal_bic = 1048.0;
+    dc.student_t_bic = 1011.0;
+    summary.distribution_comparison = dc;
+
+    // Add diagnostics
+    ag::diagnostics::DiagnosticReport diag;
+    diag.ljung_box_residuals.lags = 10;
+    diag.ljung_box_residuals.dof = 4;
+    diag.ljung_box_residuals.statistic = 8.5;
+    diag.ljung_box_residuals.p_value = 0.15;
+
+    diag.ljung_box_squared.lags = 10;
+    diag.ljung_box_squared.dof = 7;
+    diag.ljung_box_squared.statistic = 5.2;
+    diag.ljung_box_squared.p_value = 0.25;
+
+    diag.jarque_bera.statistic = 2.5;
+    diag.jarque_bera.p_value = 0.30;
+
+    summary.diagnostics = diag;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify both sections appear
+    REQUIRE(report.find("5. Distribution Comparison") != std::string::npos);
+    REQUIRE(report.find("6. Diagnostic Tests") != std::string::npos);
+
+    // Verify diagnostic subsection numbering is correct
+    REQUIRE(report.find("6.1 Ljung-Box Test on Residuals") != std::string::npos);
+    REQUIRE(report.find("6.2 Ljung-Box Test on Squared Residuals") != std::string::npos);
+    REQUIRE(report.find("6.3 Jarque-Bera Test for Normality") != std::string::npos);
+}
+
+// ============================================================================
 // Main test runner
 // ============================================================================
 
