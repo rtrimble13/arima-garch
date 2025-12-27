@@ -98,10 +98,9 @@ jobs:
         
         # Copy examples
         mkdir -p "${ARTIFACT_NAME}/examples"
-        cp examples/*.cpp examples/CMakeLists.txt "${ARTIFACT_NAME}/examples/" 2>/dev/null || true
-        if [ -f examples/returns.csv ]; then
-          cp examples/returns.csv "${ARTIFACT_NAME}/examples/"
-        fi
+        cp examples/*.cpp "${ARTIFACT_NAME}/examples/" 2>/dev/null || true
+        cp examples/CMakeLists.txt "${ARTIFACT_NAME}/examples/" 2>/dev/null || true
+        cp examples/returns.csv "${ARTIFACT_NAME}/examples/" 2>/dev/null || true
         
         # Create archive
         tar -czf "${ARTIFACT_NAME}.tar.gz" "${ARTIFACT_NAME}"
@@ -134,7 +133,7 @@ jobs:
         
         # Copy examples
         New-Item -ItemType Directory -Force -Path "$ARTIFACT_NAME/examples"
-        Get-ChildItem "examples/*.cpp" | Copy-Item -Destination "$ARTIFACT_NAME/examples/"
+        Get-ChildItem "examples/*.cpp" -ErrorAction SilentlyContinue | Copy-Item -Destination "$ARTIFACT_NAME/examples/"
         Copy-Item "examples/CMakeLists.txt" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
         Copy-Item "examples/returns.csv" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
         
