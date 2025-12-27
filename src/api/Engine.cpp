@@ -127,8 +127,8 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
                 auto dist_comparison =
                     selection::compareDistributions(spec, model_params, data.data(), data.size());
 
-                // Compute AIC and BIC for both distributions
-                // Note: compareDistributions uses log-likelihood of residuals, not full model LL
+                // Compute AIC and BIC for both Normal and Student-t innovation distributions
+                // Note: These are based on standardized residual log-likelihoods
                 summary.distribution_comparison = report::DistributionComparison{
                     .normal_log_likelihood = dist_comparison.normal_ll,
                     .student_t_log_likelihood = dist_comparison.student_t_ll,
