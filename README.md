@@ -228,6 +228,46 @@ if (result_bic.has_value()) {
 
 See `examples/example_model_selector.cpp` for a complete demonstration.
 
+## Visualization
+
+The `ag-viz` Python package provides publication-quality visualization tools for ARIMA-GARCH model outputs. It wraps the C++ CLI and generates professional plots for diagnostics, forecasts, residuals, and simulations.
+
+### Installation
+
+```bash
+# Install the C++ CLI first
+cmake -S . -B build
+cmake --build build
+
+# Install the Python visualization package
+pip install -e python/
+```
+
+### Quick Start
+
+```bash
+# Fit model and generate diagnostic plots
+ag-viz fit -d examples/returns.csv -a 1,0,1 -g 1,1 -o model.json
+
+# Generate forecast with confidence intervals
+ag-viz forecast -m model.json -n 30 -o forecast.csv
+
+# Run comprehensive diagnostics with plots
+ag-viz diagnostics -m model.json -d examples/returns.csv -o ./diagnostics/
+
+# Simulate and visualize paths
+ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv
+```
+
+### Features
+
+- **Fit Diagnostics**: Time series plots with model specifications and summary statistics
+- **Forecast Plots**: Mean forecasts with 68% and 95% confidence interval bands
+- **Residual Diagnostics**: Multi-panel plots including standardized residuals, histograms, QQ-plots, and ACF plots
+- **Simulation Paths**: Visualize multiple paths with percentile bands and terminal value distributions
+
+For detailed documentation, see [python/README.md](python/README.md).
+
 ## Project Structure
 
 ```
@@ -236,6 +276,10 @@ arima-garch/
 ├── src/              # Library and CLI implementation
 ├── tests/            # Unit tests
 ├── examples/         # Example programs
+├── python/           # Python visualization package (ag-viz)
+│   ├── ag_viz/       # Package source code
+│   ├── tests/        # Python tests
+│   └── examples/     # Jupyter notebook demos
 ├── docs/             # Documentation
 ├── cmake/            # CMake modules and scripts
 └── .github/          # GitHub Actions workflows
@@ -256,6 +300,7 @@ Quick overview:
 ## Documentation
 
 - [CLI Documentation](docs/cli.md) - Command-line interface usage and examples
+- [Python Visualization Package](python/README.md) - ag-viz plotting and visualization tools
 - [File Formats](docs/file_formats.md) - CSV and JSON format specifications
 - [Model Selection](docs/model_selection.md) - Automatic model selection strategies
 - [Parameter Constraints](docs/parameter_constraints.md) - Parameter validation rules

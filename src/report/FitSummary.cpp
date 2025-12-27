@@ -97,15 +97,48 @@ std::string generateTextReport(const FitSummary& summary) {
     report += "         AIC = 2k + 2*NLL, BIC = k*log(n) + 2*NLL\n";
     report += "         where k = number of parameters, n = sample size\n\n";
 
-    // 5. Diagnostic Tests (if available)
+    // 5. Innovation Distribution Comparison (if available)
+    if (summary.distribution_comparison.has_value()) {
+        const auto& dist = summary.distribution_comparison.value();
+
+        report += "5. Innovation Distribution Comparison\n";
+        report += "   ----------------------------------\n";
+        report +=
+            fmt::format("   Gaussian log-likelihood:    {:.4f}\n", dist.normal_log_likelihood);
+        report +=
+            fmt::format("   Student-t log-likelihood:   {:.4f}\n", dist.student_t_log_likelihood);
+        report += fmt::format("   Estimated df (Student-t):   {:.2f}\n", dist.student_t_df);
+        report += "\n";
+        report += "   Likelihood Ratio Test:\n";
+        report += fmt::format("     Statistic:  {:.4f}\n", dist.lr_statistic);
+        report += fmt::format("     P-value:    {:.4f}\n", dist.lr_p_value);
+        report += "\n";
+        report += "   Information Criteria:\n";
+        report += fmt::format("     AIC (Normal):     {:.4f}\n", dist.normal_aic);
+        report += fmt::format("     AIC (Student-t):  {:.4f}\n", dist.student_t_aic);
+        report += fmt::format("     BIC (Normal):     {:.4f}\n", dist.normal_bic);
+        report += fmt::format("     BIC (Student-t):  {:.4f}\n", dist.student_t_bic);
+        report += "\n";
+
+        if (dist.prefer_student_t) {
+            report += "   ✓ RECOMMENDATION: Student-t distribution provides better fit\n";
+            report += "     Consider refitting with Student-t innovations.\n";
+        } else {
+            report += "   ✓ Gaussian distribution is adequate for this data\n";
+        }
+        report += "\n";
+    }
+
+    // 6. Diagnostic Tests (if available)
+    int diag_section_num = summary.distribution_comparison.has_value() ? 6 : 5;
     if (summary.diagnostics.has_value()) {
         const auto& diag = summary.diagnostics.value();
 
-        report += "5. Diagnostic Tests\n";
+        report += fmt::format("{}. Diagnostic Tests\n", diag_section_num);
         report += "   ----------------\n\n";
 
         // Ljung-Box test on residuals
-        report += "   5.1 Ljung-Box Test on Residuals\n";
+        report += fmt::format("   {}.1 Ljung-Box Test on Residuals\n", diag_section_num);
         report += "       Tests for autocorrelation in conditional mean residuals.\n";
         report += fmt::format("       Lags:           {}\n", diag.ljung_box_residuals.lags);
         report += fmt::format("       DOF:            {}\n", diag.ljung_box_residuals.dof);
@@ -120,7 +153,7 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
 
         // Ljung-Box test on squared residuals
-        report += "   5.2 Ljung-Box Test on Squared Residuals\n";
+        report += fmt::format("   {}.2 Ljung-Box Test on Squared Residuals\n", diag_section_num);
         report += "       Tests for remaining ARCH effects (volatility clustering).\n";
         report += fmt::format("       Lags:           {}\n", diag.ljung_box_squared.lags);
         report += fmt::format("       DOF:            {}\n", diag.ljung_box_squared.dof);
@@ -134,7 +167,7 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
 
         // Jarque-Bera test
-        report += "   5.3 Jarque-Bera Test for Normality\n";
+        report += fmt::format("   {}.3 Jarque-Bera Test for Normality\n", diag_section_num);
         report += "       Tests whether standardized residuals are normally distributed.\n";
         report += fmt::format("       Statistic:      {:.4f}\n", diag.jarque_bera.statistic);
         report += fmt::format("       P-value:        {:.4f}\n", diag.jarque_bera.p_value);
@@ -148,7 +181,7 @@ std::string generateTextReport(const FitSummary& summary) {
 
         // ADF test (if available)
         if (diag.adf.has_value()) {
-            report += "   5.4 Augmented Dickey-Fuller Test\n";
+            report += fmt::format("   {}.4 Augmented Dickey-Fuller Test\n", diag_section_num);
             report += "       Tests for stationarity of residuals.\n";
             report += fmt::format("       Lags:           {}\n", diag.adf->lags);
             report += fmt::format("       Statistic:      {:.4f}\n", diag.adf->statistic);
