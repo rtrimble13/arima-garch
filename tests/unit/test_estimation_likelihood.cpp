@@ -323,6 +323,191 @@ TEST(likelihood_invalid_garch_params) {
     REQUIRE(caught);
 }
 
+// ============================================================================
+// Student-t Distribution Tests
+// ============================================================================
+
+// Test construction with Student-t distribution
+TEST(likelihood_construction_studentt) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ag::estimation::ArimaGarchLikelihood likelihood(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    REQUIRE(likelihood.getSpec().arimaSpec.p == 1);
+    REQUIRE(likelihood.getSpec().arimaSpec.d == 0);
+    REQUIRE(likelihood.getSpec().arimaSpec.q == 1);
+    REQUIRE(likelihood.getSpec().garchSpec.p == 1);
+    REQUIRE(likelihood.getSpec().garchSpec.q == 1);
+    REQUIRE(likelihood.getDistribution() == ag::estimation::InnovationDistribution::StudentT);
+}
+
+// Test Student-t likelihood computation with valid df
+TEST(likelihood_studentt_basic) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ag::estimation::ArimaGarchLikelihood likelihood(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    // White noise data with zero mean
+    std::vector<double> data = {0.5, -0.8, 0.3, -0.4, 0.6, -0.5, 0.2, 0.7, -0.3, 0.4};
+
+    ArimaParameters arima_params(0, 0);
+    arima_params.intercept = 0.0;
+
+    GarchParameters garch_params(1, 1);
+    garch_params.omega = 0.01;
+    garch_params.alpha_coef[0] = 0.1;
+    garch_params.beta_coef[0] = 0.85;
+
+    double df = 5.0;  // Degrees of freedom
+    double nll = likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_params,
+                                                         garch_params, df);
+
+    // NLL should be finite
+    REQUIRE(std::isfinite(nll));
+}
+
+// Test invalid df (df <= 2)
+TEST(likelihood_studentt_invalid_df) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ag::estimation::ArimaGarchLikelihood likelihood(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    std::vector<double> data = {0.5, -0.3, 0.2};
+    ArimaParameters arima_params(0, 0);
+    arima_params.intercept = 0.0;
+
+    GarchParameters garch_params(1, 1);
+    garch_params.omega = 0.1;
+    garch_params.alpha_coef[0] = 0.1;
+    garch_params.beta_coef[0] = 0.8;
+
+    bool caught = false;
+    try {
+        double df = 2.0;  // Invalid: df must be > 2
+        likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_params,
+                                                garch_params, df);
+    } catch (const std::invalid_argument&) {
+        caught = true;
+    }
+    REQUIRE(caught);
+
+    // Also test df = 1.0
+    caught = false;
+    try {
+        double df = 1.0;  // Invalid: df must be > 2
+        likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_params,
+                                                garch_params, df);
+    } catch (const std::invalid_argument&) {
+        caught = true;
+    }
+    REQUIRE(caught);
+}
+
+// Test Student-t with ARIMA(1,0,0)-GARCH(1,1)
+TEST(likelihood_studentt_ar1_garch11) {
+    ArimaGarchSpec spec(1, 0, 0, 1, 1);
+    ag::estimation::ArimaGarchLikelihood likelihood(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    // Generate AR(1) data: y_t = 0.5 + 0.7*y_{t-1} + ε_t
+    std::vector<double> data = {1.0, 1.2, 1.35, 1.445, 1.5115, 1.55805, 1.590635};
+
+    ArimaParameters arima_params(1, 0);
+    arima_params.intercept = 0.5;
+    arima_params.ar_coef[0] = 0.7;
+
+    GarchParameters garch_params(1, 1);
+    garch_params.omega = 0.048;
+    garch_params.alpha_coef[0] = 0.001;
+    garch_params.beta_coef[0] = 0.001;
+
+    double df = 4.0;
+    double nll = likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_params,
+                                                         garch_params, df);
+
+    // NLL should be finite
+    REQUIRE(std::isfinite(nll));
+}
+
+// Test that Student-t likelihood differs from Normal likelihood
+TEST(likelihood_studentt_vs_normal) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+
+    // Create Normal likelihood
+    ag::estimation::ArimaGarchLikelihood likelihood_normal(
+        spec, ag::estimation::InnovationDistribution::Normal);
+
+    // Create Student-t likelihood
+    ag::estimation::ArimaGarchLikelihood likelihood_studentt(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    // Data with outliers (Student-t should handle better)
+    std::vector<double> data = {0.1, -0.2, 0.15, -0.1, 3.0, -0.1, 0.2, -2.5, 0.1, 0.05};
+
+    ArimaParameters arima_params(0, 0);
+    arima_params.intercept = 0.0;
+
+    GarchParameters garch_params(1, 1);
+    garch_params.omega = 0.1;
+    garch_params.alpha_coef[0] = 0.1;
+    garch_params.beta_coef[0] = 0.8;
+
+    double nll_normal = likelihood_normal.computeNegativeLogLikelihood(data.data(), data.size(),
+                                                                       arima_params, garch_params);
+
+    double df = 5.0;
+    double nll_studentt = likelihood_studentt.computeNegativeLogLikelihood(
+        data.data(), data.size(), arima_params, garch_params, df);
+
+    // Both should be finite
+    REQUIRE(std::isfinite(nll_normal));
+    REQUIRE(std::isfinite(nll_studentt));
+
+    // They should produce different likelihood values
+    REQUIRE(nll_normal != nll_studentt);
+}
+
+// Test Student-t with varying df (as df increases, should approach Normal)
+TEST(likelihood_studentt_df_sensitivity) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ag::estimation::ArimaGarchLikelihood likelihood_studentt(
+        spec, ag::estimation::InnovationDistribution::StudentT);
+
+    std::vector<double> data = {0.2, -0.3, 0.1, -0.15, 0.25, -0.2, 0.1, 0.3, -0.1, 0.2};
+
+    ArimaParameters arima_params(0, 0);
+    arima_params.intercept = 0.0;
+
+    GarchParameters garch_params(1, 1);
+    garch_params.omega = 0.09;
+    garch_params.alpha_coef[0] = 0.05;
+    garch_params.beta_coef[0] = 0.05;
+
+    // Test with low df (heavy tails)
+    double df_low = 3.0;
+    double nll_studentt_low = likelihood_studentt.computeNegativeLogLikelihood(
+        data.data(), data.size(), arima_params, garch_params, df_low);
+
+    // Test with medium df
+    double df_med = 10.0;
+    double nll_studentt_med = likelihood_studentt.computeNegativeLogLikelihood(
+        data.data(), data.size(), arima_params, garch_params, df_med);
+
+    // Test with high df (approaching Normal)
+    double df_high = 100.0;
+    double nll_studentt_high = likelihood_studentt.computeNegativeLogLikelihood(
+        data.data(), data.size(), arima_params, garch_params, df_high);
+
+    // All should be finite
+    REQUIRE(std::isfinite(nll_studentt_low));
+    REQUIRE(std::isfinite(nll_studentt_med));
+    REQUIRE(std::isfinite(nll_studentt_high));
+
+    // Verify that different df values give different results
+    REQUIRE(nll_studentt_low != nll_studentt_med);
+    REQUIRE(nll_studentt_med != nll_studentt_high);
+}
+
 int main() {
     report_test_results("Likelihood Tests");
     return get_test_result();
