@@ -410,21 +410,21 @@ TEST(generate_text_report_with_distribution_comparison) {
     std::string report = generateTextReport(summary);
 
     // Verify distribution comparison section appears
-    REQUIRE(report.find("Distribution Comparison") != std::string::npos);
-    REQUIRE(report.find("Normal Distribution:") != std::string::npos);
-    REQUIRE(report.find("Student-T Distribution:") != std::string::npos);
+    REQUIRE(report.find("Innovation Distribution Comparison") != std::string::npos);
+    REQUIRE(report.find("Gaussian log-likelihood:") != std::string::npos);
+    REQUIRE(report.find("Student-t log-likelihood:") != std::string::npos);
     REQUIRE(report.find("Likelihood Ratio Test:") != std::string::npos);
 
     // Verify specific values appear
-    REQUIRE(report.find("-500.000000") != std::string::npos);  // Normal LL
-    REQUIRE(report.find("-480.000000") != std::string::npos);  // Student-T LL
-    REQUIRE(report.find("5.50") != std::string::npos);         // df
-    REQUIRE(report.find("40.0000") != std::string::npos);      // LR statistic
-    REQUIRE(report.find("0.0010") != std::string::npos);       // p-value
+    REQUIRE(report.find("-500.0000") != std::string::npos);  // Normal LL
+    REQUIRE(report.find("-480.0000") != std::string::npos);  // Student-T LL
+    REQUIRE(report.find("5.50") != std::string::npos);       // df
+    REQUIRE(report.find("40.0000") != std::string::npos);    // LR statistic
+    REQUIRE(report.find("0.0010") != std::string::npos);     // p-value
 
     // Verify recommendation appears
-    REQUIRE(report.find("Recommendation:") != std::string::npos);
-    REQUIRE(report.find("Use Student-T distribution") != std::string::npos);
+    REQUIRE(report.find("RECOMMENDATION:") != std::string::npos);
+    REQUIRE(report.find("Student-t distribution provides better fit") != std::string::npos);
 }
 
 TEST(generate_text_report_distribution_comparison_prefer_normal) {
@@ -466,8 +466,7 @@ TEST(generate_text_report_distribution_comparison_prefer_normal) {
     std::string report = generateTextReport(summary);
 
     // Verify correct recommendation
-    REQUIRE(report.find("Normal distribution adequate") != std::string::npos);
-    REQUIRE(report.find("Normal distribution is adequate") != std::string::npos);
+    REQUIRE(report.find("Gaussian distribution is adequate") != std::string::npos);
 }
 
 TEST(generate_text_report_with_both_distribution_and_diagnostics) {
@@ -525,7 +524,7 @@ TEST(generate_text_report_with_both_distribution_and_diagnostics) {
     std::string report = generateTextReport(summary);
 
     // Verify both sections appear
-    REQUIRE(report.find("5. Distribution Comparison") != std::string::npos);
+    REQUIRE(report.find("5. Innovation Distribution Comparison") != std::string::npos);
     REQUIRE(report.find("6. Diagnostic Tests") != std::string::npos);
 
     // Verify diagnostic subsection numbering is correct

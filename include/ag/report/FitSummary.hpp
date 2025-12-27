@@ -203,7 +203,14 @@ struct FitSummary {
  *    - AIC (Akaike Information Criterion)
  *    - BIC (Bayesian Information Criterion)
  *
- * 5. Diagnostic Tests (if available):
+ * 5. Innovation Distribution Comparison (if available):
+ *    - Gaussian vs. Student-t log-likelihoods
+ *    - Estimated degrees of freedom for Student-t
+ *    - Likelihood Ratio Test results
+ *    - Information Criteria (AIC/BIC) for both distributions
+ *    - Recommendation on which distribution to use
+ *
+ * 6. Diagnostic Tests (if available):
  *    - Ljung-Box test on residuals
  *    - Ljung-Box test on squared residuals
  *    - Jarque-Bera normality test
