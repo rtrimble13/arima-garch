@@ -11,6 +11,77 @@
 namespace ag::report {
 
 /**
+ * @brief Comparison between Normal and Student-T distribution fits.
+ *
+ * DistributionComparison contains statistics from fitting a model with both
+ * Normal and Student-T innovations, enabling comparison of the two distributions.
+ * This is useful for determining whether heavy-tailed Student-T distribution
+ * provides a better fit to the data than the Normal distribution.
+ */
+struct DistributionComparison {
+    /**
+     * @brief Log-likelihood under Normal distribution assumption.
+     */
+    double normal_log_likelihood;
+
+    /**
+     * @brief Log-likelihood under Student-T distribution assumption.
+     */
+    double student_t_log_likelihood;
+
+    /**
+     * @brief Estimated degrees of freedom for Student-T distribution.
+     *
+     * Lower values indicate heavier tails. Values close to infinity approach Normal.
+     */
+    double student_t_df;
+
+    /**
+     * @brief Likelihood ratio test statistic.
+     *
+     * LR = 2 * (LL_studentT - LL_normal)
+     * Under H0 (Normal is adequate), LR follows chi-squared distribution with 1 df.
+     */
+    double lr_statistic;
+
+    /**
+     * @brief P-value for likelihood ratio test.
+     *
+     * Tests null hypothesis that Normal distribution is adequate.
+     * Low p-value (< 0.05) suggests Student-T provides significantly better fit.
+     */
+    double lr_p_value;
+
+    /**
+     * @brief Whether Student-T is preferred based on statistical tests.
+     *
+     * Based on likelihood ratio test and information criteria.
+     * True if Student-T provides significantly better fit.
+     */
+    bool prefer_student_t;
+
+    /**
+     * @brief AIC for Normal distribution fit.
+     */
+    double normal_aic;
+
+    /**
+     * @brief AIC for Student-T distribution fit.
+     */
+    double student_t_aic;
+
+    /**
+     * @brief BIC for Normal distribution fit.
+     */
+    double normal_bic;
+
+    /**
+     * @brief BIC for Student-T distribution fit.
+     */
+    double student_t_bic;
+};
+
+/**
  * @brief Summary of ARIMA-GARCH model fitting results.
  *
  * FitSummary encapsulates all relevant information from fitting an ARIMA-GARCH
@@ -88,6 +159,15 @@ struct FitSummary {
      * This allows for comprehensive model assessment in a single report.
      */
     std::optional<ag::diagnostics::DiagnosticReport> diagnostics;
+
+    /**
+     * @brief Optional distribution comparison results.
+     *
+     * If the model was fitted with both Normal and Student-T distributions,
+     * the comparison statistics are stored here. This helps determine whether
+     * heavy-tailed Student-T distribution is more appropriate for the data.
+     */
+    std::optional<DistributionComparison> distribution_comparison;
 
     /**
      * @brief Construct a FitSummary with given specification.
