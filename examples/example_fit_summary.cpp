@@ -151,22 +151,26 @@ int main() {
     // Step 6: Compare Normal vs Student-T distributions
     fmt::print("Step 6: Comparing Normal vs Student-T distributions...\n");
 
-    // Helper function to compute chi-square upper tail probability
+    // Constants for Student-T distribution search
+    constexpr double MIN_DF = 3.0;   // Minimum degrees of freedom to consider
+    constexpr double MAX_DF = 30.0;  // Maximum degrees of freedom to consider
+    constexpr double DF_STEP = 1.0;  // Step size for df grid search
+
+    // Helper function to compute chi-square upper tail probability (p-value)
+    // This is a simplified approximation for demonstration purposes.
+    // For production use, consider using boost::math::chi_squared or exposing
+    // the chi_square_ccdf function from JarqueBera.cpp as a public utility.
     auto chi_square_ccdf = [](double x, double k) -> double {
         if (x <= 0.0)
             return 1.0;
-        // Approximate using normal approximation for simplicity
-        // For more accurate results, use boost::math::gamma_q
-        // This is a simplified approximation: chi-sq(k) ≈ N(k, 2k) for large k
-        // For k=1, we use a simpler direct calculation
         if (k == 1.0) {
             // For df=1, chi-square is square of standard normal
-            // P(χ²(1) > x) = 2 * P(Z > sqrt(x))
+            // P(χ²(1) > x) ≈ 2 * P(Z > sqrt(x)) where Z ~ N(0,1)
             double z = std::sqrt(x);
-            // Approximate P(Z > z) using complementary error function
             return std::erfc(z / std::sqrt(2.0)) / 2.0;
         }
         // For other df, use Wilson-Hilferty approximation
+        // Transforms chi-square to approximately standard normal
         double z = std::pow(x / k, 1.0 / 3.0) - (1.0 - 2.0 / (9.0 * k));
         z /= std::sqrt(2.0 / (9.0 * k));
         return std::erfc(z / std::sqrt(2.0)) / 2.0;
@@ -174,13 +178,13 @@ int main() {
 
     // Fit with Student-T distribution
     // Try different df values and pick the one with best likelihood
-    double best_df = 5.0;
+    double best_df = MIN_DF;
     double best_nll = 1e10;
     ag::models::arima::ArimaParameters best_arima_t = summary.parameters.arima_params;
     ag::models::garch::GarchParameters best_garch_t = summary.parameters.garch_params;
 
     // Grid search over df values
-    for (double df = 3.0; df <= 30.0; df += 1.0) {
+    for (double df = MIN_DF; df <= MAX_DF; df += DF_STEP) {
         ArimaGarchLikelihood likelihood_t(true_spec,
                                           ag::estimation::InnovationDistribution::StudentT);
 
