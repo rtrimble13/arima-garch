@@ -4,6 +4,7 @@
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 #include "test_framework.hpp"
@@ -27,7 +28,7 @@ TEST(estimate_student_t_df_gaussian) {
         double u1 = (i + 1.0) / 1001.0;
         double u2 = (i + 2.0) / 1002.0;
         // Box-Muller transform
-        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * std::numbers::pi * u2);
         gaussian_residuals.push_back(z);
     }
 
@@ -45,7 +46,7 @@ TEST(estimate_student_t_df_heavy_tails) {
     for (int i = 0; i < 100; ++i) {
         double u1 = (i + 1.0) / 101.0;
         double u2 = (i + 2.0) / 102.0;
-        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * std::numbers::pi * u2);
         heavy_tail_residuals.push_back(z);
     }
     // Add some outliers
@@ -188,7 +189,7 @@ TEST(compare_distributions_prefers_student_t_for_heavy_tails) {
     for (int i = 0; i < 200; ++i) {
         double u1 = (i + 1.0) / 201.0;
         double u2 = (i + 2.0) / 202.0;
-        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * std::numbers::pi * u2);
         data.push_back(z);
     }
     // Add outliers

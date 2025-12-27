@@ -4,6 +4,7 @@
 #include "ag/stats/Descriptive.hpp"
 
 #include <cmath>
+#include <numbers>
 #include <numeric>
 #include <stdexcept>
 
@@ -27,11 +28,12 @@ double log_gamma_lanczos(double x) {
 
     if (x < 0.5) {
         // Use reflection formula: Γ(x) * Γ(1-x) = π / sin(πx)
-        double sin_val = std::sin(M_PI * x);
+        double sin_val = std::sin(std::numbers::pi * x);
         if (std::abs(sin_val) < 1e-15) {
             throw std::invalid_argument("Gamma function evaluation unstable for x very close to 0");
         }
-        return std::log(M_PI) - std::log(std::abs(sin_val)) - log_gamma_lanczos(1.0 - x);
+        return std::log(std::numbers::pi) - std::log(std::abs(sin_val)) -
+               log_gamma_lanczos(1.0 - x);
     }
 
     x -= 1.0;
@@ -131,7 +133,8 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
         // Log-likelihood for Student-t(0,1,df)
         for (double z : std_residuals) {
             ll += std::lgamma((df + 1.0) / 2.0) - std::lgamma(df / 2.0) -
-                  0.5 * std::log(df * M_PI) - ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
+                  0.5 * std::log(df * std::numbers::pi) -
+                  ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
         }
 
         return -ll;  // Negate for minimization
@@ -202,7 +205,7 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
     double n = static_cast<double>(size);
 
     // Gaussian log-likelihood
-    double normal_ll = -0.5 * n * std::log(2.0 * M_PI);
+    double normal_ll = -0.5 * n * std::log(2.0 * std::numbers::pi);
     for (double z : residuals.std_eps_t) {
         normal_ll -= 0.5 * z * z;
     }
@@ -211,7 +214,8 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
     double student_t_ll = 0.0;
     for (double z : residuals.std_eps_t) {
         student_t_ll += std::lgamma((df + 1.0) / 2.0) - std::lgamma(df / 2.0) -
-                        0.5 * std::log(df * M_PI) - ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
+                        0.5 * std::log(df * std::numbers::pi) -
+                        ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
     }
 
     // Step 4: Likelihood ratio test

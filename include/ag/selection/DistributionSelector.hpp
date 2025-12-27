@@ -38,8 +38,11 @@ struct DistributionTestResult {
  *
  * Decision criteria:
  * - LR test p-value < 0.05: significant improvement with Student-t
- * - BIC improvement > 10: strong evidence for Student-t
- * - Excess kurtosis > 3: suggests heavy tails (Student-t appropriate)
+ * - Student-t has better BIC AND excess kurtosis > 1: moderate evidence for Student-t
+ *
+ * Note: The function provides multiple metrics (LR test, AIC/BIC, kurtosis) to help
+ * users make an informed decision. The prefer_student_t field is a recommendation
+ * based on statistical significance and BIC comparison.
  *
  * @param spec Model specification
  * @param params Fitted parameters (assuming Gaussian)
