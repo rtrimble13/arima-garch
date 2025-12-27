@@ -4,6 +4,7 @@
 #include "ag/estimation/Likelihood.hpp"
 #include "ag/estimation/Optimizer.hpp"
 #include "ag/estimation/ParameterInitialization.hpp"
+#include "ag/selection/DistributionSelector.hpp"
 #include "ag/selection/InformationCriteria.hpp"
 
 #include <cmath>
@@ -118,6 +119,32 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
                 summary.diagnostics = diagnostics;
             } catch (const std::exception& e) {
                 // If diagnostics fail, we still return the fit but without diagnostics
+                // This is not a critical failure
+            }
+
+            // Add distribution comparison
+            try {
+                auto dist_comparison =
+                    selection::compareDistributions(spec, model_params, data.data(), data.size());
+
+                // Compute AIC and BIC for both Normal and Student-t innovation distributions
+                // Note: These are based on standardized residual log-likelihoods
+                summary.distribution_comparison = report::DistributionComparison{
+                    .normal_log_likelihood = dist_comparison.normal_ll,
+                    .student_t_log_likelihood = dist_comparison.student_t_ll,
+                    .student_t_df = dist_comparison.df,
+                    .lr_statistic = dist_comparison.lr_statistic,
+                    .lr_p_value = dist_comparison.lr_p_value,
+                    .prefer_student_t = dist_comparison.prefer_student_t,
+                    .normal_aic = -2.0 * dist_comparison.normal_ll + 2.0 * k,
+                    .student_t_aic =
+                        -2.0 * dist_comparison.student_t_ll + 2.0 * (k + 1),  // +1 for df param
+                    .normal_bic = -2.0 * dist_comparison.normal_ll + k * std::log(n),
+                    .student_t_bic = -2.0 * dist_comparison.student_t_ll +
+                                     (k + 1) * std::log(n)  // +1 for df param
+                };
+            } catch (const std::exception& e) {
+                // If distribution comparison fails, we still return the fit but without it
                 // This is not a critical failure
             }
         }
