@@ -127,6 +127,9 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
                 auto dist_comparison =
                     selection::compareDistributions(spec, model_params, data.data(), data.size());
 
+                // Note: summary.aic and summary.bic are based on normal distribution
+                // We compute Student-t AIC/BIC using the improvement values from
+                // compareDistributions
                 summary.distribution_comparison = report::DistributionComparison{
                     .normal_log_likelihood = dist_comparison.normal_ll,
                     .student_t_log_likelihood = dist_comparison.student_t_ll,
@@ -135,12 +138,11 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
                     .lr_p_value = dist_comparison.lr_p_value,
                     .prefer_student_t = dist_comparison.prefer_student_t,
                     .normal_aic = -2.0 * dist_comparison.normal_ll + 2.0 * k,
-                    .student_t_aic =
-                        -2.0 * dist_comparison.student_t_ll + 2.0 * (k + 1),  // +1 for df param
+                    .student_t_aic = -2.0 * dist_comparison.normal_ll + 2.0 * k -
+                                     dist_comparison.aic_improvement,
                     .normal_bic = -2.0 * dist_comparison.normal_ll + k * std::log(n),
-                    .student_t_bic = -2.0 * dist_comparison.student_t_ll +
-                                     (k + 1) * std::log(n)  // +1 for df param
-                };
+                    .student_t_bic = -2.0 * dist_comparison.normal_ll + k * std::log(n) -
+                                     dist_comparison.bic_improvement};
             } catch (const std::exception& e) {
                 // If distribution comparison fails, we still return the fit but without it
                 // This is not a critical failure
