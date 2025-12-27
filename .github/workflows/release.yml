@@ -1,0 +1,236 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            artifact_ext: tar.gz
+            lib_name: libarimagarch.a
+            exe_name: ag
+          - os: macos-latest
+            platform: macos
+            arch: x86_64
+            artifact_ext: tar.gz
+            lib_name: libarimagarch.a
+            exe_name: ag
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            artifact_ext: zip
+            lib_name: arimagarch.lib
+            exe_name: ag.exe
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Extract version from tag
+      id: get_version
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="0.1.0"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+    
+    - name: Setup CMake
+      uses: lukka/get-cmake@latest
+    
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+    
+    - name: Configure CMake
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Run tests
+      run: ctest --test-dir build --output-on-failure
+    
+    - name: Prepare release artifacts (Unix)
+      if: matrix.os != 'windows-latest'
+      shell: bash
+      run: |
+        ARTIFACT_NAME="arima-garch-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}"
+        mkdir -p "${ARTIFACT_NAME}"
+        
+        # Copy executable
+        cp build/src/${{ matrix.exe_name }} "${ARTIFACT_NAME}/"
+        
+        # Copy static library
+        cp build/src/${{ matrix.lib_name }} "${ARTIFACT_NAME}/"
+        
+        # Copy headers
+        mkdir -p "${ARTIFACT_NAME}/include"
+        cp -r include/ag "${ARTIFACT_NAME}/include/"
+        
+        # Copy documentation
+        cp README.md LICENSE CONTRIBUTING.md "${ARTIFACT_NAME}/"
+        
+        # Copy examples
+        mkdir -p "${ARTIFACT_NAME}/examples"
+        cp examples/*.cpp examples/CMakeLists.txt "${ARTIFACT_NAME}/examples/" 2>/dev/null || true
+        if [ -f examples/returns.csv ]; then
+          cp examples/returns.csv "${ARTIFACT_NAME}/examples/"
+        fi
+        
+        # Create archive
+        tar -czf "${ARTIFACT_NAME}.tar.gz" "${ARTIFACT_NAME}"
+        
+        # Generate checksum
+        sha256sum "${ARTIFACT_NAME}.tar.gz" > "${ARTIFACT_NAME}.tar.gz.sha256"
+        
+        echo "artifact_name=${ARTIFACT_NAME}.tar.gz" >> $GITHUB_ENV
+        echo "checksum_name=${ARTIFACT_NAME}.tar.gz.sha256" >> $GITHUB_ENV
+    
+    - name: Prepare release artifacts (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        $ARTIFACT_NAME = "arima-garch-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}"
+        New-Item -ItemType Directory -Force -Path $ARTIFACT_NAME
+        
+        # Copy executable
+        Copy-Item "build/src/Release/${{ matrix.exe_name }}" "$ARTIFACT_NAME/"
+        
+        # Copy static library
+        Copy-Item "build/src/Release/${{ matrix.lib_name }}" "$ARTIFACT_NAME/"
+        
+        # Copy headers
+        New-Item -ItemType Directory -Force -Path "$ARTIFACT_NAME/include"
+        Copy-Item -Recurse "include/ag" "$ARTIFACT_NAME/include/"
+        
+        # Copy documentation
+        Copy-Item "README.md", "LICENSE", "CONTRIBUTING.md" "$ARTIFACT_NAME/"
+        
+        # Copy examples
+        New-Item -ItemType Directory -Force -Path "$ARTIFACT_NAME/examples"
+        Get-ChildItem "examples/*.cpp" | Copy-Item -Destination "$ARTIFACT_NAME/examples/"
+        Copy-Item "examples/CMakeLists.txt" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
+        Copy-Item "examples/returns.csv" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
+        
+        # Create archive
+        Compress-Archive -Path $ARTIFACT_NAME -DestinationPath "$ARTIFACT_NAME.zip"
+        
+        # Generate checksum
+        $hash = (Get-FileHash "$ARTIFACT_NAME.zip" -Algorithm SHA256).Hash
+        "$hash  $ARTIFACT_NAME.zip" | Out-File -FilePath "$ARTIFACT_NAME.zip.sha256" -Encoding ASCII
+        
+        echo "artifact_name=$ARTIFACT_NAME.zip" >> $env:GITHUB_ENV
+        echo "checksum_name=$ARTIFACT_NAME.zip.sha256" >> $env:GITHUB_ENV
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.platform }}-${{ matrix.arch }}-artifacts
+        path: |
+          ${{ env.artifact_name }}
+          ${{ env.checksum_name }}
+        retention-days: 1
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Extract version from tag
+      id: get_version
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="0.1.0"
+          TAG_NAME="v0.1.0-manual"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        echo "Tag: $TAG_NAME"
+    
+    - name: Check if pre-release
+      id: check_prerelease
+      shell: bash
+      run: |
+        TAG="${{ steps.get_version.outputs.tag_name }}"
+        if [[ "$TAG" == *"-alpha"* ]] || [[ "$TAG" == *"-beta"* ]] || [[ "$TAG" == *"-rc"* ]]; then
+          echo "prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "prerelease=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts
+    
+    - name: Display structure of downloaded files
+      run: ls -R release-artifacts
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag_name }}
+        name: Release ${{ steps.get_version.outputs.tag_name }}
+        generate_release_notes: true
+        prerelease: ${{ steps.check_prerelease.outputs.prerelease }}
+        files: |
+          release-artifacts/**/*.tar.gz
+          release-artifacts/**/*.zip
+          release-artifacts/**/*.sha256
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Manual Release Summary
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "## Manual Release Build Completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This was a manual workflow dispatch. To create a release, push a version tag:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo 'git tag v${{ steps.get_version.outputs.version }}' >> $GITHUB_STEP_SUMMARY
+        echo 'git push origin v${{ steps.get_version.outputs.version }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Built Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux x86_64" >> $GITHUB_STEP_SUMMARY
+        echo "- macOS x86_64" >> $GITHUB_STEP_SUMMARY
+        echo "- Windows x86_64" >> $GITHUB_STEP_SUMMARY
