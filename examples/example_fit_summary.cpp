@@ -148,8 +148,121 @@ int main() {
 
     fmt::print("  Diagnostics computed\n\n");
 
-    // Step 6: Generate and display text report
-    fmt::print("Step 6: Generating text report...\n\n");
+    // Step 6: Compare Normal vs Student-T distributions
+    fmt::print("Step 6: Comparing Normal vs Student-T distributions...\n");
+
+    // Helper function to compute chi-square upper tail probability
+    auto chi_square_ccdf = [](double x, double k) -> double {
+        if (x <= 0.0)
+            return 1.0;
+        // Approximate using normal approximation for simplicity
+        // For more accurate results, use boost::math::gamma_q
+        // This is a simplified approximation: chi-sq(k) ≈ N(k, 2k) for large k
+        // For k=1, we use a simpler direct calculation
+        if (k == 1.0) {
+            // For df=1, chi-square is square of standard normal
+            // P(χ²(1) > x) = 2 * P(Z > sqrt(x))
+            double z = std::sqrt(x);
+            // Approximate P(Z > z) using complementary error function
+            return std::erfc(z / std::sqrt(2.0)) / 2.0;
+        }
+        // For other df, use Wilson-Hilferty approximation
+        double z = std::pow(x / k, 1.0 / 3.0) - (1.0 - 2.0 / (9.0 * k));
+        z /= std::sqrt(2.0 / (9.0 * k));
+        return std::erfc(z / std::sqrt(2.0)) / 2.0;
+    };
+
+    // Fit with Student-T distribution
+    // Try different df values and pick the one with best likelihood
+    double best_df = 5.0;
+    double best_nll = 1e10;
+    ag::models::arima::ArimaParameters best_arima_t = summary.parameters.arima_params;
+    ag::models::garch::GarchParameters best_garch_t = summary.parameters.garch_params;
+
+    // Grid search over df values
+    for (double df = 3.0; df <= 30.0; df += 1.0) {
+        ArimaGarchLikelihood likelihood_t(true_spec,
+                                          ag::estimation::InnovationDistribution::StudentT);
+
+        // Pack parameters for optimization (including df as last parameter)
+        std::vector<double> initial_params_t = initial_params;
+        initial_params_t.push_back(df);
+
+        auto objective_t = [&](const std::vector<double>& params) -> double {
+            ag::models::arima::ArimaParameters arima_p(1, 1);
+            ag::models::garch::GarchParameters garch_p(1, 1);
+
+            arima_p.intercept = params[0];
+            arima_p.ar_coef[0] = params[1];
+            arima_p.ma_coef[0] = params[2];
+            garch_p.omega = params[3];
+            garch_p.alpha_coef[0] = params[4];
+            garch_p.beta_coef[0] = params[5];
+            double df_param = params[6];
+
+            if (!garch_p.isPositive() || !garch_p.isStationary() || df_param <= 2.0) {
+                return 1e10;
+            }
+
+            try {
+                return likelihood_t.computeNegativeLogLikelihood(data.data(), data.size(), arima_p,
+                                                                 garch_p, df_param);
+            } catch (...) {
+                return 1e10;
+            }
+        };
+
+        // Quick local optimization for this df
+        NelderMeadOptimizer optimizer_t(1e-4, 1e-4, 500);
+        auto result_t = optimizer_t.minimize(objective_t, initial_params_t);
+
+        if (result_t.converged && result_t.objective_value < best_nll) {
+            best_nll = result_t.objective_value;
+            best_df = result_t.parameters[6];
+            best_arima_t.intercept = result_t.parameters[0];
+            best_arima_t.ar_coef[0] = result_t.parameters[1];
+            best_arima_t.ma_coef[0] = result_t.parameters[2];
+            best_garch_t.omega = result_t.parameters[3];
+            best_garch_t.alpha_coef[0] = result_t.parameters[4];
+            best_garch_t.beta_coef[0] = result_t.parameters[5];
+        }
+    }
+
+    // Create distribution comparison
+    ag::report::DistributionComparison dc;
+    dc.normal_log_likelihood = -summary.neg_log_likelihood;
+    dc.student_t_log_likelihood = -best_nll;
+    dc.student_t_df = best_df;
+
+    // Likelihood ratio test: LR = 2 * (LL_studentT - LL_normal)
+    dc.lr_statistic = 2.0 * (dc.student_t_log_likelihood - dc.normal_log_likelihood);
+    // Under H0, LR ~ chi-square(1) because Student-T has 1 extra parameter (df)
+    dc.lr_p_value = chi_square_ccdf(dc.lr_statistic, 1.0);
+
+    // Information criteria
+    std::size_t k_normal = k;
+    std::size_t k_student = k + 1;  // +1 for df parameter
+    std::size_t n_obs = n;
+    dc.normal_aic = summary.aic;
+    dc.normal_bic = summary.bic;
+    dc.student_t_aic = 2.0 * k_student + 2.0 * best_nll;
+    dc.student_t_bic = k_student * std::log(n_obs) + 2.0 * best_nll;
+
+    // Decide preference: Student-T is preferred if LR test is significant AND
+    // information criteria favor it
+    dc.prefer_student_t = (dc.lr_p_value < 0.05) && (dc.student_t_bic < dc.normal_bic);
+
+    summary.distribution_comparison = dc;
+
+    fmt::print("  Distribution comparison complete\n");
+    fmt::print("    Normal log-likelihood:    {:.2f}\n", dc.normal_log_likelihood);
+    fmt::print("    Student-T log-likelihood: {:.2f}\n", dc.student_t_log_likelihood);
+    fmt::print("    Student-T df:             {:.2f}\n", dc.student_t_df);
+    fmt::print("    LR test p-value:          {:.4f}\n", dc.lr_p_value);
+    fmt::print("    Prefer Student-T:         {}\n\n", dc.prefer_student_t ? "Yes" : "No");
+
+    // Step 7: Generate and display text report
+    fmt::print("Step 7: Generating text report...\n\n");
 
     std::string report = generateTextReport(summary);
 
