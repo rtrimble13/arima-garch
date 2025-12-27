@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ag-viz"
+version = "0.1.0"
+description = "Visualization tools for ARIMA-GARCH models"
+readme = "README.md"
+authors = [
+    {name = "rtrimble13"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["arima", "garch", "time-series", "forecasting", "visualization", "finance"]
+dependencies = [
+    "click>=8.0",
+    "matplotlib>=3.5",
+    "seaborn>=0.12",
+    "pandas>=1.5",
+    "numpy>=1.23",
+    "scipy>=1.9",
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "jupyter>=1.0",
+    "notebook>=6.4",
+]
+
+[project.scripts]
+ag-viz = "ag_viz.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/rtrimble13/arima-garch"
+Repository = "https://github.com/rtrimble13/arima-garch"
+Issues = "https://github.com/rtrimble13/arima-garch/issues"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

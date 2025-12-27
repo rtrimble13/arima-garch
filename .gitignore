@@ -57,3 +57,18 @@ install_manifest.txt
 # CodeQL artifacts
 _codeql_build_dir/
 _codeql_detected_source_root
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg
+
