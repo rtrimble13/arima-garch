@@ -2,6 +2,35 @@
 
 This directory contains utility scripts for the arima-garch project.
 
+## Version Management
+
+### update_version.sh
+
+Updates the project version across all relevant files in the codebase.
+
+**Usage:**
+```bash
+./scripts/update_version.sh <new_version>
+```
+
+**Example:**
+```bash
+./scripts/update_version.sh 0.2.0
+```
+
+**What it does:**
+- Validates the version format (must be X.Y.Z semantic versioning)
+- Extracts the current version from each file
+- Updates the version in:
+  - `CMakeLists.txt` (project VERSION)
+  - `src/cli/main.cpp` (CLI version flag)
+  - `python/ag_viz/__init__.py` (__version__)
+- Reports old version, new version, and files updated
+
+**Exit codes:**
+- `0`: Version updated successfully
+- `1`: Invalid arguments or version format
+
 ## Formatting Scripts
 
 ### format.sh
