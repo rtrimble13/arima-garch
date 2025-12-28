@@ -10,12 +10,18 @@ from typing import Optional
 import click
 
 from ag_viz.utils import run_ag_command, ensure_output_dir, find_ag_executable
-from ag_viz.io import load_csv_data, load_model_json
+from ag_viz.io import load_csv_data, load_model_json, load_forecast_csv, load_diagnostics_json, parse_simulation_csv
 from ag_viz.plotting import (
     plot_fit_diagnostics,
     plot_forecast,
     plot_residual_diagnostics,
     plot_simulation_paths,
+)
+from ag_viz.markdown_reports import (
+    generate_fit_report,
+    generate_forecast_report,
+    generate_diagnostics_report,
+    generate_simulation_report,
 )
 
 
@@ -49,12 +55,15 @@ def cli():
               help='Output model file in JSON format')
 @click.option('--plot-dir', type=click.Path(), default='./output',
               help='Directory to save diagnostic plots')
-def fit(data_path: str, arima: str, garch: str, output_path: Optional[str], plot_dir: str):
+@click.option('--markdown', is_flag=True,
+              help='Generate a professional Markdown report with analysis and visuals')
+def fit(data_path: str, arima: str, garch: str, output_path: Optional[str], plot_dir: str, markdown: bool):
     """
     Fit ARIMA-GARCH model and generate diagnostic plots.
     
     Examples:
         ag-viz fit -d data.csv -a 1,0,1 -g 1,1 -o model.json
+        ag-viz fit -d data.csv -a 1,0,1 -g 1,1 -o model.json --markdown
     """
     click.echo(f"Fitting model: ARIMA({arima})-GARCH({garch})...")
     
@@ -82,6 +91,21 @@ def fit(data_path: str, arima: str, garch: str, output_path: Optional[str], plot
         plot_path = plot_fit_diagnostics(data, model, Path(plot_dir))
         click.echo(f"✓ Saved fit diagnostics to: {plot_path}")
         
+        # Generate Markdown report if requested
+        if markdown:
+            report_dir = Path('./reports')
+            report_path = report_dir / 'fit_report.md'
+            click.echo(f"\nGenerating Markdown report...")
+            
+            report_file = generate_fit_report(
+                data=data,
+                model_json=model,
+                plot_path=plot_path,
+                output_path=report_path,
+                use_data_uri=False
+            )
+            click.echo(f"✓ Saved Markdown report to: {report_file}")
+        
         click.echo(f"\n✓ Model saved to: {output_path}")
         
     except Exception as e:
@@ -99,13 +123,16 @@ def fit(data_path: str, arima: str, garch: str, output_path: Optional[str], plot
 @click.option('--plot', 'plot_path', type=click.Path(),
               help='Path to save forecast plot')
 @click.option('--show', is_flag=True, help='Display the plot')
+@click.option('--markdown', is_flag=True,
+              help='Generate a professional Markdown report with analysis and visuals')
 def forecast(model_path: str, horizon: int, output_path: Optional[str],
-            plot_path: Optional[str], show: bool):
+            plot_path: Optional[str], show: bool, markdown: bool):
     """
     Generate forecasts and plot with confidence intervals.
     
     Examples:
         ag-viz forecast -m model.json -n 30 -o forecast.csv
+        ag-viz forecast -m model.json -n 30 -o forecast.csv --markdown
     """
     click.echo(f"Generating {horizon}-step forecast...")
     
@@ -137,6 +164,24 @@ def forecast(model_path: str, horizon: int, output_path: Optional[str],
         if save_path:
             click.echo(f"✓ Saved forecast plot to: {save_path}")
         
+        # Generate Markdown report if requested
+        if markdown:
+            report_dir = Path('./reports')
+            report_path = report_dir / 'forecast_report.md'
+            click.echo(f"\nGenerating Markdown report...")
+            
+            model = load_model_json(Path(model_path))
+            forecast_data = load_forecast_csv(Path(output_path))
+            
+            report_file = generate_forecast_report(
+                model_json=model,
+                forecast_df=forecast_data,
+                plot_path=save_path,
+                output_path=report_path,
+                use_data_uri=False
+            )
+            click.echo(f"✓ Saved Markdown report to: {report_file}")
+        
         click.echo(f"✓ Forecast saved to: {output_path}")
         
     except Exception as e:
@@ -151,12 +196,15 @@ def forecast(model_path: str, horizon: int, output_path: Optional[str],
               help='Input data file in CSV format')
 @click.option('-o', '--output', 'output_dir', type=click.Path(), default='./diagnostics',
               help='Output directory for diagnostic plots and JSON')
-def diagnostics(model_path: str, data_path: str, output_dir: str):
+@click.option('--markdown', is_flag=True,
+              help='Generate a professional Markdown report with analysis and visuals')
+def diagnostics(model_path: str, data_path: str, output_dir: str, markdown: bool):
     """
     Generate comprehensive residual diagnostic plots.
     
     Examples:
         ag-viz diagnostics -m model.json -d data.csv -o ./diagnostics/
+        ag-viz diagnostics -m model.json -d data.csv -o ./diagnostics/ --markdown
     """
     click.echo("Running diagnostics...")
     
@@ -185,6 +233,27 @@ def diagnostics(model_path: str, data_path: str, output_dir: str):
         )
         
         click.echo(f"✓ Saved residual diagnostics to: {plot_path}")
+        
+        # Generate Markdown report if requested
+        if markdown:
+            report_dir = Path('./reports')
+            report_path = report_dir / 'diagnostics_report.md'
+            click.echo(f"\nGenerating Markdown report...")
+            
+            model = load_model_json(Path(model_path))
+            data = load_csv_data(Path(data_path))
+            diagnostics_data = load_diagnostics_json(diag_json) if diag_json.exists() else None
+            
+            report_file = generate_diagnostics_report(
+                model_json=model,
+                data=data,
+                diagnostics_json=diagnostics_data,
+                plot_path=plot_path,
+                output_path=report_path,
+                use_data_uri=False
+            )
+            click.echo(f"✓ Saved Markdown report to: {report_file}")
+        
         click.echo(f"✓ Diagnostics saved to: {diag_json}")
         
     except Exception as e:
@@ -209,14 +278,17 @@ def diagnostics(model_path: str, data_path: str, output_dir: str):
               help='Number of paths to plot')
 @click.option('--show', is_flag=True, help='Display the plot')
 @click.option('--stats', is_flag=True, help='Compute and display summary statistics')
+@click.option('--markdown', is_flag=True,
+              help='Generate a professional Markdown report with analysis and visuals')
 def simulate(model_path: str, paths: int, length: int, seed: int,
             output_path: Optional[str], plot_path: Optional[str],
-            n_plot: int, show: bool, stats: bool):
+            n_plot: int, show: bool, stats: bool, markdown: bool):
     """
     Simulate paths and visualize distributions.
     
     Examples:
         ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv
+        ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv --markdown
     """
     click.echo(f"Simulating {paths} paths with {length} observations each...")
     
@@ -251,6 +323,28 @@ def simulate(model_path: str, paths: int, length: int, seed: int,
         )
         
         click.echo(f"✓ Saved simulation plot to: {save_path}")
+        
+        # Generate Markdown report if requested
+        if markdown:
+            report_dir = Path('./reports')
+            report_path = report_dir / 'simulation_report.md'
+            click.echo(f"\nGenerating Markdown report...")
+            
+            model = load_model_json(Path(model_path))
+            # parse_simulation_csv returns a tuple (df, n_paths, n_obs)
+            simulation_data, _, _ = parse_simulation_csv(Path(output_path))
+            
+            report_file = generate_simulation_report(
+                model_json=model,
+                simulation_df=simulation_data,
+                plot_path=save_path,
+                output_path=report_path,
+                n_paths=paths,
+                length=length,
+                use_data_uri=False
+            )
+            click.echo(f"✓ Saved Markdown report to: {report_file}")
+        
         click.echo(f"✓ Simulation data saved to: {output_path}")
         
     except Exception as e:

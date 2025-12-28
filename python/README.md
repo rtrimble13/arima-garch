@@ -12,6 +12,12 @@
   - QQ-plots for normality assessment
   - ACF plots of residuals and squared residuals
 - **Simulation Visualizations**: Plot multiple simulation paths with statistical summaries
+- **Markdown Reports**: Professional, publication-ready analysis reports for all operations:
+  - Thorough methodology explanations
+  - Statistical interpretations and insights
+  - Embedded visualizations
+  - Practical recommendations and next steps
+  - Academic references
 
 ## Installation
 
@@ -60,6 +66,31 @@ ag-viz diagnostics -m model.json -d examples/returns.csv -o ./diagnostics/
 ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv
 ```
 
+### Using Markdown Reports
+
+All subcommands support the `--markdown` flag to generate professional, publication-ready analysis reports:
+
+```bash
+# Fit model with comprehensive Markdown report
+ag-viz fit -d examples/returns.csv -a 1,0,1 -g 1,1 -o model.json --markdown
+
+# Forecast with detailed Markdown analysis
+ag-viz forecast -m model.json -n 30 -o forecast.csv --markdown
+
+# Diagnostics with interpretation report
+ag-viz diagnostics -m model.json -d examples/returns.csv -o ./diagnostics/ --markdown
+
+# Simulation with statistical summary report
+ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv --markdown
+```
+
+Markdown reports are saved to `./reports/` directory and include:
+- Comprehensive methodology explanations
+- Statistical summaries and interpretations
+- Embedded visualizations
+- Key insights and practical guidance
+- References and next steps
+
 ### Programmatic Usage
 
 ```python
@@ -91,7 +122,7 @@ plot_simulation_paths(Path('simulation.csv'), n_paths_to_plot=20)
 Fit an ARIMA-GARCH model and generate diagnostic plots.
 
 ```bash
-ag-viz fit -d <data.csv> -a <p,d,q> -g <P,Q> -o <model.json> [--plot-dir <dir>]
+ag-viz fit -d <data.csv> -a <p,d,q> -g <P,Q> -o <model.json> [--plot-dir <dir>] [--markdown]
 ```
 
 **Options:**
@@ -100,18 +131,29 @@ ag-viz fit -d <data.csv> -a <p,d,q> -g <P,Q> -o <model.json> [--plot-dir <dir>]
 - `-g, --garch`: GARCH order as `P,Q` (required)
 - `-o, --output`: Output model JSON file
 - `--plot-dir`: Directory for diagnostic plots (default: `./output`)
+- `--markdown`: Generate a professional Markdown report with analysis and visuals
 
 **Example:**
 ```bash
 ag-viz fit -d returns.csv -a 1,0,1 -g 1,1 -o model.json --plot-dir ./plots
+
+# With Markdown report
+ag-viz fit -d returns.csv -a 1,0,1 -g 1,1 -o model.json --markdown
 ```
+
+The `--markdown` flag generates a comprehensive report at `./reports/fit_report.md` that includes:
+- Model specification and methodology overview
+- Data summary statistics with interpretations
+- Detailed parameter estimates
+- Key insights and caveats
+- Next steps and recommendations
 
 ### `ag-viz forecast`
 
 Generate forecasts and visualize with confidence intervals.
 
 ```bash
-ag-viz forecast -m <model.json> -n <horizon> -o <forecast.csv> [--plot <path>] [--show]
+ag-viz forecast -m <model.json> -n <horizon> -o <forecast.csv> [--plot <path>] [--show] [--markdown]
 ```
 
 **Options:**
@@ -120,36 +162,56 @@ ag-viz forecast -m <model.json> -n <horizon> -o <forecast.csv> [--plot <path>] [
 - `-o, --output`: Output forecast CSV file
 - `--plot`: Path to save forecast plot
 - `--show`: Display the plot interactively
+- `--markdown`: Generate a professional Markdown report with analysis and visuals
 
 **Example:**
 ```bash
 ag-viz forecast -m model.json -n 30 -o forecast.csv --plot forecast.png
+
+# With Markdown report
+ag-viz forecast -m model.json -n 30 -o forecast.csv --markdown
 ```
+
+The `--markdown` flag generates a detailed report at `./reports/forecast_report.md` that includes:
+- Forecast trajectory visualization
+- Complete forecast table with confidence intervals
+- Trend analysis and uncertainty assessment
+- Key insights and practical guidance
 
 ### `ag-viz diagnostics`
 
 Run diagnostic tests and generate comprehensive residual plots.
 
 ```bash
-ag-viz diagnostics -m <model.json> -d <data.csv> -o <output_dir>
+ag-viz diagnostics -m <model.json> -d <data.csv> -o <output_dir> [--markdown]
 ```
 
 **Options:**
 - `-m, --model`: Input model JSON file (required)
 - `-d, --data`: Input CSV data file (required)
 - `-o, --output`: Output directory for plots and JSON (default: `./diagnostics`)
+- `--markdown`: Generate a professional Markdown report with analysis and visuals
 
 **Example:**
 ```bash
 ag-viz diagnostics -m model.json -d returns.csv -o ./diagnostics
+
+# With Markdown report
+ag-viz diagnostics -m model.json -d returns.csv -o ./diagnostics --markdown
 ```
+
+The `--markdown` flag generates a comprehensive report at `./reports/diagnostics_report.md` that includes:
+- Detailed test results (Ljung-Box, Jarque-Bera)
+- Interpretation of diagnostic plots
+- Model adequacy assessment
+- Recommendations for model refinement
 
 ### `ag-viz simulate`
 
 Simulate multiple paths and visualize distributions.
 
 ```bash
-ag-viz simulate -m <model.json> -p <paths> -n <length> -o <output.csv> [options]
+ag-viz simulate -m <model.json> -p <paths> -n <length> -o <output.csv> [options] [--markdown]
 ```
 
 **Options:**
@@ -162,11 +224,21 @@ ag-viz simulate -m <model.json> -p <paths> -n <length> -o <output.csv> [options]
 - `--n-plot`: Number of paths to display in plot (default: 10)
 - `--show`: Display the plot interactively
 - `--stats`: Compute and display summary statistics
+- `--markdown`: Generate a professional Markdown report with analysis and visuals
 
 **Example:**
 ```bash
 ag-viz simulate -m model.json -p 100 -n 1000 -o sim.csv --n-plot 20 --stats
+
+# With Markdown report
+ag-viz simulate -m model.json -p 100 -n 1000 -o sim.csv --markdown
 ```
+
+The `--markdown` flag generates a detailed report at `./reports/simulation_report.md` that includes:
+- Comprehensive simulation statistics
+- Distribution analysis and tail behavior
+- Terminal value statistics
+- Risk management applications and insights
 
 ## Plot Examples
 
