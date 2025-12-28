@@ -257,6 +257,10 @@ ag-viz diagnostics -m model.json -d examples/returns.csv -o ./diagnostics/
 
 # Simulate and visualize paths
 ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv
+
+# Generate Markdown reports for any subcommand
+ag-viz fit -d examples/returns.csv -a 1,0,1 -g 1,1 -o model.json --markdown
+ag-viz forecast -m model.json -n 30 -o forecast.csv --markdown
 ```
 
 ### Features
@@ -265,6 +269,7 @@ ag-viz simulate -m model.json -p 100 -n 1000 -o simulation.csv
 - **Forecast Plots**: Mean forecasts with 68% and 95% confidence interval bands
 - **Residual Diagnostics**: Multi-panel plots including standardized residuals, histograms, QQ-plots, and ACF plots
 - **Simulation Paths**: Visualize multiple paths with percentile bands and terminal value distributions
+- **Markdown Reports**: Professional analysis reports with embedded visuals, interpretations, and recommendations (use `--markdown` flag)
 
 For detailed documentation, see [python/README.md](python/README.md).
 
