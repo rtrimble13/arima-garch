@@ -15,30 +15,8 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build and Release on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux
-            arch: x86_64
-            artifact_ext: tar.gz
-            lib_name: libarimagarch.a
-            exe_name: ag
-          - os: macos-latest
-            platform: macos
-            arch: x86_64
-            artifact_ext: tar.gz
-            lib_name: libarimagarch.a
-            exe_name: ag
-          - os: windows-latest
-            platform: windows
-            arch: x86_64
-            artifact_ext: zip
-            lib_name: arimagarch.lib
-            exe_name: ag.exe
+    name: Build and Release on Linux
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
@@ -61,8 +39,7 @@ jobs:
     - name: Setup CMake
       uses: lukka/get-cmake@latest
     
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential
@@ -76,18 +53,16 @@ jobs:
     - name: Run tests
       run: ctest --test-dir build --output-on-failure
     
-    - name: Prepare release artifacts (Unix)
-      if: matrix.os != 'windows-latest'
-      shell: bash
+    - name: Prepare release artifacts
       run: |
-        ARTIFACT_NAME="arima-garch-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}"
+        ARTIFACT_NAME="arima-garch-${{ steps.get_version.outputs.version }}-linux-x86_64"
         mkdir -p "${ARTIFACT_NAME}"
         
         # Copy executable
-        cp build/src/${{ matrix.exe_name }} "${ARTIFACT_NAME}/"
+        cp build/src/ag "${ARTIFACT_NAME}/"
         
         # Copy static library
-        cp build/src/${{ matrix.lib_name }} "${ARTIFACT_NAME}/"
+        cp build/src/libarimagarch.a "${ARTIFACT_NAME}/"
         
         # Copy headers
         mkdir -p "${ARTIFACT_NAME}/include"
@@ -111,46 +86,10 @@ jobs:
         echo "artifact_name=${ARTIFACT_NAME}.tar.gz" >> $GITHUB_ENV
         echo "checksum_name=${ARTIFACT_NAME}.tar.gz.sha256" >> $GITHUB_ENV
     
-    - name: Prepare release artifacts (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: pwsh
-      run: |
-        $ARTIFACT_NAME = "arima-garch-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}-${{ matrix.arch }}"
-        New-Item -ItemType Directory -Force -Path $ARTIFACT_NAME
-        
-        # Copy executable
-        Copy-Item "build/src/Release/${{ matrix.exe_name }}" "$ARTIFACT_NAME/"
-        
-        # Copy static library
-        Copy-Item "build/src/Release/${{ matrix.lib_name }}" "$ARTIFACT_NAME/"
-        
-        # Copy headers
-        New-Item -ItemType Directory -Force -Path "$ARTIFACT_NAME/include"
-        Copy-Item -Recurse "include/ag" "$ARTIFACT_NAME/include/"
-        
-        # Copy documentation
-        Copy-Item "README.md", "LICENSE", "CONTRIBUTING.md" "$ARTIFACT_NAME/"
-        
-        # Copy examples
-        New-Item -ItemType Directory -Force -Path "$ARTIFACT_NAME/examples"
-        Get-ChildItem "examples/*.cpp" -ErrorAction SilentlyContinue | Copy-Item -Destination "$ARTIFACT_NAME/examples/"
-        Copy-Item "examples/CMakeLists.txt" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
-        Copy-Item "examples/returns.csv" "$ARTIFACT_NAME/examples/" -ErrorAction SilentlyContinue
-        
-        # Create archive
-        Compress-Archive -Path $ARTIFACT_NAME -DestinationPath "$ARTIFACT_NAME.zip"
-        
-        # Generate checksum
-        $hash = (Get-FileHash "$ARTIFACT_NAME.zip" -Algorithm SHA256).Hash
-        "$hash  $ARTIFACT_NAME.zip" | Out-File -FilePath "$ARTIFACT_NAME.zip.sha256" -Encoding ASCII
-        
-        echo "artifact_name=$ARTIFACT_NAME.zip" >> $env:GITHUB_ENV
-        echo "checksum_name=$ARTIFACT_NAME.zip.sha256" >> $env:GITHUB_ENV
-    
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.platform }}-${{ matrix.arch }}-artifacts
+        name: linux-x86_64-artifacts
         path: |
           ${{ env.artifact_name }}
           ${{ env.checksum_name }}
@@ -212,7 +151,6 @@ jobs:
         prerelease: ${{ steps.check_prerelease.outputs.prerelease }}
         files: |
           release-artifacts/**/*.tar.gz
-          release-artifacts/**/*.zip
           release-artifacts/**/*.sha256
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,5 +169,3 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Built Artifacts:" >> $GITHUB_STEP_SUMMARY
         echo "- Linux x86_64" >> $GITHUB_STEP_SUMMARY
-        echo "- macOS x86_64" >> $GITHUB_STEP_SUMMARY
-        echo "- Windows x86_64" >> $GITHUB_STEP_SUMMARY
