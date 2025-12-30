@@ -115,12 +115,13 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         ArimaGarchSpec spec(p, d, q, P, Q);
 
         // Print appropriate model description
-        std::string dist_str = use_student_t ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
-                                             : " with Gaussian innovations";
+        std::string dist_str = use_student_t
+                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
+                                   : " with Gaussian innovations";
         if (arimaOrder.empty()) {
             fmt::print(
-                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0)){}...\n", P,
-                Q, dist_str);
+                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0)){}...\n",
+                P, Q, dist_str);
         } else if (garchOrder.empty()) {
             fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component){}...\n", p, d, q,
                        dist_str);
@@ -333,8 +334,9 @@ int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder,
         if (Q > 0)
             params.garch_params.beta_coef[0] = 0.85;
 
-        std::string dist_str = use_student_t ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
-                                             : " with Gaussian innovations";
+        std::string dist_str = use_student_t
+                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
+                                   : " with Gaussian innovations";
         fmt::print("Simulating {} observations from ARIMA({},{},{})-GARCH({},{}) model{}...\n",
                    length, p, d, q, P, Q, dist_str);
 
@@ -684,8 +686,9 @@ int main(int argc, char* argv[]) {
     simulate->add_option("-s,--seed", sim_seed, "Random seed (default: 42)");
     simulate->add_option("-o,--output,--out", sim_output_file, "Output data file (CSV format)")
         ->required();
-    simulate->add_option("--t-dist", sim_student_t_df,
-                         "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
+    simulate
+        ->add_option("--t-dist", sim_student_t_df,
+                     "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
         ->check(CLI::PositiveNumber);
 
     simulate->callback([&]() {

@@ -86,17 +86,23 @@ Run the CLI tool:
 # After building
 ./build/src/ag
 
-# Fit a model to data
-./build/src/ag fit --input examples/returns.csv --arima 1,0,1 --garch 1,1 --out model.json
+# Fit a model to data with Gaussian innovations (default)
+./build/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --out model.json
 
-# Automatic model selection
-./build/src/ag select --input examples/returns.csv --max-p 2 --max-q 2 --out model.json
+# Fit a model with Student-t innovations (heavier tails)
+./build/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --t-dist 5.0 --out model_tdist.json
+
+# Automatic model selection (includes distribution comparison)
+./build/src/ag select --data examples/returns.csv --max-p 2 --max-q 2 --out model.json
 
 # Forecast future values
 ./build/src/ag forecast --model model.json --horizon 10 --out forecasts.csv
 
-# Simulate synthetic data with default parameters
+# Simulate synthetic data with Gaussian innovations (default)
 ./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --out simulated.csv
+
+# Simulate synthetic data with Student-t innovations (for stress testing)
+./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --t-dist 4.0 --out simulated_tdist.csv
 
 # Simulate multiple paths from a fitted model
 ./build/src/ag simulate --model model.json --paths 10 --length 1000 --seed 42 --out sim_returns.csv --stats
