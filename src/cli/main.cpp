@@ -584,7 +584,7 @@ int main(int argc, char* argv[]) {
     bool fit_no_header = false;
 
     fit->add_option("-d,--data,-i,--input", fit_data_file,
-                    "Input data file (CSV format)")
+                    "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)");
     fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)");
@@ -610,7 +610,7 @@ int main(int argc, char* argv[]) {
 
     select
         ->add_option("-d,--data,-i,--input", select_data_file,
-                     "Input data file (CSV format)")
+                     "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     select->add_option("--max-p", select_max_p, "Maximum ARIMA AR order (default: 2)");
     select->add_option("--max-d", select_max_d, "Maximum ARIMA differencing order (default: 1)");
@@ -708,7 +708,7 @@ int main(int argc, char* argv[]) {
 
     diagnostics->add_option("-m,--model", diag_model_file, "Input model file (JSON format)")
         ->required();
-    diagnostics->add_option("-d,--data,-i,--input", diag_data_file, "Input data file (CSV format)")
+    diagnostics->add_option("-d,--data,-i,--input", diag_data_file, "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     diagnostics->add_option("-o,--output,--out", diag_output_file,
                             "Output diagnostics file (JSON format)");
