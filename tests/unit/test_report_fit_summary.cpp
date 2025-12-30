@@ -534,6 +534,203 @@ TEST(generate_text_report_with_both_distribution_and_diagnostics) {
 }
 
 // ============================================================================
+// Bootstrap and Student-t Innovation Distribution Tests
+// ============================================================================
+
+TEST(generate_text_report_with_bootstrap_method) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+    summary.innovation_distribution = "Student-t";
+    summary.student_t_df = 6.0;
+
+    // Create diagnostic report with bootstrap method
+    ag::diagnostics::DiagnosticReport diag;
+    diag.ljung_box_method = "bootstrap";
+    diag.adf_method = "bootstrap";
+    diag.innovation_distribution = "Student-t";
+    diag.student_t_df = 6.0;
+
+    diag.ljung_box_residuals.lags = 10;
+    diag.ljung_box_residuals.dof = 4;
+    diag.ljung_box_residuals.statistic = 8.5;
+    diag.ljung_box_residuals.p_value = 0.15;
+
+    diag.ljung_box_squared.lags = 10;
+    diag.ljung_box_squared.dof = 7;
+    diag.ljung_box_squared.statistic = 5.2;
+    diag.ljung_box_squared.p_value = 0.25;
+
+    diag.jarque_bera.statistic = 15.5;
+    diag.jarque_bera.p_value = 0.001;  // Low p-value - rejection expected for Student-t
+
+    // Add ADF test
+    ag::stats::ADFResult adf;
+    adf.lags = 2;
+    adf.statistic = -3.5;
+    adf.p_value = 0.01;
+    adf.critical_value_1pct = -3.43;
+    adf.critical_value_5pct = -2.86;
+    adf.critical_value_10pct = -2.57;
+    diag.adf = adf;
+
+    summary.diagnostics = diag;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify method information appears
+    REQUIRE(report.find("Method: Bootstrap") != std::string::npos);
+    REQUIRE(report.find("Innovation Distribution: Student-t") != std::string::npos);
+    REQUIRE(report.find("Student-t Degrees of Freedom: 6.00") != std::string::npos);
+
+    // Verify test titles include method
+    REQUIRE(report.find("Ljung-Box Test on Residuals (bootstrap)") != std::string::npos);
+    REQUIRE(report.find("Ljung-Box Test on Squared Residuals (bootstrap)") != std::string::npos);
+    REQUIRE(report.find("Augmented Dickey-Fuller Test (bootstrap)") != std::string::npos);
+
+    // Verify Student-t specific Jarque-Bera interpretation
+    REQUIRE(report.find("This is EXPECTED for Student-t innovations") != std::string::npos);
+    REQUIRE(report.find("heavy tails by design") != std::string::npos);
+
+    // Verify bootstrap interpretation
+    REQUIRE(report.find("Bootstrap methods provide accurate p-values") != std::string::npos);
+    REQUIRE(report.find("automatically used when Student-t df < 30") != std::string::npos);
+}
+
+TEST(generate_text_report_with_asymptotic_method) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    // Create diagnostic report with asymptotic method
+    ag::diagnostics::DiagnosticReport diag;
+    diag.ljung_box_method = "asymptotic";
+    diag.adf_method = "asymptotic";
+
+    diag.ljung_box_residuals.lags = 10;
+    diag.ljung_box_residuals.dof = 4;
+    diag.ljung_box_residuals.statistic = 8.5;
+    diag.ljung_box_residuals.p_value = 0.15;
+
+    diag.ljung_box_squared.lags = 10;
+    diag.ljung_box_squared.dof = 7;
+    diag.ljung_box_squared.statistic = 5.2;
+    diag.ljung_box_squared.p_value = 0.25;
+
+    diag.jarque_bera.statistic = 12.5;
+    diag.jarque_bera.p_value = 0.002;
+
+    // Add ADF test
+    ag::stats::ADFResult adf;
+    adf.lags = 2;
+    adf.statistic = -3.5;
+    adf.p_value = 0.01;
+    adf.critical_value_1pct = -3.43;
+    adf.critical_value_5pct = -2.86;
+    adf.critical_value_10pct = -2.57;
+    diag.adf = adf;
+
+    summary.diagnostics = diag;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify method information appears
+    REQUIRE(report.find("Method: Asymptotic") != std::string::npos);
+    REQUIRE(report.find("chi-squared for Ljung-Box") != std::string::npos);
+    REQUIRE(report.find("MacKinnon for ADF") != std::string::npos);
+
+    // Verify test titles include method
+    REQUIRE(report.find("Ljung-Box Test on Residuals (asymptotic)") != std::string::npos);
+    REQUIRE(report.find("Ljung-Box Test on Squared Residuals (asymptotic)") != std::string::npos);
+    REQUIRE(report.find("Augmented Dickey-Fuller Test (asymptotic)") != std::string::npos);
+
+    // Verify Normal distribution Jarque-Bera interpretation (not Student-t specific)
+    REQUIRE(report.find("Heavy tails are common in financial data") != std::string::npos);
+    REQUIRE(report.find("This is EXPECTED for Student-t innovations") == std::string::npos);
+
+    // Verify bootstrap interpretation is NOT present
+    REQUIRE(report.find("Bootstrap methods provide accurate p-values") == std::string::npos);
+}
+
+TEST(generate_text_report_jarque_bera_pass_student_t) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+    summary.innovation_distribution = "Student-t";
+    summary.student_t_df = 6.0;
+
+    // Create diagnostic report with passing Jarque-Bera
+    ag::diagnostics::DiagnosticReport diag;
+    diag.ljung_box_method = "bootstrap";
+    diag.adf_method = "bootstrap";
+    diag.innovation_distribution = "Student-t";
+    diag.student_t_df = 6.0;
+
+    diag.ljung_box_residuals.lags = 10;
+    diag.ljung_box_residuals.dof = 4;
+    diag.ljung_box_residuals.statistic = 8.5;
+    diag.ljung_box_residuals.p_value = 0.15;
+
+    diag.ljung_box_squared.lags = 10;
+    diag.ljung_box_squared.dof = 7;
+    diag.ljung_box_squared.statistic = 5.2;
+    diag.ljung_box_squared.p_value = 0.25;
+
+    diag.jarque_bera.statistic = 2.5;
+    diag.jarque_bera.p_value = 0.30;  // High p-value - pass
+
+    summary.diagnostics = diag;
+
+    std::string report = generateTextReport(summary);
+
+    // When Jarque-Bera passes, it shouldn't show the Student-t specific note
+    REQUIRE(report.find("✓ PASS - Residuals appear normally distributed") != std::string::npos);
+    REQUIRE(report.find("This is EXPECTED for Student-t innovations") == std::string::npos);
+}
+
+// ============================================================================
 // Main test runner
 // ============================================================================
 
