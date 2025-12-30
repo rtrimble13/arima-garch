@@ -91,10 +91,8 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     // Step 5: Perform Ljung-Box test on residuals
     stats::LjungBoxResult lb_residuals;
     if (use_bootstrap) {
-        lb_residuals = stats::ljung_box_test_bootstrap(residuals.eps_t, ljung_box_lags, n_bootstrap,
-                                                       bootstrap_seed);
-        // Adjust dof to match the asymptotic convention
-        lb_residuals.dof = dof;
+        lb_residuals = stats::ljung_box_test_bootstrap(residuals.eps_t, ljung_box_lags, dof,
+                                                       n_bootstrap, bootstrap_seed);
     } else {
         lb_residuals = stats::ljung_box_test(residuals.eps_t, ljung_box_lags, dof);
     }
@@ -102,10 +100,8 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     // Step 6: Perform Ljung-Box test on squared residuals
     stats::LjungBoxResult lb_squared;
     if (use_bootstrap) {
-        lb_squared = stats::ljung_box_test_bootstrap(squared_residuals, ljung_box_lags, n_bootstrap,
-                                                     bootstrap_seed + 1);
-        // Adjust dof to match the asymptotic convention
-        lb_squared.dof = dof;
+        lb_squared = stats::ljung_box_test_bootstrap(squared_residuals, ljung_box_lags, dof,
+                                                     n_bootstrap, bootstrap_seed + 1);
     } else {
         lb_squared = stats::ljung_box_test(squared_residuals, ljung_box_lags, dof);
     }

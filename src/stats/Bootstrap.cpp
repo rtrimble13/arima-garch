@@ -504,7 +504,8 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
 }  // anonymous namespace
 
 LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals, std::size_t lags,
-                                        std::size_t n_bootstrap, unsigned int seed) {
+                                        std::size_t dof, std::size_t n_bootstrap,
+                                        unsigned int seed) {
     const std::size_t n = residuals.size();
 
     if (n == 0) {
@@ -553,11 +554,15 @@ LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals, std::
     // Step 4: Compute bootstrap p-value
     double p_value = static_cast<double>(count_greater_equal) / static_cast<double>(n_bootstrap);
 
+    // Step 5: Set degrees of freedom
+    // If dof is 0, default to lags (no parameter adjustment)
+    std::size_t effective_dof = (dof == 0) ? lags : dof;
+
     return LjungBoxResult{
         .statistic = q_observed,
         .p_value = p_value,
         .lags = lags,
-        .dof = lags,  // Set equal to lags for consistency
+        .dof = effective_dof,
     };
 }
 

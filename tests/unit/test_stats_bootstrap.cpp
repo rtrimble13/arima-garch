@@ -25,7 +25,7 @@ TEST(bootstrap_ljung_box_white_noise) {
     }
 
     // Perform bootstrap Ljung-Box test
-    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 500, 12345);
+    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 0, 500, 12345);
 
     // Check that result structure is populated correctly
     REQUIRE(result.statistic >= 0.0);
@@ -55,7 +55,7 @@ TEST(bootstrap_ljung_box_autocorrelated) {
     }
 
     // Perform bootstrap Ljung-Box test
-    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 500, 456);
+    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 0, 500, 456);
 
     // For autocorrelated data, p-value should be low (significant)
     REQUIRE(result.p_value < 0.05);
@@ -73,7 +73,7 @@ TEST(bootstrap_ljung_box_student_t_white_noise) {
     }
 
     // Perform bootstrap Ljung-Box test
-    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 500, 789);
+    auto result = ag::stats::ljung_box_test_bootstrap(residuals, 10, 0, 500, 789);
 
     // Even with heavy tails, white noise should have high p-value
     REQUIRE(result.p_value >= 0.0);
@@ -96,8 +96,8 @@ TEST(bootstrap_ljung_box_reproducibility) {
     }
 
     // Run test twice with same seed
-    auto result1 = ag::stats::ljung_box_test_bootstrap(residuals, 8, 200, 999);
-    auto result2 = ag::stats::ljung_box_test_bootstrap(residuals, 8, 200, 999);
+    auto result1 = ag::stats::ljung_box_test_bootstrap(residuals, 8, 0, 200, 999);
+    auto result2 = ag::stats::ljung_box_test_bootstrap(residuals, 8, 0, 200, 999);
 
     // Results should be identical
     REQUIRE(std::abs(result1.statistic - result2.statistic) < 1e-10);
