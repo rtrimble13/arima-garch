@@ -5,7 +5,7 @@ This package provides publication-quality plotting and visualization
 capabilities for ARIMA-GARCH model outputs from the ag CLI tool.
 """
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __author__ = "rtrimble13"
 
 from ag_viz.plotting import (

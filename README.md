@@ -21,17 +21,30 @@ This project uses CMake for building. Requirements:
 
 Dependencies are automatically downloaded and built using CMake FetchContent. See [docs/dependencies.md](docs/dependencies.md) for details on dependency management strategy.
 
-### Building from Source
+### Building from Source (Dev)
 
 ```bash
 # Configure the build
 cmake -S . -B build
 
 # Build the project
-cmake --build build
+cmake --build build -j   #-j optional
 
 # Optionally, install (requires appropriate permissions)
 cmake --install build
+```
+
+### Building from Source (Prod/Release)
+
+```bash
+# Configure the build
+cmake -S . -B build/release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+
+# Build the project
+cmake --build build/release -j
+
+# install (requires appropriate permissions)
+cmake --install build/release
 ```
 
 ### Build Targets
