@@ -19,7 +19,20 @@ void printDiagnosticReport(const ag::diagnostics::DiagnosticReport& report,
                            const std::string& title) {
     fmt::print("\n=== {} ===\n", title);
 
-    fmt::print("\n1. Ljung-Box Test on Residuals\n");
+    // Print method information if available
+    if (report.ljung_box_method == "bootstrap") {
+        fmt::print("\nMethod: Bootstrap (for Student-t or heavy-tailed distributions)\n");
+        if (report.innovation_distribution.has_value()) {
+            fmt::print("Innovation Distribution: {}\n", report.innovation_distribution.value());
+            if (report.student_t_df.has_value()) {
+                fmt::print("Student-t Degrees of Freedom: {:.2f}\n", report.student_t_df.value());
+            }
+        }
+    } else {
+        fmt::print("\nMethod: Asymptotic (chi-squared for Ljung-Box, MacKinnon for ADF)\n");
+    }
+
+    fmt::print("\n1. Ljung-Box Test on Residuals ({})\n", report.ljung_box_method);
     fmt::print("   Tests for autocorrelation in the conditional mean residuals.\n");
     fmt::print("   Lags:       {}\n", report.ljung_box_residuals.lags);
     fmt::print("   DOF:        {}\n", report.ljung_box_residuals.dof);
@@ -31,7 +44,7 @@ void printDiagnosticReport(const ag::diagnostics::DiagnosticReport& report,
         fmt::print("   Result:     ✗ FAIL - Significant autocorrelation detected\n");
     }
 
-    fmt::print("\n2. Ljung-Box Test on Squared Residuals\n");
+    fmt::print("\n2. Ljung-Box Test on Squared Residuals ({})\n", report.ljung_box_method);
     fmt::print("   Tests for remaining ARCH effects (volatility clustering).\n");
     fmt::print("   Lags:       {}\n", report.ljung_box_squared.lags);
     fmt::print("   DOF:        {}\n", report.ljung_box_squared.dof);
@@ -55,7 +68,7 @@ void printDiagnosticReport(const ag::diagnostics::DiagnosticReport& report,
     }
 
     if (report.adf.has_value()) {
-        fmt::print("\n4. Augmented Dickey-Fuller Test\n");
+        fmt::print("\n4. Augmented Dickey-Fuller Test ({})\n", report.adf_method);
         fmt::print("   Tests for stationarity of residuals.\n");
         fmt::print("   Lags:       {}\n", report.adf->lags);
         fmt::print("   Statistic:  {:.4f}\n", report.adf->statistic);
@@ -127,6 +140,34 @@ int main() {
 
     printDiagnosticReport(report2, "Diagnostic Report for White Noise Model");
 
+    // Example 3: Model with Student-t innovations (auto-bootstrap)
+    fmt::print("\nExample 3: Student-t Innovations with Auto-Bootstrap\n");
+    fmt::print("-----------------------------------------------------\n");
+
+    ArimaGarchSpec spec3(1, 0, 0, 1, 1);
+    ArimaGarchParameters params3(spec3);
+
+    params3.arima_params.intercept = 0.02;
+    params3.arima_params.ar_coef[0] = 0.5;
+    params3.garch_params.omega = 0.02;
+    params3.garch_params.alpha_coef[0] = 0.15;
+    params3.garch_params.beta_coef[0] = 0.80;
+
+    fmt::print("Model: ARIMA({},{},{})-GARCH({},{})\n", spec3.arimaSpec.p, spec3.arimaSpec.d,
+               spec3.arimaSpec.q, spec3.garchSpec.p, spec3.garchSpec.q);
+
+    // Simulate data
+    ArimaGarchSimulator simulator3(spec3, params3);
+    auto sim_result3 = simulator3.simulate(800, 456);
+
+    // Compute diagnostics WITH Student-t specification (df = 6)
+    // This will automatically use bootstrap methods
+    fmt::print("Using Student-t(6) innovation distribution\n");
+    auto report3 =
+        computeDiagnostics(spec3, params3, sim_result3.returns, 10, true, "Student-t", 6.0);
+
+    printDiagnosticReport(report3, "Diagnostic Report with Student-t Innovations");
+
     fmt::print("\n=== Interpretation Guidelines ===\n");
     fmt::print("1. Ljung-Box tests: High p-values (> 0.05) are desirable\n");
     fmt::print("   - Indicates no remaining autocorrelation in residuals\n");
@@ -140,6 +181,12 @@ int main() {
     fmt::print("3. ADF test: Tests for stationarity\n");
     fmt::print("   - Low p-value (< 0.05) indicates stationarity (desirable)\n");
     fmt::print("   - If test fails, may need differencing or trend removal\n\n");
+
+    fmt::print("4. Bootstrap methods:\n");
+    fmt::print("   - Automatically used when Student-t df < 30\n");
+    fmt::print("   - Provide more accurate p-values for heavy-tailed distributions\n");
+    fmt::print("   - Can be forced with force_bootstrap = true\n");
+    fmt::print("   - Trade-off: More accurate but slower (~1-5 seconds)\n\n");
 
     fmt::print("Note: These diagnostics help assess model adequacy but should be\n");
     fmt::print("      interpreted in context with domain knowledge and other criteria.\n");

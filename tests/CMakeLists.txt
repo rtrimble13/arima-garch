@@ -96,6 +96,13 @@ add_executable(test_stats_adf
 target_link_libraries(test_stats_adf PRIVATE arimagarch)
 add_test(NAME test_stats_adf COMMAND test_stats_adf)
 
+add_executable(test_stats_bootstrap
+    unit/test_stats_bootstrap.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_stats_bootstrap PRIVATE arimagarch)
+add_test(NAME test_stats_bootstrap COMMAND test_stats_bootstrap)
+
 # Model tests
 add_executable(test_models_specs
     unit/test_models_specs.cpp
