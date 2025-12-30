@@ -226,9 +226,15 @@ std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double
                                                         std::span<const double> residuals,
                                                         std::size_t n, std::mt19937& rng) {
     const std::size_t p = phi_diff.size();
+    const std::size_t n_resid = residuals.size();
     
-    // Step 1: Resample residuals
-    auto resampled_residuals = resample_with_replacement(residuals, rng);
+    // We need to generate n points, so we need n resampled residuals
+    // Resample with replacement to get exactly n residuals
+    std::uniform_int_distribution<std::size_t> dist(0, n_resid - 1);
+    std::vector<double> resampled_residuals(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        resampled_residuals[i] = residuals[dist(rng)];
+    }
     
     // Step 2: Generate differences Δy*_t from AR(p) model
     std::vector<double> dy_star(n, 0.0);
