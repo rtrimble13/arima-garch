@@ -467,7 +467,7 @@ TEST(engine_fit_ma_001_no_garch) {
     try {
         auto fit_result = engine.fit(data, spec, false);  // Skip diagnostics for speed
         no_crash = true;
-        
+
         // If convergence succeeded, verify the model is valid
         if (fit_result.has_value()) {
             REQUIRE(fit_result.value().model != nullptr);
@@ -479,7 +479,7 @@ TEST(engine_fit_ma_001_no_garch) {
         // The key requirement is no segfault/crash
         no_crash = true;
     }
-    
+
     // Verify the fit call completed without crashing
     REQUIRE(no_crash);
 }
