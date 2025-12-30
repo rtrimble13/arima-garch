@@ -1,4 +1,5 @@
 #include "ag/diagnostics/DiagnosticReport.hpp"
+
 #include "ag/stats/Bootstrap.hpp"
 
 #include <algorithm>
@@ -71,9 +72,8 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     // Step 5: Perform Ljung-Box test on residuals
     stats::LjungBoxResult lb_residuals;
     if (use_bootstrap) {
-        lb_residuals =
-            stats::ljung_box_test_bootstrap(residuals.eps_t, ljung_box_lags, n_bootstrap,
-                                             bootstrap_seed);
+        lb_residuals = stats::ljung_box_test_bootstrap(residuals.eps_t, ljung_box_lags, n_bootstrap,
+                                                       bootstrap_seed);
         // Adjust dof to match the asymptotic convention
         lb_residuals.dof = dof;
     } else {
@@ -83,8 +83,8 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     // Step 6: Perform Ljung-Box test on squared residuals
     stats::LjungBoxResult lb_squared;
     if (use_bootstrap) {
-        lb_squared = stats::ljung_box_test_bootstrap(squared_residuals, ljung_box_lags,
-                                                      n_bootstrap, bootstrap_seed + 1);
+        lb_squared = stats::ljung_box_test_bootstrap(squared_residuals, ljung_box_lags, n_bootstrap,
+                                                     bootstrap_seed + 1);
         // Adjust dof to match the asymptotic convention
         lb_squared.dof = dof;
     } else {
@@ -99,9 +99,9 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
     if (include_adf) {
         if (use_bootstrap) {
             // Use bootstrap ADF with automatic lag selection (lags=0)
-            adf_result = stats::adf_test_bootstrap(residuals.eps_t, 0,
-                                                    stats::ADFRegressionForm::Constant,
-                                                    n_bootstrap, bootstrap_seed + 2);
+            adf_result =
+                stats::adf_test_bootstrap(residuals.eps_t, 0, stats::ADFRegressionForm::Constant,
+                                          n_bootstrap, bootstrap_seed + 2);
         } else {
             // Use asymptotic ADF with automatic lag selection
             adf_result = stats::adf_test(residuals.eps_t, 0, stats::ADFRegressionForm::Constant);

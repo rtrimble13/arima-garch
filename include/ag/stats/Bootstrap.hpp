@@ -45,9 +45,9 @@ namespace ag::stats {
  *       distribution rather than the chi-squared distribution.
  */
 [[nodiscard]] LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals,
-                                                       std::size_t lags,
-                                                       std::size_t n_bootstrap = 1000,
-                                                       unsigned int seed = 42);
+                                                      std::size_t lags,
+                                                      std::size_t n_bootstrap = 1000,
+                                                      unsigned int seed = 42);
 
 /**
  * @brief Perform bootstrap ADF test for unit root (sieve bootstrap).
@@ -90,21 +90,21 @@ namespace ag::stats {
  *       structure under the null hypothesis of a unit root.
  */
 [[nodiscard]] ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
-                                            ADFRegressionForm regression_form,
-                                            std::size_t n_bootstrap = 1000,
-                                            unsigned int seed = 42);
+                                           ADFRegressionForm regression_form,
+                                           std::size_t n_bootstrap = 1000, unsigned int seed = 42);
 
 // Convenience overloads for std::vector
-[[nodiscard]] inline LjungBoxResult
-ljung_box_test_bootstrap(const std::vector<double>& residuals, std::size_t lags,
-                         std::size_t n_bootstrap = 1000, unsigned int seed = 42) {
+[[nodiscard]] inline LjungBoxResult ljung_box_test_bootstrap(const std::vector<double>& residuals,
+                                                             std::size_t lags,
+                                                             std::size_t n_bootstrap = 1000,
+                                                             unsigned int seed = 42) {
     return ljung_box_test_bootstrap(std::span<const double>(residuals), lags, n_bootstrap, seed);
 }
 
 [[nodiscard]] inline ADFResult adf_test_bootstrap(const std::vector<double>& data, std::size_t lags,
-                                                   ADFRegressionForm regression_form,
-                                                   std::size_t n_bootstrap = 1000,
-                                                   unsigned int seed = 42) {
+                                                  ADFRegressionForm regression_form,
+                                                  std::size_t n_bootstrap = 1000,
+                                                  unsigned int seed = 42) {
     return adf_test_bootstrap(std::span<const double>(data), lags, regression_form, n_bootstrap,
                               seed);
 }

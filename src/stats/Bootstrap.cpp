@@ -68,7 +68,7 @@ double compute_ljung_box_q(std::span<const double> residuals, std::size_t lags) 
  * @return Pair of (AR coefficients, residuals)
  */
 std::pair<std::vector<double>, std::vector<double>> fit_ar_model(std::span<const double> data,
-                                                                   std::size_t p) {
+                                                                 std::size_t p) {
     const std::size_t n = data.size();
 
     if (p == 0 || n <= p) {
@@ -178,8 +178,8 @@ std::pair<std::vector<double>, std::vector<double>> fit_ar_model(std::span<const
  * @return Bootstrap time series
  */
 std::vector<double> generate_ar_bootstrap_sample(const std::vector<double>& phi,
-                                                   std::span<const double> residuals, std::size_t n,
-                                                   std::mt19937& rng) {
+                                                 std::span<const double> residuals, std::size_t n,
+                                                 std::mt19937& rng) {
     const std::size_t p = phi.size();
     std::vector<double> y_star(n, 0.0);
 
@@ -212,7 +212,7 @@ std::vector<double> generate_ar_bootstrap_sample(const std::vector<double>& phi,
  * Returns the t-statistic for testing H0: φ = 0 (unit root).
  */
 double compute_adf_statistic(std::span<const double> data, std::size_t lags,
-                              ADFRegressionForm form) {
+                             ADFRegressionForm form) {
     const std::size_t n = data.size();
 
     if (n <= lags + 2) {
@@ -375,8 +375,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
     // For simplicity in bootstrap context, use direct inversion via Gaussian elimination
 
     // Create augmented matrix [XtX | I]
-    std::vector<std::vector<double>> aug(n_regressors,
-                                          std::vector<double>(2 * n_regressors, 0.0));
+    std::vector<std::vector<double>> aug(n_regressors, std::vector<double>(2 * n_regressors, 0.0));
     for (std::size_t i = 0; i < n_regressors; ++i) {
         for (std::size_t j = 0; j < n_regressors; ++j) {
             aug[i][j] = XtX[i][j];
@@ -445,7 +444,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
 }  // anonymous namespace
 
 LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals, std::size_t lags,
-                                         std::size_t n_bootstrap, unsigned int seed) {
+                                        std::size_t n_bootstrap, unsigned int seed) {
     const std::size_t n = residuals.size();
 
     if (n == 0) {
@@ -492,8 +491,7 @@ LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals, std::
     }
 
     // Step 4: Compute bootstrap p-value
-    double p_value =
-        static_cast<double>(count_greater_equal) / static_cast<double>(n_bootstrap);
+    double p_value = static_cast<double>(count_greater_equal) / static_cast<double>(n_bootstrap);
 
     return LjungBoxResult{
         .statistic = q_observed,
@@ -504,8 +502,8 @@ LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals, std::
 }
 
 ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
-                              ADFRegressionForm regression_form, std::size_t n_bootstrap,
-                              unsigned int seed) {
+                             ADFRegressionForm regression_form, std::size_t n_bootstrap,
+                             unsigned int seed) {
     const std::size_t n = data.size();
 
     if (n <= 10) {
@@ -524,7 +522,8 @@ ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
     std::size_t ar_order = lags;
     if (ar_order == 0) {
         // If lags is 0, use a default based on sample size
-        ar_order = std::max(1UL, static_cast<std::size_t>(std::floor(std::pow(n / 100.0, 0.25) * 12)));
+        ar_order =
+            std::max(1UL, static_cast<std::size_t>(std::floor(std::pow(n / 100.0, 0.25) * 12)));
         ar_order = std::min(ar_order, n / 4);
     }
 
