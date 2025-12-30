@@ -31,10 +31,11 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
              std::to_string(spec.totalParamCount()) + " parameters"});
     }
 
-    if (use_student_t && student_t_df <= 2.0) {
-        return unexpected<EngineError>(
-            {"Invalid degrees of freedom for Student-t: must be > 2.0, got " +
-             std::to_string(student_t_df)});
+    if (use_student_t) {
+        auto error = validateStudentTDF(student_t_df);
+        if (!error.empty()) {
+            return unexpected<EngineError>({error});
+        }
     }
 
     try {
@@ -116,10 +117,8 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         // Compute information criteria
         // IMPORTANT: computeAIC/computeBIC expect log-likelihood (positive),
         // but optimization returns negative log-likelihood (NLL), so we negate it
+        // Note: df parameter is user-provided, not estimated, so we don't count it in k
         std::size_t k = spec.totalParamCount();
-        if (use_student_t) {
-            k += 1;  // Account for df parameter in Student-t
-        }
         std::size_t n = data.size();
         double log_lik = -opt_result.objective_value;  // Convert NLL to log-likelihood
         summary.aic = selection::computeAIC(log_lik, k);
@@ -246,10 +245,11 @@ Engine::simulate(const models::ArimaGarchSpec& spec,
             {"Invalid length: must be positive, got " + std::to_string(length)});
     }
 
-    if (use_student_t && student_t_df <= 2.0) {
-        return unexpected<EngineError>(
-            {"Invalid degrees of freedom for Student-t: must be > 2.0, got " +
-             std::to_string(student_t_df)});
+    if (use_student_t) {
+        auto error = validateStudentTDF(student_t_df);
+        if (!error.empty()) {
+            return unexpected<EngineError>({error});
+        }
     }
 
     try {

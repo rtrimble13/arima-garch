@@ -609,7 +609,8 @@ int main(int argc, char* argv[]) {
         ->check(CLI::PositiveNumber);
 
     fit->callback([&]() {
-        bool use_student_t = (fit_student_t_df > 0.0);
+        // Check if Student-t flag was provided and set proper values
+        bool use_student_t = fit->count("--t-dist") > 0;
         double df = use_student_t ? fit_student_t_df : 2.0;
         return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file,
                          fit_no_header, use_student_t, df);
@@ -692,7 +693,8 @@ int main(int argc, char* argv[]) {
         ->check(CLI::PositiveNumber);
 
     simulate->callback([&]() {
-        bool use_student_t = (sim_student_t_df > 0.0);
+        // Check if Student-t flag was provided and set proper values
+        bool use_student_t = simulate->count("--t-dist") > 0;
         double df = use_student_t ? sim_student_t_df : 2.0;
         return handleSimulate(sim_arima_order, sim_garch_order, sim_length, sim_seed,
                               sim_output_file, use_student_t, df);

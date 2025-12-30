@@ -187,6 +187,19 @@ private:
     static constexpr double PERTURBATION_SCALE = 0.15;
 
     /**
+     * @brief Validate Student-t degrees of freedom parameter.
+     * @param df Degrees of freedom to validate
+     * @return Error message if invalid, empty string if valid
+     */
+    static std::string validateStudentTDF(double df) {
+        if (df <= 2.0) {
+            return "Invalid degrees of freedom for Student-t: must be > 2.0, got " +
+                   std::to_string(df);
+        }
+        return "";
+    }
+
+    /**
      * @brief Helper to pack ARIMA-GARCH parameters into a vector.
      * @param arima_params ARIMA parameters
      * @param garch_params GARCH parameters
