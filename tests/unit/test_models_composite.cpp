@@ -326,6 +326,148 @@ TEST(arimagarch_state_access) {
     REQUIRE(garch_state_after.isInitialized());
 }
 
+// ============================================================================
+// ARIMA-only Model Tests (no GARCH component)
+// ============================================================================
+
+// Test ARIMA(1,0,1) model with no GARCH component
+TEST(arima_only_arima_101) {
+    ArimaGarchSpec spec(1, 0, 1, 0, 0);  // ARIMA(1,0,1), no GARCH
+    ArimaGarchParameters params(spec);
+
+    // ARMA(1,1): y_t = 0.05 + 0.6*y_{t-1} + ε_t + 0.3*ε_{t-1}
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+
+    ArimaGarchModel model(spec, params);
+
+    // Process first observation
+    double y_1 = 1.0;
+    auto output_1 = model.update(y_1);
+
+    // μ_1 = 0.05 + 0.6 * 0 + 0.3 * 0 = 0.05 (no history)
+    REQUIRE_APPROX(output_1.mu_t, 0.05, 1e-10);
+
+    // h_1 should be constant (positive) for ARIMA-only
+    REQUIRE(output_1.h_t > 0.0);
+    double h_1 = output_1.h_t;
+
+    // Process second observation
+    double y_2 = 1.5;
+    auto output_2 = model.update(y_2);
+
+    // μ_2 = 0.05 + 0.6 * 1.0 + 0.3 * (1.0 - 0.05)
+    double eps_1 = y_1 - output_1.mu_t;
+    double expected_mu_2 = 0.05 + 0.6 * y_1 + 0.3 * eps_1;
+    REQUIRE_APPROX(output_2.mu_t, expected_mu_2, 1e-10);
+
+    // h_2 should be the same as h_1 (constant variance for ARIMA-only)
+    REQUIRE_APPROX(output_2.h_t, h_1, 1e-10);
+
+    // Process third observation
+    double y_3 = 0.8;
+    auto output_3 = model.update(y_3);
+
+    // h_3 should still be constant
+    REQUIRE_APPROX(output_3.h_t, h_1, 1e-10);
+}
+
+// Test AR(1) model with no GARCH component
+TEST(arima_only_ar_100) {
+    ArimaGarchSpec spec(1, 0, 0, 0, 0);  // AR(1), no GARCH
+    ArimaGarchParameters params(spec);
+
+    // AR(1): y_t = 0.1 + 0.7*y_{t-1} + ε_t
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.7;
+
+    ArimaGarchModel model(spec, params);
+
+    // Process observations
+    std::vector<double> observations = {1.0, 1.2, 0.9, 1.5, 1.1};
+    double h_first = 0.0;
+
+    for (std::size_t i = 0; i < observations.size(); ++i) {
+        auto output = model.update(observations[i]);
+
+        // Variance should be constant
+        if (i == 0) {
+            h_first = output.h_t;
+            REQUIRE(h_first > 0.0);
+        } else {
+            REQUIRE_APPROX(output.h_t, h_first, 1e-10);
+        }
+    }
+}
+
+// Test MA(1) model with no GARCH component
+TEST(arima_only_ma_001) {
+    ArimaGarchSpec spec(0, 0, 1, 0, 0);  // MA(1), no GARCH
+    ArimaGarchParameters params(spec);
+
+    // MA(1): y_t = 0.05 + ε_t + 0.4*ε_{t-1}
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ma_coef[0] = 0.4;
+
+    ArimaGarchModel model(spec, params);
+
+    // Process observations
+    std::vector<double> observations = {0.8, 1.2, 0.9, 1.1, 0.7};
+    double h_first = 0.0;
+
+    for (std::size_t i = 0; i < observations.size(); ++i) {
+        auto output = model.update(observations[i]);
+
+        // Variance should be constant
+        if (i == 0) {
+            h_first = output.h_t;
+            REQUIRE(h_first > 0.0);
+        } else {
+            REQUIRE_APPROX(output.h_t, h_first, 1e-10);
+        }
+    }
+}
+
+// Test ARIMA-only with longer series to verify stability
+TEST(arima_only_sequential_updates) {
+    ArimaGarchSpec spec(2, 0, 1, 0, 0);  // ARMA(2,1), no GARCH
+    ArimaGarchParameters params(spec);
+
+    // ARMA(2,1): y_t = 0.1 + 0.5*y_{t-1} + 0.3*y_{t-2} + ε_t + 0.2*ε_{t-1}
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.arima_params.ar_coef[1] = 0.3;
+    params.arima_params.ma_coef[0] = 0.2;
+
+    ArimaGarchModel model(spec, params);
+
+    // Generate a longer series
+    std::vector<double> observations(100);
+    std::mt19937 gen(42);
+    std::normal_distribution<> d(1.0, 0.3);
+    for (auto& obs : observations) {
+        obs = d(gen);
+    }
+
+    double h_first = 0.0;
+
+    // Process all observations
+    for (std::size_t i = 0; i < observations.size(); ++i) {
+        auto output = model.update(observations[i]);
+
+        // Verify that h_t is computed and constant
+        REQUIRE(output.h_t > 0.0);
+
+        if (i == 0) {
+            h_first = output.h_t;
+        } else {
+            // Variance should remain constant for ARIMA-only models
+            REQUIRE_APPROX(output.h_t, h_first, 1e-10);
+        }
+    }
+}
+
 int main() {
     report_test_results("ARIMA-GARCH Composite Model");
     return get_test_result();
