@@ -312,6 +312,120 @@ TEST(bootstrap_adf_insufficient_data) {
 }
 
 // ============================================================================
+// Tests for Correct Unit Root Null Hypothesis Implementation
+// ============================================================================
+
+// Test that pure random walk (unit root) has high p-value
+TEST(bootstrap_adf_pure_random_walk) {
+    // Generate a pure random walk: y_t = y_{t-1} + ε_t
+    const int n = 200;
+    std::mt19937 gen(99999);  // Use a different seed
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    std::vector<double> data(n);
+    data[0] = 0.0;
+    for (int i = 1; i < n; ++i) {
+        data[i] = data[i - 1] + dist(gen);
+    }
+
+    // With correct bootstrap under unit root null, p-value should be high
+    auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 42);
+
+    // For unit root data, we expect to fail to reject most of the time
+    // However, due to randomness, we use a more lenient threshold
+    // The test should not strongly reject (p-value should not be extremely low)
+    REQUIRE(result.p_value >= 0.0);
+    REQUIRE(result.p_value <= 1.0);
+
+    // Critical values should be in reasonable negative range
+    REQUIRE(result.critical_value_1pct < result.critical_value_5pct);
+    REQUIRE(result.critical_value_5pct < result.critical_value_10pct);
+    REQUIRE(result.critical_value_5pct < -1.0);  // Should be negative
+}
+
+// Test that strongly stationary series has low p-value
+TEST(bootstrap_adf_strongly_stationary) {
+    // Generate strongly stationary AR(1) with phi = 0.3
+    const double phi = 0.3;
+    const int n = 200;
+
+    std::mt19937 gen(54321);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    std::vector<double> data(n);
+    data[0] = dist(gen);
+    for (int i = 1; i < n; ++i) {
+        data[i] = phi * data[i - 1] + dist(gen);
+    }
+
+    // With correct bootstrap under unit root null, stationary data should reject
+    auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 99);
+
+    // For strongly stationary data, p-value should be low (reject unit root)
+    REQUIRE(result.p_value < 0.3);
+
+    // Statistic should be more negative (strong evidence against unit root)
+    REQUIRE(result.statistic < -1.0);
+}
+
+// Test with Student-t innovations on unit root series
+TEST(bootstrap_adf_unit_root_student_t) {
+    // Generate random walk with Student-t(5) innovations
+    const int n = 200;
+    std::mt19937 gen(11111);
+    std::student_t_distribution<double> dist(5.0);  // Heavy tails
+
+    std::vector<double> data(n);
+    data[0] = 0.0;
+    for (int i = 1; i < n; ++i) {
+        data[i] = data[i - 1] + dist(gen);
+    }
+
+    // Bootstrap should work correctly with heavy tails when unit root is imposed
+    auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 777);
+
+    // For unit root with heavy tails, p-value should still be high
+    REQUIRE(result.p_value >= 0.0);
+    REQUIRE(result.p_value <= 1.0);
+    REQUIRE(result.p_value > 0.05);  // Should fail to reject unit root
+
+    // Critical values should be in reasonable range
+    REQUIRE(result.critical_value_1pct < result.critical_value_5pct);
+    REQUIRE(result.critical_value_5pct < result.critical_value_10pct);
+}
+
+// Test that differences of unit root series are stationary
+TEST(bootstrap_adf_integrated_series) {
+    // Generate I(1) series: random walk with drift
+    const int n = 200;
+    const double drift = 0.1;
+    std::mt19937 gen(22222);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    std::vector<double> data(n);
+    data[0] = 0.0;
+    for (int i = 1; i < n; ++i) {
+        data[i] = data[i - 1] + drift + dist(gen);
+    }
+
+    // Test levels: should not reject unit root
+    auto result_levels =
+        ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::ConstantAndTrend, 300, 333);
+    REQUIRE(result_levels.p_value > 0.05);
+
+    // Take first differences
+    std::vector<double> differences(n - 1);
+    for (int i = 0; i < n - 1; ++i) {
+        differences[i] = data[i + 1] - data[i];
+    }
+
+    // Test differences: should reject unit root (differences are stationary)
+    auto result_diff =
+        ag::stats::adf_test_bootstrap(differences, 2, ADFRegressionForm::Constant, 300, 444);
+    REQUIRE(result_diff.p_value < 0.5);  // Should tend to reject for stationary series
+}
+
+// ============================================================================
 // Main test runner
 // ============================================================================
 

@@ -50,26 +50,35 @@ namespace ag::stats {
                                                       unsigned int seed = 42);
 
 /**
- * @brief Perform bootstrap ADF test for unit root (sieve bootstrap).
+ * @brief Perform bootstrap ADF test for unit root (sieve bootstrap under null).
  *
- * This function implements a sieve bootstrap method for the ADF test to compute
- * empirical critical values and p-values. The sieve bootstrap is appropriate for
- * testing unit roots when the innovation distribution is non-normal, such as
- * Student-t with low degrees of freedom.
+ * This function implements a sieve bootstrap method for the ADF test that correctly
+ * imposes the unit root null hypothesis. This is essential for valid inference when
+ * the innovation distribution is non-normal, such as Student-t with low degrees of
+ * freedom.
  *
- * Algorithm (Sieve Bootstrap):
- * 1. Fit AR(p) model to data, estimate φ̂ and residuals ê_t
- * 2. Center residuals: ẽ_t = ê_t - mean(ê_t)
- * 3. For b = 1 to n_bootstrap:
+ * Algorithm (Sieve Bootstrap under Unit Root Null):
+ * 1. Take first differences: Δy_t = y_t - y_{t-1}
+ * 2. Fit AR(p) model to differences: Δy_t = φ̂₁Δy_{t-1} + ... + φ̂ₚΔy_{t-p} + ê_t
+ * 3. Center residuals: ẽ_t = ê_t - mean(ê_t)
+ * 4. For b = 1 to n_bootstrap:
  *    a. Resample centered residuals with replacement: ẽ*_t
- *    b. Generate bootstrap series: y*_t = φ̂_1*y*_{t-1} + ... + ẽ*_t
- *    c. Compute ADF statistic τ* on y*_t
- *    d. Store τ*
- * 4. P-value = proportion of τ* <= τ_observed (for testing stationarity)
+ *    b. Generate differences: Δy*_t = φ̂₁Δy*_{t-1} + ... + φ̂ₚΔy*_{t-p} + ẽ*_t
+ *    c. Integrate to get levels (imposing unit root): y*_t = y*_{t-1} + Δy*_t
+ *    d. Compute ADF statistic τ* on y*_t
+ *    e. Store τ*
+ * 5. P-value = proportion of τ* <= τ_observed (more negative = more evidence against H₀)
  *
- * The bootstrap approach provides valid inference when innovations are non-normal,
- * which is common in financial time series. For Student-t innovations, the tabulated
- * critical values from MacKinnon may be inaccurate, making bootstrap essential.
+ * The key difference from naive bootstrap is that bootstrap samples are generated
+ * under the null hypothesis of a unit root by integrating the AR-generated differences.
+ * This ensures that the bootstrap distribution correctly represents the null hypothesis,
+ * providing valid critical values and p-values regardless of the innovation distribution.
+ *
+ * References:
+ * - Chang, Y., & Park, J. Y. (2003). "A sieve bootstrap for the test of a unit root."
+ *   Journal of Time Series Analysis, 24(4), 379-400.
+ * - Palm, F. C., Smeekes, S., & Urbain, J. P. (2008). "Bootstrap unit-root tests:
+ *   comparison and extensions." Journal of Time Series Analysis, 29(1), 371-401.
  *
  * @param data Span of time series data
  * @param lags Number of lagged differences to include in ADF regression
@@ -85,9 +94,9 @@ namespace ag::stats {
  * @note For accurate results, n_bootstrap should be at least 1000. Larger values
  *       (e.g., 5000 or 10000) provide more stable p-values but take longer to compute.
  *
- * @note The sieve bootstrap is specifically designed for unit root testing and is
- *       different from the naive residual bootstrap. It preserves the dependence
- *       structure under the null hypothesis of a unit root.
+ * @note This implementation correctly imposes the unit root null by fitting the AR model
+ *       to differences and then integrating. Previous implementations that fit AR to levels
+ *       do not properly test the unit root hypothesis.
  */
 [[nodiscard]] ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
                                            ADFRegressionForm regression_form,
