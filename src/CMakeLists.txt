@@ -49,3 +49,21 @@ add_executable(ag
 )
 
 target_link_libraries(ag PRIVATE arimagarch CLI11::CLI11)
+
+# Install rules for the library
+install(TARGETS arimagarch
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install public headers
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ag
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.hpp"
+)
+
+# Install the CLI executable
+install(TARGETS ag
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
