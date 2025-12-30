@@ -86,12 +86,41 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         auto data = loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
-        // Parse model specification
-        auto [p, d, q] = parseArimaOrder(arimaOrder);
-        auto [P, Q] = parseGarchOrder(garchOrder);
+        // Parse model specification with support for defaults
+        int p = 0, d = 0, q = 0;
+        int P = 1, Q = 1;  // Default GARCH(1,1)
+
+        // Parse ARIMA order if provided, otherwise default to ARIMA(0,0,0)
+        if (!arimaOrder.empty()) {
+            auto arima_tuple = parseArimaOrder(arimaOrder);
+            p = std::get<0>(arima_tuple);
+            d = std::get<1>(arima_tuple);
+            q = std::get<2>(arima_tuple);
+        }
+
+        // Parse GARCH order if provided, otherwise use default GARCH(1,1)
+        if (!garchOrder.empty()) {
+            auto garch_tuple = parseGarchOrder(garchOrder);
+            P = std::get<0>(garch_tuple);
+            Q = std::get<1>(garch_tuple);
+        }
+
+        // Ensure at least one component is specified
+        if (arimaOrder.empty() && garchOrder.empty()) {
+            fmt::print("Error: Must specify at least --arima or --garch parameters\n");
+            return 1;
+        }
+
         ArimaGarchSpec spec(p, d, q, P, Q);
 
-        fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model...\n", p, d, q, P, Q);
+        // Print appropriate model description
+        if (arimaOrder.empty()) {
+            fmt::print("Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0))...\n", P, Q);
+        } else if (garchOrder.empty()) {
+            fmt::print("Fitting ARIMA({},{},{}) model (GARCH component uses defaults: GARCH(1,1))...\n", p, d, q);
+        } else {
+            fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model...\n", p, d, q, P, Q);
+        }
 
         Engine engine;
         auto fit_result = engine.fit(data, spec, true);
@@ -557,9 +586,8 @@ int main(int argc, char* argv[]) {
     fit->add_option("-d,--data,-i,--input", fit_data_file,
                     "Input data file (CSV format)")
         ->required();
-    fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)")
-        ->required();
-    fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)")->required();
+    fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)");
+    fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)");
     fit->add_option("-o,--output,--out", fit_output_file, "Output model file (JSON format)");
     fit->add_flag("--no-header", fit_no_header, "CSV file has no header row (default: expect header)");
 
