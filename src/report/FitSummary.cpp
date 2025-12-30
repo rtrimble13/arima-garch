@@ -142,8 +142,25 @@ std::string generateTextReport(const FitSummary& summary) {
         report += fmt::format("{}. Diagnostic Tests\n", diag_section_num);
         report += "   ----------------\n\n";
 
+        // Display method and innovation distribution information
+        if (diag.ljung_box_method == "bootstrap") {
+            report += "   Method: Bootstrap (for Student-t or heavy-tailed distributions)\n";
+            if (diag.innovation_distribution.has_value()) {
+                report += fmt::format("   Innovation Distribution: {}\n",
+                                      diag.innovation_distribution.value());
+                if (diag.student_t_df.has_value()) {
+                    report += fmt::format("   Student-t Degrees of Freedom: {:.2f}\n",
+                                          diag.student_t_df.value());
+                }
+            }
+        } else {
+            report += "   Method: Asymptotic (chi-squared for Ljung-Box, MacKinnon for ADF)\n";
+        }
+        report += "\n";
+
         // Ljung-Box test on residuals
-        report += fmt::format("   {}.1 Ljung-Box Test on Residuals\n", diag_section_num);
+        report += fmt::format("   {}.1 Ljung-Box Test on Residuals ({})\n", diag_section_num,
+                              diag.ljung_box_method);
         report += "       Tests for autocorrelation in conditional mean residuals.\n";
         report += fmt::format("       Lags:           {}\n", diag.ljung_box_residuals.lags);
         report += fmt::format("       DOF:            {}\n", diag.ljung_box_residuals.dof);
@@ -158,7 +175,8 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
 
         // Ljung-Box test on squared residuals
-        report += fmt::format("   {}.2 Ljung-Box Test on Squared Residuals\n", diag_section_num);
+        report += fmt::format("   {}.2 Ljung-Box Test on Squared Residuals ({})\n",
+                              diag_section_num, diag.ljung_box_method);
         report += "       Tests for remaining ARCH effects (volatility clustering).\n";
         report += fmt::format("       Lags:           {}\n", diag.ljung_box_squared.lags);
         report += fmt::format("       DOF:            {}\n", diag.ljung_box_squared.dof);
@@ -180,13 +198,20 @@ std::string generateTextReport(const FitSummary& summary) {
             report += "       Result:         ✓ PASS - Residuals appear normally distributed\n";
         } else {
             report += "       Result:         ✗ FAIL - Residuals deviate from normality\n";
-            report += "       Note:           Heavy tails are common in financial data\n";
+            if (diag.innovation_distribution.has_value() &&
+                diag.innovation_distribution.value() == "Student-t") {
+                report += "       Note:           This is EXPECTED for Student-t innovations "
+                          "(heavy tails by design)\n";
+            } else {
+                report += "       Note:           Heavy tails are common in financial data\n";
+            }
         }
         report += "\n";
 
         // ADF test (if available)
         if (diag.adf.has_value()) {
-            report += fmt::format("   {}.4 Augmented Dickey-Fuller Test\n", diag_section_num);
+            report += fmt::format("   {}.4 Augmented Dickey-Fuller Test ({})\n", diag_section_num,
+                                  diag.adf_method);
             report += "       Tests for stationarity of residuals.\n";
             report += fmt::format("       Lags:           {}\n", diag.adf->lags);
             report += fmt::format("       Statistic:      {:.4f}\n", diag.adf->statistic);
@@ -206,9 +231,20 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "   Interpretation:\n";
         report += "   - High p-values (> 0.05) for Ljung-Box tests indicate no\n";
         report += "     remaining autocorrelation (desirable for well-specified models)\n";
-        report += "   - Jarque-Bera rejection is common for financial data with heavy tails\n";
+        if (diag.innovation_distribution.has_value() &&
+            diag.innovation_distribution.value() == "Student-t") {
+            report += "   - Jarque-Bera rejection is EXPECTED when using Student-t innovations\n";
+            report += "     (Student-t distribution has heavy tails by design)\n";
+        } else {
+            report += "   - Jarque-Bera rejection is common for financial data with heavy tails\n";
+        }
         if (diag.adf.has_value()) {
             report += "   - Low ADF p-value (< 0.05) indicates stationarity (desirable)\n";
+        }
+        if (diag.ljung_box_method == "bootstrap") {
+            report += "   - Bootstrap methods provide accurate p-values for heavy-tailed "
+                      "distributions\n";
+            report += "     (automatically used when Student-t df < 30)\n";
         }
         report += "\n";
     }
