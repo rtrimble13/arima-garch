@@ -42,11 +42,11 @@ TEST(engine_fit_student_t_uses_bootstrap) {
 
     // Check that diagnostics contain Student-t information
     auto& diagnostics = fit_result.value().summary.diagnostics.value();
-    
+
     // Verify bootstrap method is used (df < 30)
     REQUIRE(diagnostics.ljung_box_method == "bootstrap");
     REQUIRE(diagnostics.adf_method == "bootstrap");
-    
+
     // Verify innovation distribution info is stored
     REQUIRE(diagnostics.innovation_distribution.has_value());
     REQUIRE(diagnostics.innovation_distribution.value() == "Student-t");
@@ -78,11 +78,11 @@ TEST(engine_fit_student_t_high_df_uses_asymptotic) {
 
     // Check that diagnostics contain Student-t information
     auto& diagnostics = fit_result.value().summary.diagnostics.value();
-    
+
     // Verify asymptotic method is used (df >= 30)
     REQUIRE(diagnostics.ljung_box_method == "asymptotic");
     REQUIRE(diagnostics.adf_method == "asymptotic");
-    
+
     // But innovation distribution info should still be stored
     REQUIRE(diagnostics.innovation_distribution.has_value());
     REQUIRE(diagnostics.innovation_distribution.value() == "Student-t");
@@ -115,11 +115,11 @@ TEST(engine_fit_normal_uses_asymptotic) {
 
     // Check that diagnostics use asymptotic methods for Normal
     auto& diagnostics = fit_result.value().summary.diagnostics.value();
-    
+
     // Verify asymptotic method is used for Normal innovations
     REQUIRE(diagnostics.ljung_box_method == "asymptotic");
     REQUIRE(diagnostics.adf_method == "asymptotic");
-    
+
     // For Normal distribution, the implementation doesn't store distribution info
     // (it's only stored for non-Normal distributions like Student-t)
     // This is the existing design, so we don't check for it
@@ -143,12 +143,12 @@ TEST(engine_fit_summary_contains_innovation_distribution) {
     auto fit_result = engine.fit(sim_result.returns, spec, true, true, 8.0);
 
     REQUIRE(fit_result.has_value());
-    
+
     // Check FitSummary contains innovation distribution info
     auto& summary = fit_result.value().summary;
     REQUIRE(summary.innovation_distribution == "Student-t");
     REQUIRE(std::abs(summary.student_t_df - 8.0) < 1e-10);
-    
+
     // Also check diagnostics
     REQUIRE(summary.diagnostics.has_value());
     auto& diagnostics = summary.diagnostics.value();
