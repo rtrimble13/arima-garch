@@ -80,7 +80,8 @@ std::vector<double> loadData(const std::string& filepath, bool has_header = true
 
 // Fit subcommand handler
 int handleFit(const std::string& dataFile, const std::string& arimaOrder,
-              const std::string& garchOrder, const std::string& outputFile, bool no_header) {
+              const std::string& garchOrder, const std::string& outputFile, bool no_header,
+              bool use_student_t, double student_t_df) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
         auto data = loadData(dataFile, !no_header);
@@ -114,18 +115,23 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         ArimaGarchSpec spec(p, d, q, P, Q);
 
         // Print appropriate model description
+        std::string dist_str = use_student_t
+                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
+                                   : " with Gaussian innovations";
         if (arimaOrder.empty()) {
             fmt::print(
-                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0))...\n", P,
-                Q);
+                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0)){}...\n",
+                P, Q, dist_str);
         } else if (garchOrder.empty()) {
-            fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component)...\n", p, d, q);
+            fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component){}...\n", p, d, q,
+                       dist_str);
         } else {
-            fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model...\n", p, d, q, P, Q);
+            fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model{}...\n", p, d, q, P, Q,
+                       dist_str);
         }
 
         Engine engine;
-        auto fit_result = engine.fit(data, spec, true);
+        auto fit_result = engine.fit(data, spec, true, use_student_t, student_t_df);
 
         if (!fit_result) {
             fmt::print("Error: {}\n", fit_result.error().message);
@@ -307,7 +313,8 @@ int handleForecast(const std::string& modelFile, int horizon, const std::string&
 
 // Simulate subcommand handler
 int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder, int length,
-                   unsigned int seed, const std::string& outputFile) {
+                   unsigned int seed, const std::string& outputFile, bool use_student_t,
+                   double student_t_df) {
     try {
         // Parse model specification
         auto [p, d, q] = parseArimaOrder(arimaOrder);
@@ -327,11 +334,14 @@ int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder,
         if (Q > 0)
             params.garch_params.beta_coef[0] = 0.85;
 
-        fmt::print("Simulating {} observations from ARIMA({},{},{})-GARCH({},{}) model...\n",
-                   length, p, d, q, P, Q);
+        std::string dist_str = use_student_t
+                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
+                                   : " with Gaussian innovations";
+        fmt::print("Simulating {} observations from ARIMA({},{},{})-GARCH({},{}) model{}...\n",
+                   length, p, d, q, P, Q, dist_str);
 
         Engine engine;
-        auto sim_result = engine.simulate(spec, params, length, seed);
+        auto sim_result = engine.simulate(spec, params, length, seed, use_student_t, student_t_df);
 
         if (!sim_result) {
             fmt::print("Error: {}\n", sim_result.error().message);
@@ -584,8 +594,9 @@ int main(int argc, char* argv[]) {
     std::string fit_garch_order;
     std::string fit_output_file;
     bool fit_no_header = false;
+    double fit_student_t_df = 0.0;
 
-    fit->add_option("-d,--data,-i,--input", fit_data_file,
+    fit->add_option("-d,--data", fit_data_file,
                     "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)");
@@ -593,10 +604,16 @@ int main(int argc, char* argv[]) {
     fit->add_option("-o,--output,--out", fit_output_file, "Output model file (JSON format)");
     fit->add_flag("--no-header", fit_no_header,
                   "CSV file has no header row (default: expect header)");
+    fit->add_option("--t-dist", fit_student_t_df,
+                    "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
+        ->check(CLI::PositiveNumber);
 
     fit->callback([&]() {
+        // Check if Student-t flag was provided and set proper values
+        bool use_student_t = fit->count("--t-dist") > 0;
+        double df = use_student_t ? fit_student_t_df : 2.0;
         return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file,
-                         fit_no_header);
+                         fit_no_header, use_student_t, df);
     });
 
     // Select subcommand
@@ -613,7 +630,7 @@ int main(int argc, char* argv[]) {
     bool select_no_header = false;
 
     select
-        ->add_option("-d,--data,-i,--input", select_data_file,
+        ->add_option("-d,--data", select_data_file,
                      "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     select->add_option("--max-p", select_max_p, "Maximum ARIMA AR order (default: 2)");
@@ -659,6 +676,7 @@ int main(int argc, char* argv[]) {
     int sim_length = 1000;
     unsigned int sim_seed = 42;
     std::string sim_output_file;
+    double sim_student_t_df = 0.0;
 
     simulate->add_option("-a,--arima", sim_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)")
         ->required();
@@ -669,10 +687,17 @@ int main(int argc, char* argv[]) {
     simulate->add_option("-s,--seed", sim_seed, "Random seed (default: 42)");
     simulate->add_option("-o,--output,--out", sim_output_file, "Output data file (CSV format)")
         ->required();
+    simulate
+        ->add_option("--t-dist", sim_student_t_df,
+                     "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
+        ->check(CLI::PositiveNumber);
 
     simulate->callback([&]() {
+        // Check if Student-t flag was provided and set proper values
+        bool use_student_t = simulate->count("--t-dist") > 0;
+        double df = use_student_t ? sim_student_t_df : 2.0;
         return handleSimulate(sim_arima_order, sim_garch_order, sim_length, sim_seed,
-                              sim_output_file);
+                              sim_output_file, use_student_t, df);
     });
 
     // Simulate from saved model subcommand
@@ -714,7 +739,7 @@ int main(int argc, char* argv[]) {
     diagnostics->add_option("-m,--model", diag_model_file, "Input model file (JSON format)")
         ->required();
     diagnostics
-        ->add_option("-d,--data,-i,--input", diag_data_file,
+        ->add_option("-d,--data", diag_data_file,
                      "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     diagnostics->add_option("-o,--output,--out", diag_output_file,

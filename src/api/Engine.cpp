@@ -16,7 +16,8 @@ Engine::Engine() {}
 
 expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
                                              const models::ArimaGarchSpec& spec,
-                                             bool compute_diagnostics) {
+                                             bool compute_diagnostics, bool use_student_t,
+                                             double student_t_df) {
     // Validate input
     if (data.size() < 10) {
         return unexpected<EngineError>({"Insufficient data: need at least 10 observations, got " +
@@ -30,13 +31,23 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
              std::to_string(spec.totalParamCount()) + " parameters"});
     }
 
+    if (use_student_t) {
+        auto error = validateStudentTDF(student_t_df);
+        if (!error.empty()) {
+            return unexpected<EngineError>({error});
+        }
+    }
+
     try {
         // Step 1: Initialize parameters
         auto [arima_init, garch_init] =
             estimation::initializeArimaGarchParameters(data.data(), data.size(), spec);
 
-        // Step 2: Build likelihood function
-        estimation::ArimaGarchLikelihood likelihood(spec);
+        // Step 2: Build likelihood function with specified distribution
+        estimation::InnovationDistribution dist = use_student_t
+                                                      ? estimation::InnovationDistribution::StudentT
+                                                      : estimation::InnovationDistribution::Normal;
+        estimation::ArimaGarchLikelihood likelihood(spec, dist);
 
         // Step 3: Pack initial parameters
         std::vector<double> initial_params = packParameters(arima_init, garch_init);
@@ -57,7 +68,7 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
 
             try {
                 return likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_p,
-                                                               garch_p);
+                                                               garch_p, student_t_df);
             } catch (...) {
                 return 1e10;  // Penalty for evaluation failure
             }
@@ -100,10 +111,13 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         summary.message = opt_result.message;
         summary.sample_size = data.size();
         summary.neg_log_likelihood = opt_result.objective_value;
+        summary.innovation_distribution = use_student_t ? "Student-t" : "Normal";
+        summary.student_t_df = use_student_t ? student_t_df : 0.0;
 
         // Compute information criteria
         // IMPORTANT: computeAIC/computeBIC expect log-likelihood (positive),
         // but optimization returns negative log-likelihood (NLL), so we negate it
+        // Note: df parameter is user-provided, not estimated, so we don't count it in k
         std::size_t k = spec.totalParamCount();
         std::size_t n = data.size();
         double log_lik = -opt_result.objective_value;  // Convert NLL to log-likelihood
@@ -224,16 +238,26 @@ Engine::forecast(const models::composite::ArimaGarchModel& model, int horizon) {
 expected<simulation::SimulationResult, EngineError>
 Engine::simulate(const models::ArimaGarchSpec& spec,
                  const models::composite::ArimaGarchParameters& params, int length,
-                 unsigned int seed) {
+                 unsigned int seed, bool use_student_t, double student_t_df) {
     // Validate input
     if (length <= 0) {
         return unexpected<EngineError>(
             {"Invalid length: must be positive, got " + std::to_string(length)});
     }
 
+    if (use_student_t) {
+        auto error = validateStudentTDF(student_t_df);
+        if (!error.empty()) {
+            return unexpected<EngineError>({error});
+        }
+    }
+
     try {
         simulation::ArimaGarchSimulator simulator(spec, params);
-        auto sim_result = simulator.simulate(length, seed);
+        simulation::InnovationDistribution dist = use_student_t
+                                                      ? simulation::InnovationDistribution::StudentT
+                                                      : simulation::InnovationDistribution::Normal;
+        auto sim_result = simulator.simulate(length, seed, dist, student_t_df);
         return sim_result;
     } catch (const std::exception& e) {
         return unexpected<EngineError>({"Simulation failed: " + std::string(e.what())});

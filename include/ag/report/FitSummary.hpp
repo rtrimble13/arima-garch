@@ -153,6 +153,21 @@ struct FitSummary {
     std::size_t sample_size;
 
     /**
+     * @brief Innovation distribution used for fitting.
+     *
+     * Indicates whether the model was fitted using Normal (Gaussian) or Student-t innovations.
+     * Default is "Normal".
+     */
+    std::string innovation_distribution = "Normal";
+
+    /**
+     * @brief Degrees of freedom for Student-t distribution (if used).
+     *
+     * Only relevant when innovation_distribution is "Student-t".
+     */
+    double student_t_df = 0.0;
+
+    /**
      * @brief Optional diagnostic test results.
      *
      * If diagnostics were computed after fitting, they are stored here.

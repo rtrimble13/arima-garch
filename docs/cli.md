@@ -45,11 +45,16 @@ ag fit -d <data_file> -a <arima_order> -g <garch_order> [-o <output_file>]
 - `-a, --arima` (required): ARIMA order as `p,d,q` (e.g., `1,1,1`)
 - `-g, --garch` (required): GARCH order as `p,q` (e.g., `1,1`)
 - `-o, --output` (optional): Output model file in JSON format
+- `--t-dist FLOAT` (optional): Use Student-t distribution with specified degrees of freedom (e.g., `--t-dist 5.0`). If not specified, Gaussian innovations are used (default)
+- `--no-header` (optional): CSV file has no header row (default: expect header)
 
 **Example:**
 ```bash
-# Fit ARIMA(1,1,1)-GARCH(1,1) model to data
+# Fit ARIMA(1,1,1)-GARCH(1,1) model to data with Gaussian innovations (default)
 ag fit -d timeseries.csv -a 1,1,1 -g 1,1 -o fitted_model.json
+
+# Fit with Student-t innovations (df=5)
+ag fit -d returns.csv -a 2,0,1 -g 1,1 --t-dist 5.0 -o model_student_t.json
 
 # Fit without saving the model
 ag fit -d returns.csv -a 2,0,1 -g 1,1
@@ -57,14 +62,16 @@ ag fit -d returns.csv -a 2,0,1 -g 1,1
 
 **Output:**
 - Model convergence information
+- Innovation distribution used (Normal or Student-t with df)
 - AIC, BIC, and log-likelihood
 - Parameter estimates
+- Distribution comparison (when fitted with Gaussian, shows if Student-t would be better)
 - Diagnostic test results (Ljung-Box, Jarque-Bera)
 - Full fit summary report
 
 ### 2. `select` - Automatic Model Selection
 
-Automatically select the best ARIMA-GARCH model from a grid of candidate specifications using information criteria or cross-validation.
+Automatically select the best ARIMA-GARCH model from a grid of candidate specifications using information criteria or cross-validation. The selection process evaluates models using Gaussian innovations and includes distribution comparison to recommend Student-t if it provides a better fit.
 
 **Usage:**
 ```bash
@@ -81,6 +88,8 @@ ag select -d <data_file> [--max-p <p>] [--max-d <d>] [--max-q <q>] \
 - `--max-garch-q` (default: 1): Maximum GARCH q order
 - `-c, --criterion` (default: BIC): Selection criterion (`BIC`, `AIC`, `AICc`, or `CV`)
 - `-o, --output` (optional): Output model file in JSON format
+- `--top-k` (optional): Display top K models in ranking table
+- `--no-header` (optional): CSV file has no header row (default: expect header)
 
 **Example:**
 ```bash
@@ -99,7 +108,10 @@ ag select -d data.csv -c CV -o cv_selected_model.json
 - Number of candidates that failed to fit
 - Best model specification
 - Model fit statistics and diagnostics
+- **Distribution comparison**: Recommendation on whether Student-t innovations would provide better fit
 - Full fit summary report for the selected model
+
+**Note:** If the distribution comparison suggests Student-t would be better, consider refitting the selected model with `--t-dist` option using the `fit` command.
 
 **For detailed information about selection criteria, candidate generation, and best practices, see [Model Selection Documentation](model_selection.md).**
 
@@ -136,7 +148,7 @@ Simulate synthetic time series data from an ARIMA-GARCH model with default param
 
 **Usage:**
 ```bash
-ag sim -a <arima_order> -g <garch_order> -o <output_file> [-n <length>] [-s <seed>]
+ag sim -a <arima_order> -g <garch_order> -o <output_file> [-n <length>] [-s <seed>] [--t-dist <df>]
 ```
 
 **Options:**
@@ -145,11 +157,15 @@ ag sim -a <arima_order> -g <garch_order> -o <output_file> [-n <length>] [-s <see
 - `-o, --output` (required): Output data file in CSV format
 - `-n, --length` (default: 1000): Number of observations to simulate
 - `-s, --seed` (default: 42): Random seed for reproducibility
+- `--t-dist FLOAT` (optional): Use Student-t distribution with specified degrees of freedom (e.g., `--t-dist 3.0`). If not specified, Gaussian innovations are used (default)
 
 **Example:**
 ```bash
-# Simulate 1000 observations from ARIMA(1,1,1)-GARCH(1,1)
+# Simulate 1000 observations from ARIMA(1,1,1)-GARCH(1,1) with Gaussian innovations
 ag sim -a 1,1,1 -g 1,1 -o synthetic_data.csv
+
+# Simulate with Student-t innovations (df=4)
+ag sim -a 2,0,1 -g 1,1 -n 5000 --t-dist 4.0 -o heavy_tail_data.csv
 
 # Simulate 5000 observations with custom seed
 ag sim -a 2,0,1 -g 1,1 -n 5000 -s 12345 -o large_sample.csv
@@ -157,7 +173,7 @@ ag sim -a 2,0,1 -g 1,1 -n 5000 -s 12345 -o large_sample.csv
 
 **Output:**
 - CSV file with columns: `observation`, `return`, `volatility`
-- Console message confirming successful simulation
+- Console message confirming successful simulation and distribution used
 
 **Note:** The simulation uses default parameter values. For custom parameters, use the library API directly or modify and re-save a model JSON file.
 
@@ -320,7 +336,7 @@ ag diagnostics -m best_model.json -d my_returns.csv -o diag_results.json
 ### Example 3: Simulation Study
 
 ```bash
-# 1. Simulate synthetic data with default parameters
+# 1. Simulate synthetic data with default parameters (Gaussian)
 ag sim -a 1,1,1 -g 1,1 -n 1000 -s 42 -o synthetic.csv
 
 # 2. Fit a model to the synthetic data
@@ -330,7 +346,21 @@ ag fit -d synthetic.csv -a 1,1,1 -g 1,1 -o recovered_model.json
 # (inspect recovered_model.json to verify parameter recovery)
 ```
 
-### Example 4: Monte Carlo Simulation from Fitted Model
+### Example 4: Student-t Innovation Workflow
+
+```bash
+# 1. Fit a model with Gaussian innovations (default)
+ag fit -d market_returns.csv -a 1,0,1 -g 1,1 -o gaussian_model.json
+
+# 2. Check distribution comparison in the output
+# If Student-t is recommended, refit with Student-t innovations:
+ag fit -d market_returns.csv -a 1,0,1 -g 1,1 --t-dist 5.0 -o student_t_model.json
+
+# 3. Simulate heavy-tailed data using Student-t for stress testing
+ag sim -a 1,0,1 -g 1,1 -n 1000 --t-dist 4.0 -o stress_scenario.csv
+```
+
+### Example 5: Monte Carlo Simulation from Fitted Model
 
 ```bash
 # 1. Fit a model to real data
@@ -343,7 +373,7 @@ ag simulate -m market_model.json -p 1000 -n 252 -s 42 -o mc_simulations.csv --st
 # (use external tools or Python/R to analyze mc_simulations.csv)
 ```
 
-### Example 5: Reproducibility Check
+### Example 6: Reproducibility Check
 
 ```bash
 # 1. Fit and save a model
