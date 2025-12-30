@@ -207,6 +207,57 @@ std::vector<double> generate_ar_bootstrap_sample(const std::vector<double>& phi,
 }
 
 /**
+ * @brief Generate bootstrap sample imposing unit root null hypothesis.
+ *
+ * This function implements the sieve bootstrap for unit root testing by:
+ * 1. Generating differences from an AR(p) model with resampled residuals
+ * 2. Integrating the differences to obtain levels (imposing unit root)
+ *
+ * The key difference from generate_ar_bootstrap_sample is that this generates
+ * an I(1) process by construction, suitable for testing the unit root null.
+ *
+ * @param phi_diff AR coefficients estimated from first differences
+ * @param residuals Centered residuals to resample from
+ * @param n Length of series to generate
+ * @param rng Random number generator
+ * @return Bootstrap time series with unit root imposed
+ */
+std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double>& phi_diff,
+                                                        std::span<const double> residuals,
+                                                        std::size_t n, std::mt19937& rng) {
+    const std::size_t p = phi_diff.size();
+    
+    // Step 1: Resample residuals
+    auto resampled_residuals = resample_with_replacement(residuals, rng);
+    
+    // Step 2: Generate differences Δy*_t from AR(p) model
+    std::vector<double> dy_star(n, 0.0);
+    
+    if (p == 0) {
+        // No AR structure in differences, just use resampled residuals
+        dy_star = resampled_residuals;
+    } else {
+        // Generate AR process for differences
+        // Δy*_t = φ̂₁Δy*_{t-1} + ... + φ̂ₚΔy*_{t-p} + ε*_t
+        for (std::size_t t = p; t < n; ++t) {
+            dy_star[t] = resampled_residuals[t];
+            for (std::size_t j = 0; j < p; ++j) {
+                dy_star[t] += phi_diff[j] * dy_star[t - j - 1];
+            }
+        }
+    }
+    
+    // Step 3: Integrate differences to get levels (imposing unit root)
+    // y*_t = y*_{t-1} + Δy*_t, with y*_0 = 0
+    std::vector<double> y_star(n, 0.0);
+    for (std::size_t t = 1; t < n; ++t) {
+        y_star[t] = y_star[t - 1] + dy_star[t];
+    }
+    
+    return y_star;
+}
+
+/**
  * @brief Compute ADF test statistic (without p-value calculation).
  *
  * This is a simplified version that just computes the t-statistic for φ in the
@@ -530,8 +581,14 @@ ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
         ar_order = std::min(ar_order, n / 4);
     }
 
-    // Step 3: Fit AR model to original data
-    auto [phi, residuals] = fit_ar_model(data, ar_order);
+    // Step 3: Take first differences (impose unit root null hypothesis)
+    std::vector<double> differences(n - 1);
+    for (std::size_t i = 0; i < n - 1; ++i) {
+        differences[i] = data[i + 1] - data[i];
+    }
+
+    // Step 4: Fit AR model to differences (not levels)
+    auto [phi_diff, residuals] = fit_ar_model(differences, ar_order);
 
     // Center the residuals
     double mean = std::accumulate(residuals.begin(), residuals.end(), 0.0) / residuals.size();
@@ -540,13 +597,13 @@ ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
         centered_residuals[i] = residuals[i] - mean;
     }
 
-    // Step 4: Bootstrap
+    // Step 5: Bootstrap under unit root null
     std::mt19937 rng(seed);
     std::vector<double> bootstrap_statistics(n_bootstrap);
 
     for (std::size_t b = 0; b < n_bootstrap; ++b) {
-        // Generate bootstrap sample
-        auto y_star = generate_ar_bootstrap_sample(phi, centered_residuals, n, rng);
+        // Generate bootstrap sample imposing unit root
+        auto y_star = generate_unit_root_bootstrap_sample(phi_diff, centered_residuals, n, rng);
 
         // Compute ADF statistic on bootstrap sample
         try {
@@ -557,7 +614,7 @@ ADFResult adf_test_bootstrap(std::span<const double> data, std::size_t lags,
         }
     }
 
-    // Step 5: Compute bootstrap p-value and critical values
+    // Step 6: Compute bootstrap p-value and critical values
     // Sort bootstrap statistics
     std::sort(bootstrap_statistics.begin(), bootstrap_statistics.end());
 
