@@ -66,6 +66,38 @@ struct DiagnosticReport {
      * omitted (std::nullopt) depending on the workflow.
      */
     std::optional<stats::ADFResult> adf;
+
+    /**
+     * @brief Method used for Ljung-Box tests.
+     *
+     * Either "asymptotic" (chi-squared distribution) or "bootstrap" (empirical distribution).
+     * Bootstrap is automatically used when Student-t innovations are detected.
+     */
+    std::string ljung_box_method = "asymptotic";
+
+    /**
+     * @brief Method used for ADF test.
+     *
+     * Either "asymptotic" (MacKinnon critical values) or "bootstrap" (empirical critical values).
+     * Bootstrap is automatically used when Student-t innovations are detected.
+     */
+    std::string adf_method = "asymptotic";
+
+    /**
+     * @brief Innovation distribution type (optional).
+     *
+     * Indicates the assumed innovation distribution: "Normal" or "Student-t".
+     * This information is used to determine whether bootstrap methods should be applied.
+     */
+    std::optional<std::string> innovation_distribution;
+
+    /**
+     * @brief Degrees of freedom for Student-t distribution (optional).
+     *
+     * Only present when innovation_distribution is "Student-t".
+     * Lower values indicate heavier tails.
+     */
+    std::optional<double> student_t_df;
 };
 
 /**
@@ -87,26 +119,43 @@ struct DiagnosticReport {
  *   for financial data even with well-specified models
  * - For ADF: Low p-value indicates stationarity (desirable)
  *
+ * Bootstrap methods:
+ * - When Student-t innovations are specified (innovation_dist = "Student-t" with df < 30),
+ *   bootstrap methods are automatically used for Ljung-Box and ADF tests.
+ * - Bootstrap provides more accurate p-values for heavy-tailed distributions.
+ * - Can be forced via force_bootstrap = true even for Normal innovations.
+ *
  * @param spec ARIMA-GARCH model specification
  * @param params Fitted model parameters
  * @param data Time series data used for fitting
  * @param ljung_box_lags Number of lags to use for Ljung-Box tests (default: 10)
  *                       Must be greater than the total number of model parameters
  * @param include_adf Whether to include ADF test in the report (default: false)
+ * @param innovation_dist Innovation distribution: "Normal" or "Student-t" (default: "Normal")
+ * @param student_t_df Degrees of freedom for Student-t (default: 0.0, ignored if Normal)
+ * @param force_bootstrap Force bootstrap methods even for Normal innovations (default: false)
+ * @param n_bootstrap Number of bootstrap replications (default: 1000)
+ * @param bootstrap_seed Random seed for bootstrap (default: 42)
  * @return DiagnosticReport containing all test results
  * @throws std::invalid_argument if data is empty or parameters are invalid
  * @throws std::invalid_argument if ljung_box_lags <= number of model parameters
  *         (insufficient degrees of freedom for meaningful test results)
+ * @throws std::invalid_argument if Student-t df <= 2 (need finite variance)
  *
  * @note The degrees of freedom for Ljung-Box tests are automatically adjusted
  *       to account for the number of estimated parameters in the model.
  *       The total parameter count is computed using spec.totalParamCount(),
  *       which correctly handles zero-order ARIMA models.
+ *
+ * @note Bootstrap methods are computationally intensive (~1-5 seconds for typical datasets).
+ *       They are automatically enabled for Student-t with df < 30, or can be forced.
  */
 [[nodiscard]] DiagnosticReport
 computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
                    const ag::models::composite::ArimaGarchParameters& params,
                    const std::vector<double>& data, std::size_t ljung_box_lags = 10,
-                   bool include_adf = false);
+                   bool include_adf = false, const std::string& innovation_dist = "Normal",
+                   double student_t_df = 0.0, bool force_bootstrap = false,
+                   std::size_t n_bootstrap = 1000, unsigned int bootstrap_seed = 42);
 
 }  // namespace ag::diagnostics

@@ -310,6 +310,182 @@ TEST(diagnostic_report_insufficient_lags) {
 }
 
 // ============================================================================
+// Bootstrap and Student-t Innovation Tests
+// ============================================================================
+
+// Test diagnostic report with forced bootstrap methods
+TEST(diagnostic_report_forced_bootstrap) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+
+    // Simulate data from this model
+    ArimaGarchSimulator simulator(spec, params);
+    auto sim_result = simulator.simulate(300, 42);
+
+    // Compute diagnostics WITH forced bootstrap (Normal distribution)
+    auto report = computeDiagnostics(spec, params, sim_result.returns, 10, true, "Normal", 0.0,
+                                     true, 200, 12345);
+
+    // Verify bootstrap methods were used
+    REQUIRE(report.ljung_box_method == "bootstrap");
+    REQUIRE(report.adf_method == "bootstrap");
+
+    // Verify all fields are valid
+    REQUIRE(std::isfinite(report.ljung_box_residuals.statistic));
+    REQUIRE(std::isfinite(report.ljung_box_residuals.p_value));
+    REQUIRE(report.ljung_box_residuals.p_value >= 0.0);
+    REQUIRE(report.ljung_box_residuals.p_value <= 1.0);
+
+    REQUIRE(report.adf.has_value());
+    REQUIRE(std::isfinite(report.adf->statistic));
+    REQUIRE(std::isfinite(report.adf->p_value));
+}
+
+// Test diagnostic report with Student-t innovations (auto-bootstrap)
+TEST(diagnostic_report_student_t_auto_bootstrap) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.0;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    std::mt19937 gen(42);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    std::vector<double> data(200);
+    for (auto& val : data) {
+        val = dist(gen);
+    }
+
+    // Compute diagnostics WITH Student-t specification (df = 5)
+    auto report =
+        computeDiagnostics(spec, params, data, 10, true, "Student-t", 5.0, false, 200, 999);
+
+    // Verify bootstrap methods were automatically used (df < 30)
+    REQUIRE(report.ljung_box_method == "bootstrap");
+    REQUIRE(report.adf_method == "bootstrap");
+
+    // Verify innovation distribution info is stored
+    REQUIRE(report.innovation_distribution.has_value());
+    REQUIRE(report.innovation_distribution.value() == "Student-t");
+    REQUIRE(report.student_t_df.has_value());
+    REQUIRE(std::abs(report.student_t_df.value() - 5.0) < 1e-10);
+
+    // Verify all test results are valid
+    REQUIRE(std::isfinite(report.ljung_box_residuals.statistic));
+    REQUIRE(std::isfinite(report.ljung_box_residuals.p_value));
+    REQUIRE(report.ljung_box_residuals.p_value >= 0.0);
+    REQUIRE(report.ljung_box_residuals.p_value <= 1.0);
+
+    REQUIRE(report.adf.has_value());
+    REQUIRE(std::isfinite(report.adf->statistic));
+}
+
+// Test diagnostic report with high df Student-t (no auto-bootstrap)
+TEST(diagnostic_report_student_t_high_df) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.0;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    std::mt19937 gen(42);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    std::vector<double> data(200);
+    for (auto& val : data) {
+        val = dist(gen);
+    }
+
+    // Compute diagnostics WITH Student-t but high df (df = 50 > 30)
+    auto report = computeDiagnostics(spec, params, data, 10, false, "Student-t", 50.0);
+
+    // Verify asymptotic methods were used (df >= 30, not forced)
+    REQUIRE(report.ljung_box_method == "asymptotic");
+    REQUIRE(report.adf_method == "asymptotic");
+
+    // Innovation distribution info should still be stored
+    REQUIRE(report.innovation_distribution.has_value());
+    REQUIRE(report.student_t_df.has_value());
+    REQUIRE(std::abs(report.student_t_df.value() - 50.0) < 1e-10);
+}
+
+// Test diagnostic report with invalid Student-t df
+TEST(diagnostic_report_invalid_student_t_df) {
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.0;
+    params.garch_params.omega = 0.1;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    std::vector<double> data(100, 1.0);
+
+    bool caught_exception = false;
+    try {
+        // Student-t with df <= 2 should throw
+        (void)computeDiagnostics(spec, params, data, 10, false, "Student-t", 2.0);
+    } catch (const std::invalid_argument&) {
+        caught_exception = true;
+    }
+
+    REQUIRE(caught_exception);
+}
+
+// Test that bootstrap and asymptotic give similar results for Normal
+TEST(diagnostic_report_bootstrap_vs_asymptotic_normal) {
+    ArimaGarchSpec spec(1, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+
+    params.arima_params.intercept = 0.02;
+    params.arima_params.ar_coef[0] = 0.5;
+    params.garch_params.omega = 0.02;
+    params.garch_params.alpha_coef[0] = 0.15;
+    params.garch_params.beta_coef[0] = 0.80;
+
+    // Simulate data with Normal innovations
+    ArimaGarchSimulator simulator(spec, params);
+    auto sim_result = simulator.simulate(400, 777);
+
+    // Compute with asymptotic methods
+    auto report_asymp = computeDiagnostics(spec, params, sim_result.returns, 12, false);
+
+    // Compute with bootstrap methods (use larger n_bootstrap for stability)
+    auto report_boot = computeDiagnostics(spec, params, sim_result.returns, 12, false, "Normal",
+                                          0.0, true, 500, 888);
+
+    // For Normal innovations, bootstrap and asymptotic should give similar p-values
+    // (not exactly the same, but in same ballpark)
+    // We just verify both are valid and both give reasonable results
+    REQUIRE(report_asymp.ljung_box_method == "asymptotic");
+    REQUIRE(report_boot.ljung_box_method == "bootstrap");
+
+    REQUIRE(std::isfinite(report_asymp.ljung_box_residuals.p_value));
+    REQUIRE(std::isfinite(report_boot.ljung_box_residuals.p_value));
+
+    // Both should indicate no significant autocorrelation for well-specified model
+    // (though not guaranteed due to randomness)
+    REQUIRE(report_asymp.ljung_box_residuals.p_value >= 0.0);
+    REQUIRE(report_boot.ljung_box_residuals.p_value >= 0.0);
+
+    // Test statistics should be the same (they use same observed data)
+    REQUIRE(std::abs(report_asymp.ljung_box_residuals.statistic -
+                     report_boot.ljung_box_residuals.statistic) < 1e-10);
+}
+
+// ============================================================================
 // Main test runner
 // ============================================================================
 

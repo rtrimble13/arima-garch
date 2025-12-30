@@ -29,6 +29,7 @@ add_library(arimagarch STATIC
     simulation/Innovations.cpp
     stats/ACF.cpp
     stats/ADF.cpp
+    stats/Bootstrap.cpp
     stats/Descriptive.cpp
     stats/JarqueBera.cpp
     stats/LjungBox.cpp
