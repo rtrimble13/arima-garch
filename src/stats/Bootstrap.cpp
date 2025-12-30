@@ -226,10 +226,10 @@ std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double
                                                         std::span<const double> residuals,
                                                         std::size_t n, std::mt19937& rng) {
     const std::size_t p = phi_diff.size();
-    const std::size_t n_resid = residuals.size();
     
     // We need to generate n points, so we need n resampled residuals
-    // Resample with replacement to get exactly n residuals
+    // Resample with replacement to get exactly n residuals from the available pool
+    const std::size_t n_resid = residuals.size();
     std::uniform_int_distribution<std::size_t> dist(0, n_resid - 1);
     std::vector<double> resampled_residuals(n);
     for (std::size_t i = 0; i < n; ++i) {
