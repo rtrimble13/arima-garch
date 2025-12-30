@@ -57,10 +57,11 @@ std::tuple<int, int> parseGarchOrder(const std::string& order) {
 }
 
 // Load data from CSV file
-std::vector<double> loadData(const std::string& filepath) {
+std::vector<double> loadData(const std::string& filepath, bool has_header = true) {
     ag::io::CsvReaderOptions options;
-    options.has_header = true;
-    options.value_column = 0;
+    options.has_header = has_header;
+    // Use auto-detection for value column (default)
+    // options.value_column is already set to std::numeric_limits<std::size_t>::max()
 
     auto result = ag::io::CsvReader::read(filepath, options);
     if (!result) {
@@ -79,10 +80,10 @@ std::vector<double> loadData(const std::string& filepath) {
 
 // Fit subcommand handler
 int handleFit(const std::string& dataFile, const std::string& arimaOrder,
-              const std::string& garchOrder, const std::string& outputFile) {
+              const std::string& garchOrder, const std::string& outputFile, bool no_header) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile);
+        auto data = loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Parse model specification
@@ -129,10 +130,10 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
 // Select subcommand handler
 int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int maxGarchP,
                  int maxGarchQ, const std::string& criterion, const std::string& outputFile,
-                 int topK) {
+                 int topK, bool no_header) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile);
+        auto data = loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Generate candidate grid
@@ -440,7 +441,7 @@ int handleSimulateFromModel(const std::string& modelFile, int numPaths, int leng
 
 // Diagnostics subcommand handler
 int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
-                      const std::string& outputFile) {
+                      const std::string& outputFile, bool no_header) {
     try {
         fmt::print("Loading model from {}...\n", modelFile);
         auto model_result = ag::io::JsonReader::loadModel(modelFile);
@@ -450,7 +451,7 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
         }
 
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile);
+        auto data = loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Run diagnostics
@@ -551,17 +552,19 @@ int main(int argc, char* argv[]) {
     std::string fit_arima_order;
     std::string fit_garch_order;
     std::string fit_output_file;
+    bool fit_no_header = false;
 
     fit->add_option("-d,--data,-i,--input", fit_data_file,
-                    "Input data file (CSV format, first column)")
+                    "Input data file (CSV format)")
         ->required();
     fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)")
         ->required();
     fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)")->required();
     fit->add_option("-o,--output,--out", fit_output_file, "Output model file (JSON format)");
+    fit->add_flag("--no-header", fit_no_header, "CSV file has no header row (default: expect header)");
 
     fit->callback([&]() {
-        return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file);
+        return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file, fit_no_header);
     });
 
     // Select subcommand
@@ -575,10 +578,11 @@ int main(int argc, char* argv[]) {
     std::string select_criterion = "BIC";
     std::string select_output_file;
     int select_top_k = 0;
+    bool select_no_header = false;
 
     select
         ->add_option("-d,--data,-i,--input", select_data_file,
-                     "Input data file (CSV format, first column)")
+                     "Input data file (CSV format)")
         ->required();
     select->add_option("--max-p", select_max_p, "Maximum ARIMA AR order (default: 2)");
     select->add_option("--max-d", select_max_d, "Maximum ARIMA differencing order (default: 1)");
@@ -590,11 +594,12 @@ int main(int argc, char* argv[]) {
     select->add_option("-o,--output,--out", select_output_file, "Output model file (JSON format)");
     select->add_option("--top-k", select_top_k,
                        "Display top K models in ranking table (default: 0, disabled)");
+    select->add_flag("--no-header", select_no_header, "CSV file has no header row (default: expect header)");
 
     select->callback([&]() {
         return handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
                             select_max_garch_p, select_max_garch_q, select_criterion,
-                            select_output_file, select_top_k);
+                            select_output_file, select_top_k, select_no_header);
     });
 
     // Forecast subcommand
@@ -671,6 +676,7 @@ int main(int argc, char* argv[]) {
     std::string diag_model_file;
     std::string diag_data_file;
     std::string diag_output_file;
+    bool diag_no_header = false;
 
     diagnostics->add_option("-m,--model", diag_model_file, "Input model file (JSON format)")
         ->required();
@@ -678,9 +684,10 @@ int main(int argc, char* argv[]) {
         ->required();
     diagnostics->add_option("-o,--output,--out", diag_output_file,
                             "Output diagnostics file (JSON format)");
+    diagnostics->add_flag("--no-header", diag_no_header, "CSV file has no header row (default: expect header)");
 
     diagnostics->callback(
-        [&]() { return handleDiagnostics(diag_model_file, diag_data_file, diag_output_file); });
+        [&]() { return handleDiagnostics(diag_model_file, diag_data_file, diag_output_file, diag_no_header); });
 
     // Parse command line
     CLI11_PARSE(app, argc, argv);

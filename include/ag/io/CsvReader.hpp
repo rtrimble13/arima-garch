@@ -4,6 +4,7 @@
 #include "ag/util/Expected.hpp"
 
 #include <filesystem>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -23,10 +24,12 @@ struct CsvReaderOptions {
     /**
      * @brief Column index containing the time series values.
      *
+     * If set to std::numeric_limits<std::size_t>::max() (default), the reader
+     * will automatically detect the first numeric column.
      * If the CSV has only one column, use 0.
      * If the CSV has a date/index column followed by values, use 1.
      */
-    std::size_t value_column = 0;
+    std::size_t value_column = std::numeric_limits<std::size_t>::max();
 
     /**
      * @brief Whether the first row contains column headers.
