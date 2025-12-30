@@ -258,6 +258,13 @@ add_executable(test_api_engine
 target_link_libraries(test_api_engine PRIVATE arimagarch)
 add_test(NAME test_api_engine COMMAND test_api_engine)
 
+add_executable(test_engine_student_t_diagnostics
+    unit/test_engine_student_t_diagnostics.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_engine_student_t_diagnostics PRIVATE arimagarch)
+add_test(NAME test_engine_student_t_diagnostics COMMAND test_engine_student_t_diagnostics)
+
 # Integration tests
 add_executable(test_integration_e2e
     unit/test_integration_e2e.cpp

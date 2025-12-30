@@ -130,8 +130,12 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
             ljung_box_lags = std::max(ljung_box_lags, k + 1);
 
             try {
+                std::string innovation_dist = use_student_t ? "Student-t" : "Normal";
                 auto diagnostics =
-                    diagnostics::computeDiagnostics(spec, model_params, data, ljung_box_lags, true);
+                    diagnostics::computeDiagnostics(spec, model_params, data, ljung_box_lags,
+                                                    true,             // include_adf
+                                                    innovation_dist,  // innovation distribution
+                                                    student_t_df);    // df (ignored if Normal)
                 summary.diagnostics = diagnostics;
             } catch (const std::exception& e) {
                 // If diagnostics fail, we still return the fit but without diagnostics
