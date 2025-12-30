@@ -110,12 +110,14 @@ public:
      * @param data Time series data (must have at least 10 observations)
      * @param spec ARIMA-GARCH model specification
      * @param compute_diagnostics Whether to compute diagnostic tests (default: true)
+     * @param use_student_t Whether to use Student-t distribution for innovations (default: false)
+     * @param student_t_df Degrees of freedom for Student-t distribution (default: 2.0, must be > 2)
      * @return FitResult on success, EngineError on failure
      * @throws None - all errors returned via expected
      */
-    [[nodiscard]] expected<FitResult, EngineError> fit(const std::vector<double>& data,
-                                                       const models::ArimaGarchSpec& spec,
-                                                       bool compute_diagnostics = true);
+    [[nodiscard]] expected<FitResult, EngineError>
+    fit(const std::vector<double>& data, const models::ArimaGarchSpec& spec,
+        bool compute_diagnostics = true, bool use_student_t = false, double student_t_df = 2.0);
 
     /**
      * @brief Automatically select and fit the best model from candidates.
@@ -160,18 +162,21 @@ public:
      * @brief Simulate synthetic time series from an ARIMA-GARCH model.
      *
      * Generates synthetic data using the specified model parameters and
-     * random innovations drawn from a standard normal distribution.
+     * random innovations drawn from a standard normal distribution or Student-t distribution.
      *
      * @param spec ARIMA-GARCH model specification
      * @param params Model parameters (coefficients)
      * @param length Number of observations to simulate (must be > 0)
      * @param seed Random seed for reproducibility
+     * @param use_student_t Whether to use Student-t distribution for innovations (default: false)
+     * @param student_t_df Degrees of freedom for Student-t distribution (default: 2.0, must be > 2)
      * @return SimulationResult on success, EngineError on failure
      * @throws None - all errors returned via expected
      */
     [[nodiscard]] expected<simulation::SimulationResult, EngineError>
     simulate(const models::ArimaGarchSpec& spec,
-             const models::composite::ArimaGarchParameters& params, int length, unsigned int seed);
+             const models::composite::ArimaGarchParameters& params, int length, unsigned int seed,
+             bool use_student_t = false, double student_t_df = 2.0);
 
 private:
     // Configuration parameters for optimization

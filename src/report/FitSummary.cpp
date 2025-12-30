@@ -89,6 +89,11 @@ std::string generateTextReport(const FitSummary& summary) {
     // 4. Model Fit Statistics
     report += "4. Model Fit Statistics\n";
     report += "   --------------------\n";
+    report += fmt::format("   Innovation dist.:   {}", summary.innovation_distribution);
+    if (summary.innovation_distribution == "Student-t") {
+        report += fmt::format(" (df={:.2f})", summary.student_t_df);
+    }
+    report += "\n";
     report += fmt::format("   Log-likelihood:     {:.6f}\n", -summary.neg_log_likelihood);
     report += fmt::format("   AIC:                {:.6f}\n", summary.aic);
     report += fmt::format("   BIC:                {:.6f}\n", summary.bic);
