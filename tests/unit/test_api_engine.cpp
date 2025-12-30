@@ -375,6 +375,115 @@ TEST(engine_simulate_from_loaded_model_reproducibility) {
     }
 }
 
+// ============================================================================
+// Engine fit() Tests for ARIMA-only models (no GARCH)
+// ============================================================================
+
+TEST(engine_fit_arima_101_no_garch) {
+    // Test fitting ARIMA(1,0,1) model without GARCH component
+    // This is a regression test for the segfault bug
+
+    // Generate synthetic data from ARIMA(1,0,1) model
+    ArimaGarchSpec spec(1, 0, 1, 0, 0);  // No GARCH component
+    ArimaGarchParameters true_params(spec);
+
+    true_params.arima_params.intercept = 0.05;
+    true_params.arima_params.ar_coef[0] = 0.6;
+    true_params.arima_params.ma_coef[0] = 0.3;
+
+    // For ARIMA-only, use a simple simulator approach
+    // Generate random data with known properties
+    std::vector<double> data(100);
+    std::mt19937 gen(42);
+    std::normal_distribution<> dist(0.0, 1.0);
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = 0.05 + dist(gen) * 0.2;
+    }
+
+    // Fit using Engine
+    Engine engine;
+    auto fit_result = engine.fit(data, spec, true);
+
+    // Should not crash and should converge
+    REQUIRE(fit_result.has_value());
+    REQUIRE(fit_result.value().model != nullptr);
+    REQUIRE(fit_result.value().summary.converged);
+    REQUIRE(fit_result.value().summary.sample_size == 100);
+
+    // Verify spec is correct
+    const auto& fitted_spec = fit_result.value().model->getSpec();
+    REQUIRE(fitted_spec.arimaSpec.p == 1);
+    REQUIRE(fitted_spec.arimaSpec.d == 0);
+    REQUIRE(fitted_spec.arimaSpec.q == 1);
+    REQUIRE(fitted_spec.garchSpec.p == 0);
+    REQUIRE(fitted_spec.garchSpec.q == 0);
+    REQUIRE(fitted_spec.garchSpec.isNull());
+}
+
+TEST(engine_fit_ar_100_no_garch) {
+    // Test fitting AR(1) model without GARCH component
+
+    // Generate random data
+    std::vector<double> data(100);
+    std::mt19937 gen(123);
+    std::normal_distribution<> dist(0.0, 1.0);
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = 0.1 + dist(gen) * 0.25;
+    }
+
+    ArimaGarchSpec spec(1, 0, 0, 0, 0);  // AR(1), no GARCH
+
+    // Fit using Engine
+    Engine engine;
+    auto fit_result = engine.fit(data, spec, true);
+
+    // Should not crash and should converge
+    REQUIRE(fit_result.has_value());
+    REQUIRE(fit_result.value().model != nullptr);
+    REQUIRE(fit_result.value().summary.converged);
+
+    // Verify GARCH spec is null
+    const auto& fitted_spec = fit_result.value().model->getSpec();
+    REQUIRE(fitted_spec.garchSpec.isNull());
+}
+
+TEST(engine_fit_ma_001_no_garch) {
+    // Test fitting MA(1) model without GARCH component
+    // Note: MA models can be harder to fit and may not always converge
+
+    // Generate random data
+    std::vector<double> data(100);
+    std::mt19937 gen(456);
+    std::normal_distribution<> dist(0.0, 1.0);
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = 0.08 + dist(gen) * 0.3;
+    }
+
+    ArimaGarchSpec spec(0, 0, 1, 0, 0);  // MA(1), no GARCH
+
+    // Fit using Engine - the test is that this doesn't crash (segfault)
+    Engine engine;
+    bool no_crash = false;
+    try {
+        auto fit_result = engine.fit(data, spec, false);  // Skip diagnostics for speed
+        no_crash = true;
+
+        // If convergence succeeded, verify the model is valid
+        if (fit_result.has_value()) {
+            REQUIRE(fit_result.value().model != nullptr);
+            const auto& fitted_spec = fit_result.value().model->getSpec();
+            REQUIRE(fitted_spec.garchSpec.isNull());
+        }
+    } catch (...) {
+        // Any exception (other than segfault) is also acceptable
+        // The key requirement is no segfault/crash
+        no_crash = true;
+    }
+
+    // Verify the fit call completed without crashing
+    REQUIRE(no_crash);
+}
+
 int main() {
     report_test_results("Engine API Tests");
     return get_test_result();

@@ -53,32 +53,43 @@ ArimaGarchOutput ArimaGarchModel::update(double y_t) {
     // Step 2: Compute residual
     double eps_t = y_t - mu_t;
 
-    // Step 3: Compute conditional variance using GARCH model
-    const auto& var_history = var_state_.getVarianceHistory();
-    const auto& sq_res_history = var_state_.getSquaredResidualHistory();
+    // Step 3: Compute conditional variance
+    double h_t;
 
-    double h_t = params_.garch_params.omega;
+    if (spec_.garchSpec.isNull()) {
+        // For ARIMA-only models (no GARCH component), use constant variance
+        // Use the initial variance which is computed from residual sample variance
+        h_t = var_state_.getInitialVariance();
+    } else {
+        // For ARIMA-GARCH models, use GARCH recursion
+        const auto& var_history = var_state_.getVarianceHistory();
+        const auto& sq_res_history = var_state_.getSquaredResidualHistory();
 
-    // Add ARCH component: α₁*ε²_{t-1} + α₂*ε²_{t-2} + ... + α_q*ε²_{t-q}
-    for (int i = 0; i < spec_.garchSpec.q; ++i) {
-        h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
+        h_t = params_.garch_params.omega;
+
+        // Add ARCH component: α₁*ε²_{t-1} + α₂*ε²_{t-2} + ... + α_q*ε²_{t-q}
+        for (int i = 0; i < spec_.garchSpec.q; ++i) {
+            h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
+        }
+
+        // Add GARCH component: β₁*h_{t-1} + β₂*h_{t-2} + ... + βₚ*h_{t-p}
+        for (int i = 0; i < spec_.garchSpec.p; ++i) {
+            h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
+        }
+
+        // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against numerical
+        // issues)
+        h_t = std::max(h_t, 1e-10);
     }
-
-    // Add GARCH component: β₁*h_{t-1} + β₂*h_{t-2} + ... + βₚ*h_{t-p}
-    for (int i = 0; i < spec_.garchSpec.p; ++i) {
-        h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
-    }
-
-    // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against numerical
-    // issues)
-    h_t = std::max(h_t, 1e-10);
 
     // Step 4: Update ARIMA state
     mean_state_.update(y_t, eps_t);
 
-    // Step 5: Update GARCH state
-    double eps_squared = eps_t * eps_t;
-    var_state_.update(h_t, eps_squared);
+    // Step 5: Update GARCH state (only if GARCH component exists)
+    if (!spec_.garchSpec.isNull()) {
+        double eps_squared = eps_t * eps_t;
+        var_state_.update(h_t, eps_squared);
+    }
 
     // Return output
     return ArimaGarchOutput{mu_t, h_t};
