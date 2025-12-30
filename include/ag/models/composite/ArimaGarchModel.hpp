@@ -83,6 +83,23 @@ public:
     ArimaGarchOutput update(double y_t);
 
     /**
+     * @brief Predict conditional mean and variance without updating state.
+     *
+     * This method computes the one-step-ahead predictions μ_t and h_t using
+     * only information available up to time t-1, without updating the internal
+     * state. This is the correct method for computing diagnostic residuals,
+     * as it avoids look-ahead bias.
+     *
+     * For diagnostic purposes, use this method followed by manual state updates:
+     * 1. Call predict() to get μ_t and h_t
+     * 2. Compute residual ε_t = y_t - μ_t
+     * 3. Manually update state using the observation and residual
+     *
+     * @return ArimaGarchOutput containing μ_t and h_t predictions
+     */
+    [[nodiscard]] ArimaGarchOutput predict() const;
+
+    /**
      * @brief Get the ARIMA-GARCH specification for this model.
      * @return The ARIMA-GARCH specification
      */
@@ -133,6 +150,17 @@ private:
      * @return The conditional mean μ_t
      */
     [[nodiscard]] double computeConditionalMean() const;
+
+    /**
+     * @brief Compute conditional variance for the current observation.
+     *
+     * Uses the GARCH model to compute the conditional variance based on historical
+     * variances and squared residuals. For ARIMA-only models (null GARCH spec),
+     * returns the initial variance.
+     *
+     * @return The conditional variance h_t
+     */
+    [[nodiscard]] double computeConditionalVariance() const;
 };
 
 }  // namespace ag::models::composite

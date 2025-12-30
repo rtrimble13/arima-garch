@@ -31,6 +31,7 @@ namespace ag::stats {
  *
  * @param residuals Span of residual values from a fitted model
  * @param lags Number of lags to test (must be less than residuals.size())
+ * @param dof Degrees of freedom for the test (default: 0, meaning dof = lags)
  * @param n_bootstrap Number of bootstrap replications (default: 1000)
  * @param seed Random seed for reproducibility (default: 42)
  * @return LjungBoxResult containing the statistic, bootstrap p-value, lags, and dof
@@ -40,12 +41,12 @@ namespace ag::stats {
  *       the asymptotic test may be preferred for speed. However, for Student-t or
  *       other heavy-tailed distributions, the bootstrap provides more accurate p-values.
  *
- * @note The degrees of freedom (dof) in the result is set equal to lags for consistency
- *       with the asymptotic test, but the p-value is computed from the bootstrap
- *       distribution rather than the chi-squared distribution.
+ * @note The degrees of freedom parameter allows specifying the number of estimated
+ *       parameters in the model, typically dof = lags - num_estimated_params.
+ *       If dof = 0 (default), it is set equal to lags.
  */
 [[nodiscard]] LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals,
-                                                      std::size_t lags,
+                                                      std::size_t lags, std::size_t dof = 0,
                                                       std::size_t n_bootstrap = 1000,
                                                       unsigned int seed = 42);
 
@@ -104,10 +105,11 @@ namespace ag::stats {
 
 // Convenience overloads for std::vector
 [[nodiscard]] inline LjungBoxResult ljung_box_test_bootstrap(const std::vector<double>& residuals,
-                                                             std::size_t lags,
+                                                             std::size_t lags, std::size_t dof = 0,
                                                              std::size_t n_bootstrap = 1000,
                                                              unsigned int seed = 42) {
-    return ljung_box_test_bootstrap(std::span<const double>(residuals), lags, n_bootstrap, seed);
+    return ljung_box_test_bootstrap(std::span<const double>(residuals), lags, dof, n_bootstrap,
+                                    seed);
 }
 
 [[nodiscard]] inline ADFResult adf_test_bootstrap(const std::vector<double>& data, std::size_t lags,

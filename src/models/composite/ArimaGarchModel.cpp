@@ -54,33 +54,7 @@ ArimaGarchOutput ArimaGarchModel::update(double y_t) {
     double eps_t = y_t - mu_t;
 
     // Step 3: Compute conditional variance
-    double h_t;
-
-    if (spec_.garchSpec.isNull()) {
-        // For ARIMA-only models (no GARCH component), use constant variance
-        // Use the initial variance which is computed from residual sample variance
-        h_t = var_state_.getInitialVariance();
-    } else {
-        // For ARIMA-GARCH models, use GARCH recursion
-        const auto& var_history = var_state_.getVarianceHistory();
-        const auto& sq_res_history = var_state_.getSquaredResidualHistory();
-
-        h_t = params_.garch_params.omega;
-
-        // Add ARCH component: α₁*ε²_{t-1} + α₂*ε²_{t-2} + ... + α_q*ε²_{t-q}
-        for (int i = 0; i < spec_.garchSpec.q; ++i) {
-            h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
-        }
-
-        // Add GARCH component: β₁*h_{t-1} + β₂*h_{t-2} + ... + βₚ*h_{t-p}
-        for (int i = 0; i < spec_.garchSpec.p; ++i) {
-            h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
-        }
-
-        // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against numerical
-        // issues)
-        h_t = std::max(h_t, 1e-10);
-    }
+    double h_t = computeConditionalVariance();
 
     // Step 4: Update ARIMA state
     mean_state_.update(y_t, eps_t);
@@ -92,6 +66,15 @@ ArimaGarchOutput ArimaGarchModel::update(double y_t) {
     }
 
     // Return output
+    return ArimaGarchOutput{mu_t, h_t};
+}
+
+ArimaGarchOutput ArimaGarchModel::predict() const {
+    // Compute conditional mean and variance using current state
+    // without modifying the state
+    double mu_t = computeConditionalMean();
+    double h_t = computeConditionalVariance();
+
     return ArimaGarchOutput{mu_t, h_t};
 }
 
@@ -115,6 +98,34 @@ double ArimaGarchModel::computeConditionalMean() const {
     }
 
     return mean;
+}
+
+double ArimaGarchModel::computeConditionalVariance() const {
+    if (spec_.garchSpec.isNull()) {
+        // For ARIMA-only models (no GARCH component), use constant variance
+        // Use the initial variance which is computed from residual sample variance
+        return var_state_.getInitialVariance();
+    }
+
+    // For ARIMA-GARCH models, use GARCH recursion
+    const auto& var_history = var_state_.getVarianceHistory();
+    const auto& sq_res_history = var_state_.getSquaredResidualHistory();
+
+    double h_t = params_.garch_params.omega;
+
+    // Add ARCH component: α₁*ε²_{t-1} + α₂*ε²_{t-2} + ... + α_q*ε²_{t-q}
+    for (int i = 0; i < spec_.garchSpec.q; ++i) {
+        h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
+    }
+
+    // Add GARCH component: β₁*h_{t-1} + β₂*h_{t-2} + ... + βₚ*h_{t-p}
+    for (int i = 0; i < spec_.garchSpec.p; ++i) {
+        h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
+    }
+
+    // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against numerical
+    // issues)
+    return std::max(h_t, 1e-10);
 }
 
 }  // namespace ag::models::composite
