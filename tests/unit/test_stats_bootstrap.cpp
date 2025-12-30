@@ -330,13 +330,13 @@ TEST(bootstrap_adf_pure_random_walk) {
 
     // With correct bootstrap under unit root null, p-value should be high
     auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 42);
-    
+
     // For unit root data, we expect to fail to reject most of the time
     // However, due to randomness, we use a more lenient threshold
     // The test should not strongly reject (p-value should not be extremely low)
     REQUIRE(result.p_value >= 0.0);
     REQUIRE(result.p_value <= 1.0);
-    
+
     // Critical values should be in reasonable negative range
     REQUIRE(result.critical_value_1pct < result.critical_value_5pct);
     REQUIRE(result.critical_value_5pct < result.critical_value_10pct);
@@ -348,7 +348,7 @@ TEST(bootstrap_adf_strongly_stationary) {
     // Generate strongly stationary AR(1) with phi = 0.3
     const double phi = 0.3;
     const int n = 200;
-    
+
     std::mt19937 gen(54321);
     std::normal_distribution<double> dist(0.0, 1.0);
 
@@ -360,10 +360,10 @@ TEST(bootstrap_adf_strongly_stationary) {
 
     // With correct bootstrap under unit root null, stationary data should reject
     auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 99);
-    
+
     // For strongly stationary data, p-value should be low (reject unit root)
     REQUIRE(result.p_value < 0.3);
-    
+
     // Statistic should be more negative (strong evidence against unit root)
     REQUIRE(result.statistic < -1.0);
 }
@@ -383,12 +383,12 @@ TEST(bootstrap_adf_unit_root_student_t) {
 
     // Bootstrap should work correctly with heavy tails when unit root is imposed
     auto result = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::Constant, 500, 777);
-    
+
     // For unit root with heavy tails, p-value should still be high
     REQUIRE(result.p_value >= 0.0);
     REQUIRE(result.p_value <= 1.0);
     REQUIRE(result.p_value > 0.05);  // Should fail to reject unit root
-    
+
     // Critical values should be in reasonable range
     REQUIRE(result.critical_value_1pct < result.critical_value_5pct);
     REQUIRE(result.critical_value_5pct < result.critical_value_10pct);
@@ -409,7 +409,8 @@ TEST(bootstrap_adf_integrated_series) {
     }
 
     // Test levels: should not reject unit root
-    auto result_levels = ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::ConstantAndTrend, 300, 333);
+    auto result_levels =
+        ag::stats::adf_test_bootstrap(data, 2, ADFRegressionForm::ConstantAndTrend, 300, 333);
     REQUIRE(result_levels.p_value > 0.05);
 
     // Take first differences
@@ -419,7 +420,8 @@ TEST(bootstrap_adf_integrated_series) {
     }
 
     // Test differences: should reject unit root (differences are stationary)
-    auto result_diff = ag::stats::adf_test_bootstrap(differences, 2, ADFRegressionForm::Constant, 300, 444);
+    auto result_diff =
+        ag::stats::adf_test_bootstrap(differences, 2, ADFRegressionForm::Constant, 300, 444);
     REQUIRE(result_diff.p_value < 0.5);  // Should tend to reject for stationary series
 }
 

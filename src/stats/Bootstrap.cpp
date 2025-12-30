@@ -226,7 +226,7 @@ std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double
                                                         std::span<const double> residuals,
                                                         std::size_t n, std::mt19937& rng) {
     const std::size_t p = phi_diff.size();
-    
+
     // We need to generate n points, so we need n resampled residuals
     // Resample with replacement to get exactly n residuals from the available pool
     const std::size_t n_resid = residuals.size();
@@ -235,10 +235,10 @@ std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double
     for (std::size_t i = 0; i < n; ++i) {
         resampled_residuals[i] = residuals[dist(rng)];
     }
-    
+
     // Step 2: Generate differences Δy*_t from AR(p) model
     std::vector<double> dy_star(n, 0.0);
-    
+
     if (p == 0) {
         // No AR structure in differences, just use resampled residuals
         dy_star = resampled_residuals;
@@ -252,14 +252,14 @@ std::vector<double> generate_unit_root_bootstrap_sample(const std::vector<double
             }
         }
     }
-    
+
     // Step 3: Integrate differences to get levels (imposing unit root)
     // y*_t = y*_{t-1} + Δy*_t, with y*_0 = 0
     std::vector<double> y_star(n, 0.0);
     for (std::size_t t = 1; t < n; ++t) {
         y_star[t] = y_star[t - 1] + dy_star[t];
     }
-    
+
     return y_star;
 }
 
