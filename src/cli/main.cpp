@@ -115,7 +115,9 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
 
         // Print appropriate model description
         if (arimaOrder.empty()) {
-            fmt::print("Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0))...\n", P, Q);
+            fmt::print(
+                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0))...\n", P,
+                Q);
         } else if (garchOrder.empty()) {
             fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component)...\n", p, d, q);
         } else {
@@ -589,10 +591,12 @@ int main(int argc, char* argv[]) {
     fit->add_option("-a,--arima", fit_arima_order, "ARIMA order as p,d,q (e.g., 1,1,1)");
     fit->add_option("-g,--garch", fit_garch_order, "GARCH order as p,q (e.g., 1,1)");
     fit->add_option("-o,--output,--out", fit_output_file, "Output model file (JSON format)");
-    fit->add_flag("--no-header", fit_no_header, "CSV file has no header row (default: expect header)");
+    fit->add_flag("--no-header", fit_no_header,
+                  "CSV file has no header row (default: expect header)");
 
     fit->callback([&]() {
-        return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file, fit_no_header);
+        return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file,
+                         fit_no_header);
     });
 
     // Select subcommand
@@ -622,7 +626,8 @@ int main(int argc, char* argv[]) {
     select->add_option("-o,--output,--out", select_output_file, "Output model file (JSON format)");
     select->add_option("--top-k", select_top_k,
                        "Display top K models in ranking table (default: 0, disabled)");
-    select->add_flag("--no-header", select_no_header, "CSV file has no header row (default: expect header)");
+    select->add_flag("--no-header", select_no_header,
+                     "CSV file has no header row (default: expect header)");
 
     select->callback([&]() {
         return handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
@@ -708,14 +713,18 @@ int main(int argc, char* argv[]) {
 
     diagnostics->add_option("-m,--model", diag_model_file, "Input model file (JSON format)")
         ->required();
-    diagnostics->add_option("-d,--data,-i,--input", diag_data_file, "Input data file (CSV format, auto-detects first numeric column)")
+    diagnostics
+        ->add_option("-d,--data,-i,--input", diag_data_file,
+                     "Input data file (CSV format, auto-detects first numeric column)")
         ->required();
     diagnostics->add_option("-o,--output,--out", diag_output_file,
                             "Output diagnostics file (JSON format)");
-    diagnostics->add_flag("--no-header", diag_no_header, "CSV file has no header row (default: expect header)");
+    diagnostics->add_flag("--no-header", diag_no_header,
+                          "CSV file has no header row (default: expect header)");
 
-    diagnostics->callback(
-        [&]() { return handleDiagnostics(diag_model_file, diag_data_file, diag_output_file, diag_no_header); });
+    diagnostics->callback([&]() {
+        return handleDiagnostics(diag_model_file, diag_data_file, diag_output_file, diag_no_header);
+    });
 
     // Parse command line
     CLI11_PARSE(app, argc, argv);

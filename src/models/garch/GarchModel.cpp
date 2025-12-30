@@ -15,7 +15,7 @@ bool GarchParameters::isPositive() const noexcept {
     if (alpha_coef.empty() && beta_coef.empty()) {
         return true;
     }
-    
+
     // Check omega > 0
     if (omega <= 0.0) {
         return false;
@@ -43,7 +43,7 @@ bool GarchParameters::isStationary() const noexcept {
     if (alpha_coef.empty() && beta_coef.empty()) {
         return true;
     }
-    
+
     // Sum of all coefficients must be < 1 for stationarity
     double sum_alpha = std::accumulate(alpha_coef.begin(), alpha_coef.end(), 0.0);
     double sum_beta = std::accumulate(beta_coef.begin(), beta_coef.end(), 0.0);

@@ -11,12 +11,12 @@ GarchState::GarchState(int p, int q) : p_(p), q_(q), initialized_(false), initia
     if (p < 0 || q < 0) {
         throw std::invalid_argument("GARCH orders p and q must be >= 0");
     }
-    
+
     // Both must be 0 (ARIMA-only) or both must be >= 1 (GARCH model)
     if ((p == 0) != (q == 0)) {
         throw std::invalid_argument(
-            "GARCH orders must both be 0 (ARIMA-only) or both be >= 1, got p=" +
-            std::to_string(p) + ", q=" + std::to_string(q));
+            "GARCH orders must both be 0 (ARIMA-only) or both be >= 1, got p=" + std::to_string(p) +
+            ", q=" + std::to_string(q));
     }
 
     // Pre-allocate buffers for historical values (skip if both are 0)

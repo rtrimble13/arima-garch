@@ -184,7 +184,8 @@ TEST(garch_spec_zero_p) {
     } catch (const std::invalid_argument& e) {
         caught_exception = true;
         std::string msg(e.what());
-        REQUIRE(msg.find("both be 0") != std::string::npos || msg.find("both be >= 1") != std::string::npos);
+        REQUIRE(msg.find("both be 0") != std::string::npos ||
+                msg.find("both be >= 1") != std::string::npos);
     }
     REQUIRE(caught_exception);
 }
@@ -197,7 +198,8 @@ TEST(garch_spec_zero_q) {
     } catch (const std::invalid_argument& e) {
         caught_exception = true;
         std::string msg(e.what());
-        REQUIRE(msg.find("both be 0") != std::string::npos || msg.find("both be >= 1") != std::string::npos);
+        REQUIRE(msg.find("both be 0") != std::string::npos ||
+                msg.find("both be >= 1") != std::string::npos);
     }
     REQUIRE(caught_exception);
 }

@@ -120,9 +120,9 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
                 }
             }
             if (detected_value_column == std::numeric_limits<std::size_t>::max()) {
-                return unexpected(CsvReadError{
-                    "Could not auto-detect numeric column on line " + std::to_string(line_number) +
-                    " - no columns contain valid numeric data"});
+                return unexpected(CsvReadError{"Could not auto-detect numeric column on line " +
+                                               std::to_string(line_number) +
+                                               " - no columns contain valid numeric data"});
             }
             need_auto_detect = false;
         }
