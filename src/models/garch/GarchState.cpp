@@ -8,13 +8,22 @@
 namespace ag::models::garch {
 
 GarchState::GarchState(int p, int q) : p_(p), q_(q), initialized_(false), initial_variance_(0.0) {
-    if (p < 1 || q < 1) {
-        throw std::invalid_argument("GARCH orders p and q must be >= 1");
+    if (p < 0 || q < 0) {
+        throw std::invalid_argument("GARCH orders p and q must be >= 0");
     }
 
-    // Pre-allocate buffers for historical values
-    variance_history_.reserve(p);
-    squared_residual_history_.reserve(q);
+    // Both must be 0 (ARIMA-only) or both must be >= 1 (GARCH model)
+    if ((p == 0) != (q == 0)) {
+        throw std::invalid_argument(
+            "GARCH orders must both be 0 (ARIMA-only) or both be >= 1, got p=" + std::to_string(p) +
+            ", q=" + std::to_string(q));
+    }
+
+    // Pre-allocate buffers for historical values (skip if both are 0)
+    if (p > 0 && q > 0) {
+        variance_history_.reserve(p);
+        squared_residual_history_.reserve(q);
+    }
 }
 
 void GarchState::initialize(const double* residuals, std::size_t size,

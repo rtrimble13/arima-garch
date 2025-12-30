@@ -83,6 +83,8 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
     std::istringstream stream{content_str};
     std::string line;
     std::size_t line_number = 0;
+    std::size_t detected_value_column = options.value_column;
+    bool need_auto_detect = (options.value_column == std::numeric_limits<std::size_t>::max());
 
     while (std::getline(stream, line)) {
         line_number++;
@@ -107,16 +109,34 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
             continue;
         }
 
+        // Auto-detect the first numeric column on first data line
+        if (need_auto_detect) {
+            detected_value_column = std::numeric_limits<std::size_t>::max();
+            for (std::size_t i = 0; i < columns.size(); ++i) {
+                auto test_result = parse_double(columns[i]);
+                if (test_result) {
+                    detected_value_column = i;
+                    break;
+                }
+            }
+            if (detected_value_column == std::numeric_limits<std::size_t>::max()) {
+                return unexpected(CsvReadError{"Could not auto-detect numeric column on line " +
+                                               std::to_string(line_number) +
+                                               " - no columns contain valid numeric data"});
+            }
+            need_auto_detect = false;
+        }
+
         // Check if value column index is valid
-        if (options.value_column >= columns.size()) {
+        if (detected_value_column >= columns.size()) {
             return unexpected(
-                CsvReadError{"Value column index " + std::to_string(options.value_column) +
+                CsvReadError{"Value column index " + std::to_string(detected_value_column) +
                              " out of range on line " + std::to_string(line_number) + " (found " +
                              std::to_string(columns.size()) + " columns)"});
         }
 
         // Parse value
-        auto value_result = parse_double(columns[options.value_column]);
+        auto value_result = parse_double(columns[detected_value_column]);
         if (!value_result) {
             return unexpected(CsvReadError{"Failed to parse value on line " +
                                            std::to_string(line_number) + ": " +

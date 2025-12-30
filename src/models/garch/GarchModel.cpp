@@ -11,6 +11,11 @@ namespace ag::models::garch {
 // ============================================================================
 
 bool GarchParameters::isPositive() const noexcept {
+    // If no GARCH component (ARIMA-only), skip validation
+    if (alpha_coef.empty() && beta_coef.empty()) {
+        return true;
+    }
+
     // Check omega > 0
     if (omega <= 0.0) {
         return false;
@@ -34,6 +39,11 @@ bool GarchParameters::isPositive() const noexcept {
 }
 
 bool GarchParameters::isStationary() const noexcept {
+    // If no GARCH component (ARIMA-only), consider stationary
+    if (alpha_coef.empty() && beta_coef.empty()) {
+        return true;
+    }
+
     // Sum of all coefficients must be < 1 for stationarity
     double sum_alpha = std::accumulate(alpha_coef.begin(), alpha_coef.end(), 0.0);
     double sum_beta = std::accumulate(beta_coef.begin(), beta_coef.end(), 0.0);
@@ -73,6 +83,17 @@ std::vector<double> GarchModel::computeConditionalVariances(const double* residu
     }
     if (size == 0) {
         throw std::invalid_argument("Residuals size must be positive");
+    }
+
+    // Handle ARIMA-only model (no GARCH component)
+    if (spec_.isNull()) {
+        // Return constant variance (sample variance of residuals)
+        double sum_sq = 0.0;
+        for (std::size_t i = 0; i < size; ++i) {
+            sum_sq += residuals[i] * residuals[i];
+        }
+        double constant_variance = sum_sq / static_cast<double>(size);
+        return std::vector<double>(size, constant_variance);
     }
 
     // Validate parameter dimensions
