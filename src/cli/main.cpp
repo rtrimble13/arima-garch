@@ -86,9 +86,9 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         auto data = loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
-        // Parse model specification with support for defaults
+        // Parse model specification with support for ARIMA-only models
         int p = 0, d = 0, q = 0;
-        int P = 1, Q = 1;  // Default GARCH(1,1)
+        int P = 0, Q = 0;  // Default to no GARCH
 
         // Parse ARIMA order if provided, otherwise default to ARIMA(0,0,0)
         if (!arimaOrder.empty()) {
@@ -98,7 +98,7 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
             q = std::get<2>(arima_tuple);
         }
 
-        // Parse GARCH order if provided, otherwise use default GARCH(1,1)
+        // Parse GARCH order if provided, otherwise no GARCH
         if (!garchOrder.empty()) {
             auto garch_tuple = parseGarchOrder(garchOrder);
             P = std::get<0>(garch_tuple);
@@ -117,7 +117,7 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         if (arimaOrder.empty()) {
             fmt::print("Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0))...\n", P, Q);
         } else if (garchOrder.empty()) {
-            fmt::print("Fitting ARIMA({},{},{}) model (GARCH component uses defaults: GARCH(1,1))...\n", p, d, q);
+            fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component)...\n", p, d, q);
         } else {
             fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model...\n", p, d, q, P, Q);
         }

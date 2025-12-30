@@ -156,6 +156,12 @@ ag::models::garch::GarchParameters initializeGarchParameters(const double* resid
 
     ag::models::garch::GarchParameters params(p, q);
 
+    // Handle ARIMA-only model (no GARCH component)
+    if (spec.isNull()) {
+        // No parameters to initialize for null GARCH
+        return params;
+    }
+
     // Compute sample variance of residuals
     double sample_var = computeVariance(residuals, size);
     if (sample_var <= 0.0) {

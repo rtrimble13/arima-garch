@@ -176,7 +176,7 @@ TEST(garch_spec_higher_order) {
     REQUIRE(!spec.isGarch11());
 }
 
-// Test invalid GARCH specification: p = 0
+// Test invalid GARCH specification: p = 0 but q != 0
 TEST(garch_spec_zero_p) {
     bool caught_exception = false;
     try {
@@ -184,13 +184,12 @@ TEST(garch_spec_zero_p) {
     } catch (const std::invalid_argument& e) {
         caught_exception = true;
         std::string msg(e.what());
-        REQUIRE(msg.find("p") != std::string::npos);
-        REQUIRE(msg.find(">= 1") != std::string::npos);
+        REQUIRE(msg.find("both be 0") != std::string::npos || msg.find("both be >= 1") != std::string::npos);
     }
     REQUIRE(caught_exception);
 }
 
-// Test invalid GARCH specification: q = 0
+// Test invalid GARCH specification: q = 0 but p != 0
 TEST(garch_spec_zero_q) {
     bool caught_exception = false;
     try {
@@ -198,21 +197,18 @@ TEST(garch_spec_zero_q) {
     } catch (const std::invalid_argument& e) {
         caught_exception = true;
         std::string msg(e.what());
-        REQUIRE(msg.find("q") != std::string::npos);
-        REQUIRE(msg.find(">= 1") != std::string::npos);
+        REQUIRE(msg.find("both be 0") != std::string::npos || msg.find("both be >= 1") != std::string::npos);
     }
     REQUIRE(caught_exception);
 }
 
-// Test invalid GARCH specification: both zero
+// Test valid GARCH specification: both zero (ARIMA-only model)
 TEST(garch_spec_both_zero) {
-    bool caught_exception = false;
-    try {
-        GarchSpec spec(0, 0);
-    } catch (const std::invalid_argument& e) {
-        caught_exception = true;
-    }
-    REQUIRE(caught_exception);
+    GarchSpec spec(0, 0);
+    REQUIRE(spec.p == 0);
+    REQUIRE(spec.q == 0);
+    REQUIRE(spec.isNull());
+    REQUIRE(!spec.isGarch11());
 }
 
 // Test invalid GARCH specification: negative p

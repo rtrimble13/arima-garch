@@ -48,9 +48,11 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
 
             unpackParameters(params, spec, arima_p, garch_p);
 
-            // Check GARCH constraints
-            if (!garch_p.isPositive() || !garch_p.isStationary()) {
-                return 1e10;  // Penalty for constraint violation
+            // Check GARCH constraints (skip if ARIMA-only model)
+            if (!spec.garchSpec.isNull()) {
+                if (!garch_p.isPositive() || !garch_p.isStationary()) {
+                    return 1e10;  // Penalty for constraint violation
+                }
             }
 
             try {
@@ -252,13 +254,15 @@ Engine::packParameters(const models::arima::ArimaParameters& arima_params,
         params.push_back(ma);
     }
 
-    // Pack GARCH parameters
-    params.push_back(garch_params.omega);
-    for (const auto& alpha : garch_params.alpha_coef) {
-        params.push_back(alpha);
-    }
-    for (const auto& beta : garch_params.beta_coef) {
-        params.push_back(beta);
+    // Pack GARCH parameters (skip if null GARCH)
+    if (!garch_params.alpha_coef.empty() || !garch_params.beta_coef.empty()) {
+        params.push_back(garch_params.omega);
+        for (const auto& alpha : garch_params.alpha_coef) {
+            params.push_back(alpha);
+        }
+        for (const auto& beta : garch_params.beta_coef) {
+            params.push_back(beta);
+        }
     }
 
     return params;
@@ -278,13 +282,15 @@ void Engine::unpackParameters(const std::vector<double>& params, const models::A
         out_arima.ma_coef[i] = params[idx++];
     }
 
-    // Unpack GARCH parameters
-    out_garch.omega = params[idx++];
-    for (std::size_t i = 0; i < spec.garchSpec.p; ++i) {
-        out_garch.alpha_coef[i] = params[idx++];
-    }
-    for (std::size_t i = 0; i < spec.garchSpec.q; ++i) {
-        out_garch.beta_coef[i] = params[idx++];
+    // Unpack GARCH parameters (skip if null GARCH)
+    if (!spec.garchSpec.isNull()) {
+        out_garch.omega = params[idx++];
+        for (std::size_t i = 0; i < spec.garchSpec.q; ++i) {
+            out_garch.alpha_coef[i] = params[idx++];
+        }
+        for (std::size_t i = 0; i < spec.garchSpec.p; ++i) {
+            out_garch.beta_coef[i] = params[idx++];
+        }
     }
 }
 
