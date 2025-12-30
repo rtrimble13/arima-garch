@@ -3,10 +3,28 @@
 #include "ag/stats/Bootstrap.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <stdexcept>
 
 namespace ag::diagnostics {
+
+namespace {
+
+/**
+ * @brief Case-insensitive string comparison helper.
+ */
+bool iequals(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    return std::equal(a.begin(), a.end(), b.begin(), [](char a_char, char b_char) {
+        return std::tolower(static_cast<unsigned char>(a_char)) ==
+               std::tolower(static_cast<unsigned char>(b_char));
+    });
+}
+
+}  // namespace
 
 DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
                                     const ag::models::composite::ArimaGarchParameters& params,
@@ -28,9 +46,10 @@ DiagnosticReport computeDiagnostics(const ag::models::ArimaGarchSpec& spec,
             "Number of lags for Ljung-Box test must be less than data size");
     }
 
-    // Validate innovation distribution parameters
-    bool use_student_t = (innovation_dist == "Student-t" || innovation_dist == "student-t" ||
-                          innovation_dist == "StudentT");
+    // Validate innovation distribution parameters (case-insensitive)
+    bool use_student_t = iequals(innovation_dist, "Student-t") ||
+                         iequals(innovation_dist, "student-t") ||
+                         iequals(innovation_dist, "StudentT");
     if (use_student_t && student_t_df <= 2.0) {
         throw std::invalid_argument(
             "Student-t degrees of freedom must be > 2.0 for finite variance");

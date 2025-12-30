@@ -14,6 +14,9 @@ namespace ag::stats {
 
 namespace {
 
+// Numerical tolerance for matrix singularity detection
+constexpr double MATRIX_SINGULARITY_TOLERANCE = 1e-10;
+
 /**
  * @brief Resample data with replacement using a random number generator.
  *
@@ -131,7 +134,7 @@ std::pair<std::vector<double>, std::vector<double>> fit_ar_model(std::span<const
 
         // Forward elimination
         for (std::size_t i = k + 1; i < p; ++i) {
-            if (std::abs(XtX[k][k]) < 1e-10) {
+            if (std::abs(XtX[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
                 continue;  // Singular matrix, skip
             }
             double factor = XtX[i][k] / XtX[k][k];
@@ -144,7 +147,7 @@ std::pair<std::vector<double>, std::vector<double>> fit_ar_model(std::span<const
 
     // Back substitution
     for (int i = static_cast<int>(p) - 1; i >= 0; --i) {
-        if (std::abs(XtX[i][i]) < 1e-10) {
+        if (std::abs(XtX[i][i]) < MATRIX_SINGULARITY_TOLERANCE) {
             phi[i] = 0.0;  // Singular, set coefficient to 0
             continue;
         }
@@ -317,7 +320,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
 
         // Forward elimination
         for (std::size_t i = k + 1; i < n_regressors; ++i) {
-            if (std::abs(A[k][k]) < 1e-10) {
+            if (std::abs(A[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
                 continue;
             }
             double factor = A[i][k] / A[k][k];
@@ -330,7 +333,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
 
     // Back substitution
     for (int i = static_cast<int>(n_regressors) - 1; i >= 0; --i) {
-        if (std::abs(A[i][i]) < 1e-10) {
+        if (std::abs(A[i][i]) < MATRIX_SINGULARITY_TOLERANCE) {
             beta[i] = 0.0;
             continue;
         }
@@ -400,7 +403,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
         }
 
         // Scale pivot row
-        if (std::abs(aug[k][k]) < 1e-10) {
+        if (std::abs(aug[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
             continue;  // Singular matrix
         }
         double pivot = aug[k][k];
@@ -430,7 +433,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
     // Standard error of φ: SE(φ) = sqrt(σ̂² * (X'X)^{-1}_{φ,φ})
     double se_phi = std::sqrt(sigma_sq * XtX_inv[phi_idx][phi_idx]);
 
-    if (se_phi < 1e-10) {
+    if (se_phi < MATRIX_SINGULARITY_TOLERANCE) {
         // Avoid division by zero
         return 0.0;
     }
