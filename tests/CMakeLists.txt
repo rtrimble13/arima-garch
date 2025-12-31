@@ -103,6 +103,13 @@ add_executable(test_stats_bootstrap
 target_link_libraries(test_stats_bootstrap PRIVATE arimagarch)
 add_test(NAME test_stats_bootstrap COMMAND test_stats_bootstrap)
 
+add_executable(test_ljung_box_model_misspecification
+    unit/test_ljung_box_model_misspecification.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_ljung_box_model_misspecification PRIVATE arimagarch)
+add_test(NAME test_ljung_box_model_misspecification COMMAND test_ljung_box_model_misspecification)
+
 # Model tests
 add_executable(test_models_specs
     unit/test_models_specs.cpp
