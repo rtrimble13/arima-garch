@@ -31,7 +31,11 @@ namespace ag::stats {
  *
  * @param residuals Span of residual values from a fitted model
  * @param lags Number of lags to test (must be less than residuals.size())
- * @param dof Degrees of freedom for the test (default: 0, meaning dof = lags)
+ * @param dof Degrees of freedom for reporting purposes (default: 0, meaning dof = lags).
+ *            This parameter is stored in the result for consistency with the asymptotic test,
+ *            but is NOT used in the bootstrap computation itself. The bootstrap method
+ *            does not require DOF adjustment because it empirically estimates the null
+ *            distribution rather than using the chi-squared approximation.
  * @param n_bootstrap Number of bootstrap replications (default: 1000)
  * @param seed Random seed for reproducibility (default: 42)
  * @return LjungBoxResult containing the statistic, bootstrap p-value, lags, and dof
@@ -41,9 +45,13 @@ namespace ag::stats {
  *       the asymptotic test may be preferred for speed. However, for Student-t or
  *       other heavy-tailed distributions, the bootstrap provides more accurate p-values.
  *
- * @note The degrees of freedom parameter allows specifying the number of estimated
- *       parameters in the model, typically dof = lags - num_estimated_params.
- *       If dof = 0 (default), it is set equal to lags.
+ * @note When testing residuals from fitted models: The bootstrap p-value is valid for
+ *       testing the null hypothesis of no autocorrelation in the innovations. However,
+ *       if the model is poorly specified or parameters are poorly estimated (especially
+ *       with complex ARMA specifications), residuals may show autocorrelation even when
+ *       the true innovations have none. In such cases, both asymptotic and bootstrap
+ *       tests will correctly detect the autocorrelation - this indicates a model
+ *       specification or estimation problem, not a test failure.
  */
 [[nodiscard]] LjungBoxResult ljung_box_test_bootstrap(std::span<const double> residuals,
                                                       std::size_t lags, std::size_t dof = 0,
