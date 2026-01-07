@@ -312,6 +312,179 @@ TEST(csv_read_scientific_notation) {
     REQUIRE_APPROX(ts[2], 1.8, 1e-10);
 }
 
+// Test trimming leading empty values
+TEST(csv_read_trim_leading_empty) {
+    std::string csv_content = "\n\n1.5\n2.3\n1.8\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test trimming trailing empty values
+TEST(csv_read_trim_trailing_empty) {
+    std::string csv_content = "1.5\n2.3\n1.8\n\n\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test trimming leading NA values
+TEST(csv_read_trim_leading_na) {
+    std::string csv_content = "NA\nNA\n1.5\n2.3\n1.8\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test trimming trailing NULL values
+TEST(csv_read_trim_trailing_null) {
+    std::string csv_content = "1.5\n2.3\n1.8\nNULL\nNULL\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test trimming both leading and trailing empty values
+TEST(csv_read_trim_both_ends) {
+    std::string csv_content = "NA\n\n1.5\n2.3\n1.8\n\nNULL\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test with header and leading/trailing empty values
+TEST(csv_read_with_header_trim_empty) {
+    std::string csv_content = "Value\nNA\n1.5\n2.3\n1.8\nNULL\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test multiple columns with leading/trailing empty in value column
+TEST(csv_read_multiple_columns_trim_empty) {
+    std::string csv_content = "Date,Value\n"
+                              "2020-01-01,NA\n"
+                              "2020-01-02,1.5\n"
+                              "2020-01-03,2.3\n"
+                              "2020-01-04,1.8\n"
+                              "2020-01-05,NULL\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// Test case-insensitive null values
+TEST(csv_read_case_insensitive_nulls) {
+    std::string csv_content = "na\nNa\n1.5\n2.3\nnull\nNULL\nNaN\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+}
+
+// Test error on empty value in middle of data
+TEST(csv_read_error_empty_in_middle) {
+    std::string csv_content = "1.5\nNA\n2.3\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(!result.has_value());
+}
+
+// Test error when all values are empty/null
+TEST(csv_read_error_all_empty) {
+    std::string csv_content = "NA\nNULL\n\nNaN\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(!result.has_value());
+}
+
+// Test auto-detection with multiple columns and empty values
+TEST(csv_read_auto_detect_with_empty) {
+    std::string csv_content = "Date,Value\n"
+                              "2020-01-01,NA\n"
+                              "2020-01-02,1.5\n"
+                              "2020-01-03,2.3\n"
+                              "2020-01-04,NULL\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    // Let it auto-detect the Value column (should skip Date column)
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+}
+
+// Test files without header show column labels as column1, column2, etc.
+TEST(csv_read_no_header_error_message) {
+    std::string csv_content = "1.5,2.3\n3.2,abc\n";
+
+    CsvReaderOptions options;
+    options.has_header = false;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(!result.has_value());
+    // Error message should contain "column2" since it's 0-indexed column 1
+}
+
 int main() {
     report_test_results("CSV IO Tests");
     return get_test_result();

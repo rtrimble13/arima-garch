@@ -33,8 +33,32 @@ int main() {
         std::cout << "Error: " << result2.error().message << std::endl;
     }
 
-    // Example 3: Create a time series and write to CSV
-    std::cout << "\n=== Example 3: Writing CSV ===" << std::endl;
+    // Example 3: Auto-detect column and trim empty values
+    std::cout << "\n=== Example 3: Auto-detect column with empty values ===" << std::endl;
+    // Create a CSV string with leading/trailing empty values
+    std::string csv_with_empty = "Date,Value\n"
+                                 "2024-01-01,NA\n"
+                                 "2024-01-02,10.5\n"
+                                 "2024-01-03,11.2\n"
+                                 "2024-01-04,12.8\n"
+                                 "2024-01-05,NULL\n";
+
+    ag::io::CsvReaderOptions auto_options;
+    auto_options.has_header = true;
+    // value_column is not set, so it will auto-detect the first numeric column
+
+    auto result3 = ag::io::CsvReader::read_from_string(csv_with_empty, auto_options);
+    if (result3.has_value()) {
+        const auto& ts = *result3;
+        std::cout << "Successfully auto-detected column and trimmed empty values" << std::endl;
+        std::cout << "Read " << ts.size() << " values (after trimming)" << std::endl;
+        std::cout << "Mean: " << ts.mean() << std::endl;
+    } else {
+        std::cout << "Error: " << result3.error().message << std::endl;
+    }
+
+    // Example 4: Create a time series and write to CSV
+    std::cout << "\n=== Example 4: Writing CSV ===" << std::endl;
     ag::data::TimeSeries ts{1.1, 2.2, 3.3, 4.4, 5.5};
 
     ag::io::CsvWriterOptions write_options;
@@ -47,8 +71,8 @@ int main() {
         std::cout << "Error: " << write_result.error().message << std::endl;
     }
 
-    // Example 4: Write CSV with index column
-    std::cout << "=== Example 4: Writing CSV with date column ===" << std::endl;
+    // Example 5: Write CSV with index column
+    std::cout << "=== Example 5: Writing CSV with date column ===" << std::endl;
     ag::data::TimeSeries ts2{10.5, 11.2, 12.8};
 
     ag::io::CsvWriterOptions write_options2;
