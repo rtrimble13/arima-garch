@@ -243,10 +243,10 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
             // Found an empty/null value in the middle of the data
             std::string col_label =
                 get_column_label(detected_value_column, options.has_header, header_row);
-            return unexpected(CsvReadError{"Empty or null value found in " + col_label + " (row " +
-                                           std::to_string(i + 1 - first_valid) +
-                                           " of trimmed data). Only leading and trailing empty "
-                                           "values are automatically trimmed."});
+            return unexpected(CsvReadError{
+                "Empty or null value found in " + col_label + " on line " +
+                std::to_string(i + 1 + (options.has_header ? 1 : 0)) +
+                ". Only leading and trailing empty values are automatically trimmed."});
         }
     }
 

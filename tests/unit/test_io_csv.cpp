@@ -401,8 +401,12 @@ TEST(csv_read_with_header_trim_empty) {
 
 // Test multiple columns with leading/trailing empty in value column
 TEST(csv_read_multiple_columns_trim_empty) {
-    std::string csv_content = "Date,Value\n2020-01-01,NA\n2020-01-02,1.5\n2020-01-03,2.3\n2020-01-"
-                              "04,1.8\n2020-01-05,NULL\n";
+    std::string csv_content = "Date,Value\n"
+                              "2020-01-01,NA\n"
+                              "2020-01-02,1.5\n"
+                              "2020-01-03,2.3\n"
+                              "2020-01-04,1.8\n"
+                              "2020-01-05,NULL\n";
 
     CsvReaderOptions options;
     options.has_header = true;
@@ -449,8 +453,11 @@ TEST(csv_read_error_all_empty) {
 
 // Test auto-detection with multiple columns and empty values
 TEST(csv_read_auto_detect_with_empty) {
-    std::string csv_content =
-        "Date,Value\n2020-01-01,NA\n2020-01-02,1.5\n2020-01-03,2.3\n2020-01-04,NULL\n";
+    std::string csv_content = "Date,Value\n"
+                              "2020-01-01,NA\n"
+                              "2020-01-02,1.5\n"
+                              "2020-01-03,2.3\n"
+                              "2020-01-04,NULL\n";
 
     CsvReaderOptions options;
     options.has_header = true;
