@@ -14,8 +14,8 @@ using ag::io::CsvWriterOptions;
 
 // Test reading a simple CSV file without header
 TEST(csv_read_simple) {
-    // Path is relative to build directory where test executable runs
-    std::filesystem::path fixture_path = "../tests/fixtures/simple.csv";
+    // Path is relative to build/tests directory where ctest runs the executable
+    std::filesystem::path fixture_path = "../../tests/fixtures/simple.csv";
 
     auto result = CsvReader::read(fixture_path);
     REQUIRE(result.has_value());
@@ -31,7 +31,7 @@ TEST(csv_read_simple) {
 
 // Test reading a CSV file with header
 TEST(csv_read_with_header) {
-    std::filesystem::path fixture_path = "../tests/fixtures/with_header.csv";
+    std::filesystem::path fixture_path = "../../tests/fixtures/with_header.csv";
 
     CsvReaderOptions options;
     options.has_header = true;
@@ -50,7 +50,7 @@ TEST(csv_read_with_header) {
 
 // Test reading a CSV file with date column
 TEST(csv_read_with_date_column) {
-    std::filesystem::path fixture_path = "../tests/fixtures/with_date.csv";
+    std::filesystem::path fixture_path = "../../tests/fixtures/with_date.csv";
 
     CsvReaderOptions options;
     options.has_header = true;
