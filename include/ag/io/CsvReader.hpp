@@ -28,7 +28,7 @@ struct CsvReaderOptions {
      * will automatically detect the first numeric column.
      * If the CSV has only one column, use 0.
      * If the CSV has a date/index column followed by values, use 1.
-     * 
+     *
      * Examples:
      * - For CSV with single column of values: value_column = 0
      * - For CSV with date,value columns: value_column = 1
@@ -38,7 +38,7 @@ struct CsvReaderOptions {
 
     /**
      * @brief Whether the first row contains column headers.
-     * 
+     *
      * When true, the first row is treated as a header and used in error messages.
      * When false, columns are labeled as column1, column2, etc. in error messages.
      */
@@ -83,7 +83,7 @@ struct CsvReaderOptions {
  * 2020-01-02,2.3
  * 2020-01-03,1.8
  * ```
- * 
+ *
  * With leading/trailing empty values (automatically trimmed):
  * ```
  * Value
