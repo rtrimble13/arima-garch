@@ -22,17 +22,25 @@ struct CsvReadError {
  */
 struct CsvReaderOptions {
     /**
-     * @brief Column index containing the time series values.
+     * @brief Column index containing the time series values (0-indexed).
      *
      * If set to std::numeric_limits<std::size_t>::max() (default), the reader
      * will automatically detect the first numeric column.
      * If the CSV has only one column, use 0.
      * If the CSV has a date/index column followed by values, use 1.
+     * 
+     * Examples:
+     * - For CSV with single column of values: value_column = 0
+     * - For CSV with date,value columns: value_column = 1
+     * - For automatic detection (searches for first numeric column): use default
      */
     std::size_t value_column = std::numeric_limits<std::size_t>::max();
 
     /**
      * @brief Whether the first row contains column headers.
+     * 
+     * When true, the first row is treated as a header and used in error messages.
+     * When false, columns are labeled as column1, column2, etc. in error messages.
      */
     bool has_header = false;
 
@@ -47,8 +55,17 @@ struct CsvReaderOptions {
  *
  * Supports common CSV formats:
  * - Single column of values (returns only)
+ * - Multiple columns with automatic detection of first numeric column
  * - Optional date/index column followed by values
  * - Customizable delimiter and header options
+ * - Automatic trimming of leading and trailing empty/null values
+ *
+ * Robust handling:
+ * - Automatically detects first numeric column when value_column is not specified
+ * - Trims leading empty/null values (empty strings, "NA", "NULL", "NaN", "none")
+ * - Trims trailing empty/null values
+ * - Provides helpful error messages with column names (from header) or column numbers
+ * - Reports errors for empty/null values in the middle of data
  *
  * Example CSV formats:
  *
@@ -65,6 +82,16 @@ struct CsvReaderOptions {
  * 2020-01-01,1.5
  * 2020-01-02,2.3
  * 2020-01-03,1.8
+ * ```
+ * 
+ * With leading/trailing empty values (automatically trimmed):
+ * ```
+ * Value
+ * NA
+ * 1.5
+ * 2.3
+ * 1.8
+ * NULL
  * ```
  */
 class CsvReader {
