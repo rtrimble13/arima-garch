@@ -5,8 +5,7 @@
 
 namespace ag::util {
 
-std::vector<std::vector<double>>
-computeGramMatrix(const std::vector<std::vector<double>>& X) {
+std::vector<std::vector<double>> computeGramMatrix(const std::vector<std::vector<double>>& X) {
     if (X.empty() || X[0].empty()) {
         return {};
     }
@@ -27,7 +26,7 @@ computeGramMatrix(const std::vector<std::vector<double>>& X) {
 }
 
 std::vector<double> computeXty(const std::vector<std::vector<double>>& X,
-                                const std::vector<double>& y) {
+                               const std::vector<double>& y) {
     if (X.empty() || X[0].empty() || y.empty()) {
         return {};
     }
@@ -45,8 +44,8 @@ std::vector<double> computeXty(const std::vector<std::vector<double>>& X,
     return Xty;
 }
 
-std::vector<double> solveLinearSystem(std::vector<std::vector<double>>& A,
-                                      std::vector<double>& b, double tol) {
+std::vector<double> solveLinearSystem(std::vector<std::vector<double>>& A, std::vector<double>& b,
+                                      double tol) {
     if (A.empty() || b.empty() || A.size() != b.size()) {
         return {};
     }

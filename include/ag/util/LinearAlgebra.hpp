@@ -27,8 +27,7 @@ namespace ag::util {
  *       QR decomposition or SVD-based methods.
  */
 std::vector<double> solveLeastSquares(const std::vector<std::vector<double>>& X,
-                                      const std::vector<double>& y,
-                                      double tol = 1e-10);
+                                      const std::vector<double>& y, double tol = 1e-10);
 
 /**
  * @brief Compute X'X (Gram matrix) for design matrix X.
@@ -36,8 +35,7 @@ std::vector<double> solveLeastSquares(const std::vector<std::vector<double>>& X,
  * @param X Design matrix (n_obs × p), stored row-major
  * @return X'X matrix (p × p), stored as vector of vectors
  */
-std::vector<std::vector<double>>
-computeGramMatrix(const std::vector<std::vector<double>>& X);
+std::vector<std::vector<double>> computeGramMatrix(const std::vector<std::vector<double>>& X);
 
 /**
  * @brief Compute X'y for design matrix X and response vector y.
@@ -47,7 +45,7 @@ computeGramMatrix(const std::vector<std::vector<double>>& X);
  * @return X'y vector (size p)
  */
 std::vector<double> computeXty(const std::vector<std::vector<double>>& X,
-                                const std::vector<double>& y);
+                               const std::vector<double>& y);
 
 /**
  * @brief Solve linear system Ax = b using Gaussian elimination with partial pivoting.
@@ -59,7 +57,7 @@ std::vector<double> computeXty(const std::vector<std::vector<double>>& X,
  * @param tol Singularity tolerance
  * @return Solution vector x (size n), or empty vector if matrix is singular
  */
-std::vector<double> solveLinearSystem(std::vector<std::vector<double>>& A,
-                                      std::vector<double>& b, double tol = 1e-10);
+std::vector<double> solveLinearSystem(std::vector<std::vector<double>>& A, std::vector<double>& b,
+                                      double tol = 1e-10);
 
 }  // namespace ag::util
