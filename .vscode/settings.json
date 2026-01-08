@@ -1,5 +1,18 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+
+    // Use CMakePresets.json for configure/build/test
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": true,
+
+    // Set default presets (change to ninja-release or ninja-relwithdebinfo as needed)
+    "cmake.configurePreset": "ninja-debug",
+    "cmake.buildPreset": "ninja-debug",
+    "cmake.testPreset": "ninja-debug",
+
+    // Let CMake Tools feed include paths/defines from compile_commands.json
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }
+
