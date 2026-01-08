@@ -34,11 +34,22 @@
 using ag::api::Engine;
 using ag::models::ArimaGarchSpec;
 
+// Error handling wrapper for CLI handlers
+template <typename Func>
+int executeWithErrorHandling(Func&& func) {
+    try {
+        return func();
+    } catch (const std::exception& e) {
+        fmt::print("Error: {}\n", e.what());
+        return 1;
+    }
+}
+
 // Fit subcommand handler
 int handleFit(const std::string& dataFile, const std::string& arimaOrder,
               const std::string& garchOrder, const std::string& outputFile, bool no_header,
               bool use_student_t, double student_t_df) {
-    try {
+    return executeWithErrorHandling([&]() {
         fmt::print("Loading data from {}...\n", dataFile);
         auto data = ag::cli::loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
@@ -114,10 +125,7 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
         fmt::print("\n{}\n", ag::report::generateTextReport(fit_result.value().summary));
 
         return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
+    });
 }
 
 // Select subcommand handler
