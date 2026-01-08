@@ -485,6 +485,70 @@ TEST(csv_read_no_header_error_message) {
     // Error message should contain "column2" since it's 0-indexed column 1
 }
 
+// Test reading CSV with empty initial value (trailing comma)
+TEST(csv_read_empty_initial_value) {
+    std::string csv_content = "date,value\n2025-01-01,\n2025-01-02,0.1\n2025-01-03,-0.1\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 0.1, 1e-10);
+    REQUIRE_APPROX(ts[1], -0.1, 1e-10);
+}
+
+// Test reading CSV with multiple trailing empty values
+TEST(csv_read_multiple_trailing_empty) {
+    std::string csv_content = "date,value\n2025-01-01,\n2025-01-02,\n2025-01-03,0.1\n2025-01-04,-0.1\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 0.1, 1e-10);
+    REQUIRE_APPROX(ts[1], -0.1, 1e-10);
+}
+
+// Test reading CSV with trailing empty at end
+TEST(csv_read_trailing_empty_at_end) {
+    std::string csv_content = "date,value\n2025-01-01,0.1\n2025-01-02,-0.1\n2025-01-03,\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 0.1, 1e-10);
+    REQUIRE_APPROX(ts[1], -0.1, 1e-10);
+}
+
+// Test reading CSV with empty fields interspersed (should fail)
+TEST(csv_read_empty_in_middle_with_trailing) {
+    std::string csv_content = "date,value\n2025-01-01,0.1\n2025-01-02,\n2025-01-03,-0.1\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+    options.value_column = 1;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(!result.has_value());
+    // Should fail because there's an empty value in the middle
+}
+
 int main() {
     report_test_results("CSV IO Tests");
     return get_test_result();
