@@ -34,6 +34,7 @@ add_library(arimagarch STATIC
     stats/JarqueBera.cpp
     stats/LjungBox.cpp
     stats/PACF.cpp
+    util/LinearAlgebra.cpp
     util/Logging.cpp
     util/Timer.cpp
 )
