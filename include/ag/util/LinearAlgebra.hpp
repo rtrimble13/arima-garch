@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <span>
 #include <vector>
 
 namespace ag::util {
