@@ -1,5 +1,7 @@
 #include "ag/stats/ADF.hpp"
 
+#include "ag/util/LinearAlgebra.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -129,76 +131,11 @@ double compute_ols_tstat(const std::vector<double>& y, const std::vector<std::ve
         throw std::invalid_argument("Invalid dimensions for OLS regression");
     }
 
-    // Compute X'X
-    std::vector<std::vector<double>> XtX(k, std::vector<double>(k, 0.0));
-    for (std::size_t i = 0; i < k; ++i) {
-        for (std::size_t j = i; j < k; ++j) {
-            double sum = 0.0;
-            for (std::size_t t = 0; t < n; ++t) {
-                sum += X[t][i] * X[t][j];
-            }
-            XtX[i][j] = sum;
-            XtX[j][i] = sum;  // Symmetric
-        }
-    }
+    // Solve least squares using utility function
+    std::vector<double> beta = ag::util::solveLeastSquares(X, y, 1e-12);
 
-    // Compute X'y
-    std::vector<double> Xty(k, 0.0);
-    for (std::size_t i = 0; i < k; ++i) {
-        for (std::size_t t = 0; t < n; ++t) {
-            Xty[i] += X[t][i] * y[t];
-        }
-    }
-
-    // Solve X'X * beta = X'y using Gaussian elimination
-    std::vector<double> beta(k);
-    std::vector<std::vector<double>> aug(k, std::vector<double>(k + 1));
-
-    // Setup augmented matrix [X'X | X'y]
-    for (std::size_t i = 0; i < k; ++i) {
-        for (std::size_t j = 0; j < k; ++j) {
-            aug[i][j] = XtX[i][j];
-        }
-        aug[i][k] = Xty[i];
-    }
-
-    // Forward elimination
-    for (std::size_t i = 0; i < k; ++i) {
-        // Find pivot
-        std::size_t pivot = i;
-        double max_val = std::abs(aug[i][i]);
-        for (std::size_t j = i + 1; j < k; ++j) {
-            if (std::abs(aug[j][i]) > max_val) {
-                max_val = std::abs(aug[j][i]);
-                pivot = j;
-            }
-        }
-
-        if (max_val < 1e-12) {
-            throw std::runtime_error("Singular matrix in OLS regression");
-        }
-
-        // Swap rows
-        if (pivot != i) {
-            std::swap(aug[i], aug[pivot]);
-        }
-
-        // Eliminate column
-        for (std::size_t j = i + 1; j < k; ++j) {
-            double factor = aug[j][i] / aug[i][i];
-            for (std::size_t l = i; l <= k; ++l) {
-                aug[j][l] -= factor * aug[i][l];
-            }
-        }
-    }
-
-    // Back substitution
-    for (int i = k - 1; i >= 0; --i) {
-        beta[i] = aug[i][k];
-        for (std::size_t j = i + 1; j < k; ++j) {
-            beta[i] -= aug[i][j] * beta[j];
-        }
-        beta[i] /= aug[i][i];
+    if (beta.empty()) {
+        throw std::runtime_error("Singular matrix in OLS regression");
     }
 
     // Compute residual sum of squares
@@ -220,50 +157,18 @@ double compute_ols_tstat(const std::vector<double>& y, const std::vector<std::ve
 
     // Compute (X'X)^{-1} for standard errors
     // We need the diagonal element for coef_index
-    // For efficiency, we can use the factored form from Gaussian elimination
-    // Here we use a simpler approach: solve for unit vector
+    // Solve X'X * v = e_i where e_i is unit vector
     std::vector<double> ei(k, 0.0);
     ei[coef_index] = 1.0;
 
-    std::vector<std::vector<double>> aug2(k, std::vector<double>(k + 1));
-    for (std::size_t i = 0; i < k; ++i) {
-        for (std::size_t j = 0; j < k; ++j) {
-            aug2[i][j] = XtX[i][j];
-        }
-        aug2[i][k] = ei[i];
-    }
+    // Compute X'X
+    auto XtX = ag::util::computeGramMatrix(X);
 
-    // Same forward elimination
-    for (std::size_t i = 0; i < k; ++i) {
-        std::size_t pivot = i;
-        double max_val = std::abs(aug2[i][i]);
-        for (std::size_t j = i + 1; j < k; ++j) {
-            if (std::abs(aug2[j][i]) > max_val) {
-                max_val = std::abs(aug2[j][i]);
-                pivot = j;
-            }
-        }
+    // Solve for the column of the inverse matrix
+    std::vector<double> inv_col = ag::util::solveLinearSystem(XtX, ei, 1e-12);
 
-        if (pivot != i) {
-            std::swap(aug2[i], aug2[pivot]);
-        }
-
-        for (std::size_t j = i + 1; j < k; ++j) {
-            double factor = aug2[j][i] / aug2[i][i];
-            for (std::size_t l = i; l <= k; ++l) {
-                aug2[j][l] -= factor * aug2[i][l];
-            }
-        }
-    }
-
-    // Back substitution to get (X'X)^{-1} * e_i
-    std::vector<double> inv_col(k);
-    for (int i = k - 1; i >= 0; --i) {
-        inv_col[i] = aug2[i][k];
-        for (std::size_t j = i + 1; j < k; ++j) {
-            inv_col[i] -= aug2[i][j] * inv_col[j];
-        }
-        inv_col[i] /= aug2[i][i];
+    if (inv_col.empty()) {
+        throw std::runtime_error("Failed to compute standard errors");
     }
 
     // Standard error for beta[coef_index]

@@ -2,6 +2,7 @@
 
 #include "ag/stats/ACF.hpp"
 #include "ag/stats/Descriptive.hpp"
+#include "ag/util/LinearAlgebra.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -92,80 +93,21 @@ std::pair<std::vector<double>, std::vector<double>> fit_ar_model(std::span<const
         }
     }
 
-    // Solve least squares: φ̂ = (X'X)^{-1} X'y
-    // For simplicity, use normal equations with Cholesky decomposition
-    std::vector<double> phi(p, 0.0);
+    // Solve least squares using utility function
+    std::vector<double> phi = ag::util::solveLeastSquares(X, y, MATRIX_SINGULARITY_TOLERANCE);
 
-    // Compute X'X
-    std::vector<std::vector<double>> XtX(p, std::vector<double>(p, 0.0));
-    for (std::size_t i = 0; i < p; ++i) {
-        for (std::size_t j = 0; j < p; ++j) {
-            for (std::size_t t = 0; t < n_obs; ++t) {
-                XtX[i][j] += X[t][i] * X[t][j];
-            }
-        }
-    }
-
-    // Compute X'y
-    std::vector<double> Xty(p, 0.0);
-    for (std::size_t i = 0; i < p; ++i) {
-        for (std::size_t t = 0; t < n_obs; ++t) {
-            Xty[i] += X[t][i] * y[t];
-        }
-    }
-
-    // Solve using simple Gaussian elimination (for small p)
-    // This is not numerically optimal but sufficient for bootstrap purposes
-    for (std::size_t k = 0; k < p; ++k) {
-        // Partial pivoting
-        std::size_t max_row = k;
-        double max_val = std::abs(XtX[k][k]);
-        for (std::size_t i = k + 1; i < p; ++i) {
-            if (std::abs(XtX[i][k]) > max_val) {
-                max_val = std::abs(XtX[i][k]);
-                max_row = i;
-            }
-        }
-
-        if (max_row != k) {
-            std::swap(XtX[k], XtX[max_row]);
-            std::swap(Xty[k], Xty[max_row]);
-        }
-
-        // Forward elimination
-        for (std::size_t i = k + 1; i < p; ++i) {
-            if (std::abs(XtX[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
-                continue;  // Singular matrix, skip
-            }
-            double factor = XtX[i][k] / XtX[k][k];
-            for (std::size_t j = k; j < p; ++j) {
-                XtX[i][j] -= factor * XtX[k][j];
-            }
-            Xty[i] -= factor * Xty[k];
-        }
-    }
-
-    // Back substitution
-    for (int i = static_cast<int>(p) - 1; i >= 0; --i) {
-        if (std::abs(XtX[i][i]) < MATRIX_SINGULARITY_TOLERANCE) {
-            phi[i] = 0.0;  // Singular, set coefficient to 0
-            continue;
-        }
-        phi[i] = Xty[i];
-        for (std::size_t j = i + 1; j < p; ++j) {
-            phi[i] -= XtX[i][j] * phi[j];
-        }
-        phi[i] /= XtX[i][i];
+    if (phi.empty()) {
+        // Singular matrix, return empty coefficients
+        return {{}, std::vector<double>(data.begin(), data.end())};
     }
 
     // Compute residuals
     std::vector<double> residuals(n_obs);
     for (std::size_t t = 0; t < n_obs; ++t) {
-        double fitted = 0.0;
+        residuals[t] = y[t];
         for (std::size_t j = 0; j < p; ++j) {
-            fitted += phi[j] * X[t][j];
+            residuals[t] -= phi[j] * X[t][j];
         }
-        residuals[t] = y[t] - fitted;
     }
 
     return {phi, residuals};

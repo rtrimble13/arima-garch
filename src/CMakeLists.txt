@@ -34,6 +34,7 @@ add_library(arimagarch STATIC
     stats/JarqueBera.cpp
     stats/LjungBox.cpp
     stats/PACF.cpp
+    util/LinearAlgebra.cpp
     util/Logging.cpp
     util/Timer.cpp
 )
@@ -47,6 +48,7 @@ target_link_libraries(arimagarch PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
 # CLI executable target
 add_executable(ag
     cli/main.cpp
+    cli/CliUtils.cpp
 )
 
 target_link_libraries(ag PRIVATE arimagarch CLI11::CLI11)
