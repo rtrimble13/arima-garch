@@ -11,7 +11,7 @@
  */
 
 #include "ag/api/Engine.hpp"
-#include "ag/io/CsvReader.hpp"
+#include "ag/cli/CliUtils.hpp"
 #include "ag/io/Json.hpp"
 #include "ag/models/ArimaGarchSpec.hpp"
 #include "ag/report/FitSummary.hpp"
@@ -34,57 +34,13 @@
 using ag::api::Engine;
 using ag::models::ArimaGarchSpec;
 
-// Helper function to parse ARIMA order string (e.g., "1,1,1" -> p=1, d=1, q=1)
-std::tuple<int, int, int> parseArimaOrder(const std::string& order) {
-    std::istringstream iss(order);
-    int p, d, q;
-    char comma1, comma2;
-    if (!(iss >> p >> comma1 >> d >> comma2 >> q) || comma1 != ',' || comma2 != ',') {
-        throw std::invalid_argument("Invalid ARIMA order format. Use p,d,q (e.g., 1,1,1)");
-    }
-    return {p, d, q};
-}
-
-// Helper function to parse GARCH order string (e.g., "1,1" -> p=1, q=1)
-std::tuple<int, int> parseGarchOrder(const std::string& order) {
-    std::istringstream iss(order);
-    int p, q;
-    char comma;
-    if (!(iss >> p >> comma >> q) || comma != ',') {
-        throw std::invalid_argument("Invalid GARCH order format. Use p,q (e.g., 1,1)");
-    }
-    return {p, q};
-}
-
-// Load data from CSV file
-std::vector<double> loadData(const std::string& filepath, bool has_header = true) {
-    ag::io::CsvReaderOptions options;
-    options.has_header = has_header;
-    // Use auto-detection for value column (default)
-    // options.value_column is already set to std::numeric_limits<std::size_t>::max()
-
-    auto result = ag::io::CsvReader::read(filepath, options);
-    if (!result) {
-        throw std::runtime_error("Failed to read data from file: " + filepath);
-    }
-
-    // Convert TimeSeries to vector
-    std::vector<double> data;
-    const auto& ts = *result;
-    data.reserve(ts.size());
-    for (std::size_t i = 0; i < ts.size(); ++i) {
-        data.push_back(ts[i]);
-    }
-    return data;
-}
-
 // Fit subcommand handler
 int handleFit(const std::string& dataFile, const std::string& arimaOrder,
               const std::string& garchOrder, const std::string& outputFile, bool no_header,
               bool use_student_t, double student_t_df) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile, !no_header);
+        auto data = ag::cli::loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Parse model specification with support for ARIMA-only models
@@ -93,7 +49,7 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
 
         // Parse ARIMA order if provided, otherwise default to ARIMA(0,0,0)
         if (!arimaOrder.empty()) {
-            auto arima_tuple = parseArimaOrder(arimaOrder);
+            auto arima_tuple = ag::cli::parseArimaOrder(arimaOrder);
             p = std::get<0>(arima_tuple);
             d = std::get<1>(arima_tuple);
             q = std::get<2>(arima_tuple);
@@ -101,7 +57,7 @@ int handleFit(const std::string& dataFile, const std::string& arimaOrder,
 
         // Parse GARCH order if provided, otherwise no GARCH
         if (!garchOrder.empty()) {
-            auto garch_tuple = parseGarchOrder(garchOrder);
+            auto garch_tuple = ag::cli::parseGarchOrder(garchOrder);
             P = std::get<0>(garch_tuple);
             Q = std::get<1>(garch_tuple);
         }
@@ -170,7 +126,7 @@ int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int 
                  int topK, bool no_header) {
     try {
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile, !no_header);
+        auto data = ag::cli::loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Generate candidate grid
@@ -317,8 +273,8 @@ int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder,
                    double student_t_df) {
     try {
         // Parse model specification
-        auto [p, d, q] = parseArimaOrder(arimaOrder);
-        auto [P, Q] = parseGarchOrder(garchOrder);
+        auto [p, d, q] = ag::cli::parseArimaOrder(arimaOrder);
+        auto [P, Q] = ag::cli::parseGarchOrder(garchOrder);
         ArimaGarchSpec spec(p, d, q, P, Q);
 
         // Use default parameters for simulation
@@ -492,7 +448,7 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
         }
 
         fmt::print("Loading data from {}...\n", dataFile);
-        auto data = loadData(dataFile, !no_header);
+        auto data = ag::cli::loadData(dataFile, !no_header);
         fmt::print("Loaded {} observations\n", data.size());
 
         // Run diagnostics
