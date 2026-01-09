@@ -504,7 +504,8 @@ TEST(csv_read_empty_initial_value) {
 
 // Test reading CSV with multiple trailing empty values
 TEST(csv_read_multiple_trailing_empty) {
-    std::string csv_content = "date,value\n2025-01-01,\n2025-01-02,\n2025-01-03,0.1\n2025-01-04,-0.1\n";
+    std::string csv_content =
+        "date,value\n2025-01-01,\n2025-01-02,\n2025-01-03,0.1\n2025-01-04,-0.1\n";
 
     CsvReaderOptions options;
     options.has_header = true;
