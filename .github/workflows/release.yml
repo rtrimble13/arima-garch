@@ -166,6 +166,7 @@ jobs:
       with:
         tag_name: ${{ steps.get_version.outputs.tag_name }}
         name: Release ${{ steps.get_version.outputs.tag_name }}
+        # Use draft release notes if available, otherwise auto-generate
         body: ${{ steps.fetch_draft.outputs.found == 'true' && steps.fetch_draft.outputs.body || '' }}
         generate_release_notes: ${{ steps.fetch_draft.outputs.found != 'true' }}
         prerelease: ${{ steps.check_prerelease.outputs.prerelease }}
