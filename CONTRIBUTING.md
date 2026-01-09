@@ -300,8 +300,8 @@ make reconfigure
 # Clean build with direct CMake
 rm -rf build && cmake -S . -B build && cmake --build build
 
-# Build with verbose output (Make)
-make N=8  # Build with 8 parallel jobs
+# Build with parallel jobs (Make)
+make N=8  # Build with 8 parallel jobs (custom Makefile parameter)
 
 # Build with verbose output (CMake)
 cmake --build build --verbose
