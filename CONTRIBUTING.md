@@ -301,7 +301,7 @@ make reconfigure
 rm -rf build && cmake -S . -B build && cmake --build build
 
 # Build with parallel jobs (Make)
-make N=8  # Build with 8 parallel jobs (custom Makefile parameter)
+make N=8  # Use custom Makefile parameter N to build with 8 parallel jobs
 
 # Build with verbose output (CMake)
 cmake --build build --verbose

@@ -18,7 +18,7 @@ This project uses CMake for building. Requirements:
 - C++20 compatible compiler (GCC 10+, Clang 10+, MSVC 2019+)
 - Git (for automatic dependency fetching)
 - Internet connection (first build only)
-- Ninja build system (required for Make workflow, optional for direct CMake usage)
+- Ninja build system (required for Make workflow, not needed for direct CMake usage)
 
 Dependencies are automatically downloaded and built using CMake FetchContent. See [docs/dependencies.md](docs/dependencies.md) for details on dependency management strategy.
 
