@@ -18,23 +18,54 @@ This project uses CMake for building. Requirements:
 - C++20 compatible compiler (GCC 10+, Clang 10+, MSVC 2019+)
 - Git (for automatic dependency fetching)
 - Internet connection (first build only)
+- Ninja build system (required for Make workflow, not needed for direct CMake usage)
 
 Dependencies are automatically downloaded and built using CMake FetchContent. See [docs/dependencies.md](docs/dependencies.md) for details on dependency management strategy.
 
-### Building from Source (Dev)
+### Quick Start (Recommended)
+
+The project includes a Makefile wrapper that streamlines the CMake + Ninja workflow using CMake presets:
+
+```bash
+# Build in Release mode (default)
+make
+
+# Build in Debug mode
+make debug
+
+# Build in RelWithDebInfo mode
+make relwithdebinfo
+
+# Run tests
+make test
+
+# Clean build artifacts
+make clean
+
+# Reconfigure and build
+make reconfigure
+```
+
+The Makefile automatically uses Ninja generator and CMake presets for optimal build performance. Build artifacts are placed in `build/ninja-<buildtype>/` directories.
+
+### Alternative: Direct CMake Usage
+
+If you prefer to use CMake directly or don't have Ninja installed:
+
+#### Development Build
 
 ```bash
 # Configure the build
 cmake -S . -B build
 
 # Build the project
-cmake --build build -j   #-j optional
+cmake --build build -j
 
 # Optionally, install (requires appropriate permissions)
 cmake --install build
 ```
 
-### Building from Source (Prod/Release)
+#### Production/Release Build
 
 ```bash
 # Configure the build
@@ -46,6 +77,23 @@ cmake --build build/release -j
 # install (requires appropriate permissions)
 cmake --install build/release
 ```
+
+### Using CMake Presets
+
+You can also use CMake presets directly for more control:
+
+```bash
+# Configure with a preset
+cmake --preset ninja-release
+
+# Build with a preset
+cmake --build --preset ninja-release
+
+# Test with a preset
+ctest --preset ninja-release
+```
+
+Available presets: `ninja-release`, `ninja-debug`, `ninja-relwithdebinfo`
 
 ### Build Targets
 
@@ -65,6 +113,10 @@ The build produces the following targets:
 
 To run a specific example:
 ```bash
+# If you used 'make' to build (default)
+./build/ninja-release/examples/example_simulation
+
+# If you used direct CMake
 ./build/examples/example_simulation
 ```
 
@@ -73,10 +125,12 @@ To run a specific example:
 To track performance and detect regressions:
 
 ```bash
-# Run likelihood computation benchmark
-./build/benchmarks/bench_likelihood
+# If you used 'make' to build (default)
+./build/ninja-release/benchmarks/bench_likelihood
+./build/ninja-release/benchmarks/bench_optimizer
 
-# Run optimizer benchmark
+# If you used direct CMake
+./build/benchmarks/bench_likelihood
 ./build/benchmarks/bench_optimizer
 ```
 
@@ -96,32 +150,36 @@ Benchmarks are useful for:
 Run the CLI tool:
 
 ```bash
-# After building
+# If you used 'make' to build (default), the binary is at:
+./build/ninja-release/src/ag
+
+# If you used direct CMake, the binary is at:
 ./build/src/ag
 
+# For convenience, examples below use a generic path
 # Fit a model to data with Gaussian innovations (default)
-./build/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --out model.json
+./build/ninja-release/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --out model.json
 
 # Fit a model with Student-t innovations (heavier tails)
-./build/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --t-dist 5.0 --out model_tdist.json
+./build/ninja-release/src/ag fit --data examples/returns.csv --arima 1,0,1 --garch 1,1 --t-dist 5.0 --out model_tdist.json
 
 # Automatic model selection (includes distribution comparison)
-./build/src/ag select --data examples/returns.csv --max-p 2 --max-q 2 --out model.json
+./build/ninja-release/src/ag select --data examples/returns.csv --max-p 2 --max-q 2 --out model.json
 
 # Forecast future values
-./build/src/ag forecast --model model.json --horizon 10 --out forecasts.csv
+./build/ninja-release/src/ag forecast --model model.json --horizon 10 --out forecasts.csv
 
 # Simulate synthetic data with Gaussian innovations (default)
-./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --out simulated.csv
+./build/ninja-release/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --out simulated.csv
 
 # Simulate synthetic data with Student-t innovations (for stress testing)
-./build/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --t-dist 4.0 --out simulated_tdist.csv
+./build/ninja-release/src/ag sim --arima 1,0,1 --garch 1,1 --length 1000 --t-dist 4.0 --out simulated_tdist.csv
 
 # Simulate multiple paths from a fitted model
-./build/src/ag simulate --model model.json --paths 10 --length 1000 --seed 42 --out sim_returns.csv --stats
+./build/ninja-release/src/ag simulate --model model.json --paths 10 --length 1000 --seed 42 --out sim_returns.csv --stats
 
 # Run diagnostics on a fitted model
-./build/src/ag diagnostics --model model.json --data examples/returns.csv --out diagnostics.json
+./build/ninja-release/src/ag diagnostics --model model.json --data examples/returns.csv --out diagnostics.json
 ```
 
 ### Library Usage
@@ -254,7 +312,10 @@ The `ag-viz` Python package provides publication-quality visualization tools for
 ### Installation
 
 ```bash
-# Install the C++ CLI first
+# Install the C++ CLI first using Make + Ninja (recommended)
+make
+
+# Or using direct CMake
 cmake -S . -B build
 cmake --build build
 

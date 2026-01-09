@@ -26,6 +26,10 @@
 1. **Build the C++ `ag` CLI tool first**:
    ```bash
    # From the repository root
+   # Option 1: Using Make + Ninja (Recommended)
+   make
+   
+   # Option 2: Using CMake directly
    cmake -S . -B build
    cmake --build build
    ```
@@ -45,6 +49,10 @@
 If the `ag` executable is not in your PATH, set the environment variable:
 
 ```bash
+# If you used Make + Ninja
+export AG_EXECUTABLE=/path/to/arima-garch/build/ninja-release/src/ag
+
+# If you used direct CMake
 export AG_EXECUTABLE=/path/to/arima-garch/build/src/ag
 ```
 
@@ -313,9 +321,15 @@ The underlying C++ CLI must be built before using `ag-viz`. See the main reposit
 
 If you see a warning about the `ag` executable not being found:
 
-1. Ensure the C++ project is built: `cmake --build build`
-2. Set the environment variable: `export AG_EXECUTABLE=/path/to/build/src/ag`
-3. Or add the build directory to your PATH: `export PATH=$PATH:/path/to/build/src`
+1. Ensure the C++ project is built: 
+   - `make` (if using Make + Ninja)
+   - `cmake --build build` (if using CMake directly)
+2. Set the environment variable:
+   - `export AG_EXECUTABLE=/path/to/build/ninja-release/src/ag` (for Make)
+   - `export AG_EXECUTABLE=/path/to/build/src/ag` (for CMake)
+3. Or add the build directory to your PATH:
+   - `export PATH=$PATH:/path/to/build/ninja-release/src` (for Make)
+   - `export PATH=$PATH:/path/to/build/src` (for CMake)
 
 ### Import errors
 
