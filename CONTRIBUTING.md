@@ -41,7 +41,29 @@ To contribute to this project, you'll need:
 
 ### Building the Project
 
-#### Configure and Build
+#### Quick Start (Recommended)
+
+The project includes a Makefile wrapper that streamlines the CMake + Ninja workflow:
+
+```bash
+# Build in Release mode (default)
+make
+
+# Build in Debug mode
+make debug
+
+# Run tests
+make test
+
+# Clean build artifacts
+make clean
+```
+
+Build artifacts are placed in `build/ninja-<buildtype>/` directories (e.g., `build/ninja-release/`).
+
+#### Alternative: Direct CMake Usage
+
+If you prefer to use CMake directly:
 
 ```bash
 # Configure the build
@@ -50,7 +72,7 @@ cmake -S . -B build
 # Build the project
 cmake --build build
 
-# Run tests (when available)
+# Run tests
 cd build && ctest
 ```
 
@@ -66,20 +88,28 @@ The project includes several build targets:
 You can build specific targets:
 
 ```bash
+# With Make + Ninja
+make  # builds all targets
+
+# With direct CMake
 cmake --build build --target ag
 cmake --build build --target test_placeholder
 ```
 
 ### Running Tests
 
-Currently, the project has placeholder tests. As you add features, ensure you add corresponding tests:
+The project has comprehensive test suites. As you add features, ensure you add corresponding tests:
 
 ```bash
-# Run all tests
+# Run all tests with Make
+make test
+
+# Or with direct CMake
 cd build && ctest
 
-# Run a specific test executable
-./build/tests/test_placeholder
+# Run a specific test executable (adjust path based on build method)
+./build/ninja-release/tests/test_placeholder  # if using Make
+./build/tests/test_placeholder                # if using direct CMake
 ```
 
 ## Coding Standards
@@ -260,17 +290,29 @@ For feature requests:
 ### Useful Commands
 
 ```bash
-# Clean build
+# Clean build with Make + Ninja
+make clean
+make
+
+# Reconfigure and build
+make reconfigure
+
+# Clean build with direct CMake
 rm -rf build && cmake -S . -B build && cmake --build build
 
-# Build with verbose output
+# Build with verbose output (Make)
+make BUILD=Release  # add V=1 if you need more verbose output
+
+# Build with verbose output (CMake)
 cmake --build build --verbose
 
-# Run a specific test
-./build/tests/test_name
+# Run a specific test (adjust path based on build method)
+./build/ninja-release/tests/test_name  # if using Make
+./build/tests/test_name                # if using direct CMake
 
-# Check for memory leaks (with valgrind)
-valgrind --leak-check=full ./build/src/ag
+# Check for memory leaks (with valgrind, adjust path based on build method)
+valgrind --leak-check=full ./build/ninja-release/src/ag  # if using Make
+valgrind --leak-check=full ./build/src/ag                # if using direct CMake
 ```
 
 ### Editor Configuration
