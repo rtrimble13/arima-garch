@@ -202,17 +202,16 @@ To build the project on a fresh machine, you only need:
 git clone https://github.com/<your-username>/arima-garch.git
 cd arima-garch
 
-# Configure (downloads dependencies automatically)
-cmake -S . -B build
+# Quick Start: Using Make + Ninja (Recommended)
+make          # Configure and build (downloads dependencies automatically)
+make test     # Run tests
+./build/ninja-release/src/ag --help  # Run the CLI
 
-# Build
-cmake --build build
-
-# Run tests
-cd build && ctest
-
-# Run the CLI
-./build/src/ag --help
+# Alternative: Using CMake directly
+cmake -S . -B build       # Configure (downloads dependencies automatically)
+cmake --build build       # Build
+cd build && ctest         # Run tests
+./build/src/ag --help     # Run the CLI
 ```
 
 That's it! No separate package manager installation or dependency pre-installation required.

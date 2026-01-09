@@ -4,11 +4,16 @@ The `ag` command-line tool provides a comprehensive interface for ARIMA-GARCH ti
 
 ## Installation
 
-After building the project, the `ag` executable is located at `build/src/ag`.
+After building the project, the `ag` executable location depends on your build method:
+
+- **If using Make + Ninja**: `build/ninja-release/src/ag`
+- **If using direct CMake**: `build/src/ag`
 
 ```bash
-# Add to PATH (optional)
-export PATH="/path/to/arima-garch/build/src:$PATH"
+# Add to PATH (optional) - adjust path based on build method
+export PATH="/path/to/arima-garch/build/ninja-release/src:$PATH"  # For Make
+# or
+export PATH="/path/to/arima-garch/build/src:$PATH"                # For direct CMake
 ```
 
 ## General Usage
