@@ -141,13 +141,33 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R release-artifacts
     
+    - name: Fetch draft release notes
+      id: fetch_draft
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const releases = await github.rest.repos.listReleases({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          const draft = releases.data.find(release => release.draft);
+          if (draft) {
+            core.setOutput('body', draft.body);
+            core.setOutput('found', 'true');
+          } else {
+            core.setOutput('found', 'false');
+          }
+    
     - name: Create Release
       uses: softprops/action-gh-release@v1
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       with:
         tag_name: ${{ steps.get_version.outputs.tag_name }}
         name: Release ${{ steps.get_version.outputs.tag_name }}
-        generate_release_notes: true
+        body: ${{ steps.fetch_draft.outputs.found == 'true' && steps.fetch_draft.outputs.body || '' }}
+        generate_release_notes: ${{ steps.fetch_draft.outputs.found != 'true' }}
         prerelease: ${{ steps.check_prerelease.outputs.prerelease }}
         files: |
           release-artifacts/**/*.tar.gz

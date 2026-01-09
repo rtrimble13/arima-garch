@@ -186,6 +186,8 @@ Closes #42
    - Click "New Pull Request"
    - Select your fork and branch
    - Fill out the PR template
+   - **Use a descriptive title** - it will appear in release notes
+   - **Apply appropriate labels** (`feature`, `fix`, `documentation`, etc.)
 
 3. **PR Requirements**:
    - Clear title describing the change
@@ -194,6 +196,41 @@ Closes #42
    - All tests passing
    - Code follows style guidelines
    - Documentation updated if needed
+
+### Changelog Automation
+
+This project uses [Release Drafter](https://github.com/release-drafter/release-drafter) to automatically maintain draft release notes.
+
+#### For Contributors
+
+When creating a pull request:
+
+- **Use a descriptive title** - it will appear directly in the release notes
+- **Apply appropriate labels** to categorize your change:
+  - `feature` or `enhancement` - New features (🚀 Features)
+  - `fix`, `bugfix`, or `bug` - Bug fixes (🐛 Bug Fixes)
+  - `documentation` or `docs` - Documentation changes (📝 Documentation)
+  - `chore` or `maintenance` - Maintenance tasks (🧰 Maintenance)
+  - `config` or `ci` - Configuration changes (🔧 Configuration)
+  - `performance` or `optimization` - Performance improvements (⚡ Performance)
+- **Add version bump labels** to indicate the type of version change:
+  - `major` or `breaking` - Breaking changes (major version bump)
+  - `minor` or `feature` - New features (minor version bump)
+  - `patch`, `fix`, or `bugfix` - Bug fixes (patch version bump)
+  - If no version label is specified, `patch` is assumed
+
+#### For Maintainers
+
+Draft releases are automatically updated as PRs are merged to main:
+
+1. **View draft releases** at: https://github.com/rtrimble13/arima-garch/releases
+2. **Review and edit** the draft release notes as needed
+3. **When ready to release**:
+   - Create and push a version tag: `git tag v1.2.3 && git push origin v1.2.3`
+   - The release workflow will automatically build and upload artifacts
+   - The draft release notes will be used for the published release
+   - If no draft exists, release notes will be auto-generated from commits
+
 
 ### Pull Request Checklist
 
