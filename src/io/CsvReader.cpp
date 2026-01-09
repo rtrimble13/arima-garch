@@ -31,6 +31,11 @@ std::vector<std::string> split_line(const std::string& line, char delimiter) {
         result.push_back(trim(item));
     }
 
+    // Handle trailing delimiter - if line ends with delimiter, add empty field
+    if (!line.empty() && line.back() == delimiter) {
+        result.push_back("");
+    }
+
     return result;
 }
 
