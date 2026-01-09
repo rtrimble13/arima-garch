@@ -301,7 +301,7 @@ make reconfigure
 rm -rf build && cmake -S . -B build && cmake --build build
 
 # Build with verbose output (Make)
-make BUILD=Release  # add V=1 if you need more verbose output
+make N=8  # Build with 8 parallel jobs
 
 # Build with verbose output (CMake)
 cmake --build build --verbose
