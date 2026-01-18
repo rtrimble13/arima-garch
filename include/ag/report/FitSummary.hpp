@@ -208,24 +208,29 @@ struct FitSummary {
  *    - ARIMA: intercept, AR coefficients, MA coefficients
  *    - GARCH: omega, ARCH coefficients, GARCH coefficients
  *
- * 3. Convergence Information:
+ * 3. Unconditional Moments (Long-Run Properties):
+ *    - Unconditional mean (if stationary)
+ *    - Unconditional variance (if stationary)
+ *    - Indicates when moments don't exist due to non-stationarity
+ *
+ * 4. Convergence Information:
  *    - Convergence status
  *    - Number of iterations
  *    - Status message
  *
- * 4. Model Fit Statistics:
+ * 5. Model Fit Statistics:
  *    - Negative log-likelihood
  *    - AIC (Akaike Information Criterion)
  *    - BIC (Bayesian Information Criterion)
  *
- * 5. Innovation Distribution Comparison (if available):
+ * 6. Innovation Distribution Comparison (if available):
  *    - Gaussian vs. Student-t log-likelihoods
  *    - Estimated degrees of freedom for Student-t
  *    - Likelihood Ratio Test results
  *    - Information Criteria (AIC/BIC) for both distributions
  *    - Recommendation on which distribution to use
  *
- * 6. Diagnostic Tests (if available):
+ * 7. Diagnostic Tests (if available):
  *    - Ljung-Box test on residuals
  *    - Ljung-Box test on squared residuals
  *    - Jarque-Bera normality test
