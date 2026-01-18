@@ -524,13 +524,13 @@ TEST(generate_text_report_with_both_distribution_and_diagnostics) {
     std::string report = generateTextReport(summary);
 
     // Verify both sections appear
-    REQUIRE(report.find("5. Innovation Distribution Comparison") != std::string::npos);
-    REQUIRE(report.find("6. Diagnostic Tests") != std::string::npos);
+    REQUIRE(report.find("6. Innovation Distribution Comparison") != std::string::npos);
+    REQUIRE(report.find("7. Diagnostic Tests") != std::string::npos);
 
     // Verify diagnostic subsection numbering is correct
-    REQUIRE(report.find("6.1 Ljung-Box Test on Residuals") != std::string::npos);
-    REQUIRE(report.find("6.2 Ljung-Box Test on Squared Residuals") != std::string::npos);
-    REQUIRE(report.find("6.3 Jarque-Bera Test for Normality") != std::string::npos);
+    REQUIRE(report.find("7.1 Ljung-Box Test on Residuals") != std::string::npos);
+    REQUIRE(report.find("7.2 Ljung-Box Test on Squared Residuals") != std::string::npos);
+    REQUIRE(report.find("7.3 Jarque-Bera Test for Normality") != std::string::npos);
 }
 
 // ============================================================================
@@ -728,6 +728,165 @@ TEST(generate_text_report_jarque_bera_pass_student_t) {
     // When Jarque-Bera passes, it shouldn't show the Student-t specific note
     REQUIRE(report.find("✓ PASS - Residuals appear normally distributed") != std::string::npos);
     REQUIRE(report.find("This is EXPECTED for Student-t innovations") == std::string::npos);
+}
+
+// ============================================================================
+// Unconditional Moments Tests
+// ============================================================================
+
+TEST(generate_text_report_unconditional_moments_stationary) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    // Set stationary parameters
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;  // sum < 1, stationary
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;  // sum = 0.95 < 1, stationary
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify unconditional moments section appears
+    REQUIRE(report.find("3. Unconditional Moments (Long-Run Properties)") != std::string::npos);
+    REQUIRE(report.find("Unconditional mean:") != std::string::npos);
+    REQUIRE(report.find("Unconditional variance:") != std::string::npos);
+
+    // Calculate expected unconditional mean: 0.05 / (1 - 0.6) = 0.125
+    REQUIRE(report.find("0.125000") != std::string::npos);
+
+    // Calculate expected unconditional variance: 0.01 / (1 - 0.1 - 0.85) = 0.01 / 0.05 = 0.2
+    REQUIRE(report.find("0.200000") != std::string::npos);
+
+    // Verify explanatory notes
+    REQUIRE(report.find("long-run average properties") != std::string::npos);
+}
+
+TEST(generate_text_report_unconditional_moments_nonstationary_arima) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    // Set non-stationary ARIMA parameters
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 1.0;  // sum = 1, non-stationary
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify unconditional mean doesn't exist
+    REQUIRE(report.find("Unconditional mean:       Does not exist (non-stationary)") !=
+            std::string::npos);
+
+    // Verify unconditional variance still exists (GARCH is stationary)
+    REQUIRE(report.find("0.200000") != std::string::npos);
+}
+
+TEST(generate_text_report_unconditional_moments_nonstationary_garch) {
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    // Set non-stationary GARCH parameters
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ar_coef[0] = 0.6;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.5;
+    summary.parameters.garch_params.beta_coef[0] = 0.5;  // sum = 1.0, non-stationary
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    std::string report = generateTextReport(summary);
+
+    // Verify unconditional mean exists
+    REQUIRE(report.find("0.125000") != std::string::npos);
+
+    // Verify unconditional variance doesn't exist
+    REQUIRE(report.find("Unconditional variance:   Does not exist (non-stationary GARCH)") !=
+            std::string::npos);
+}
+
+TEST(generate_text_report_unconditional_moments_no_ar_terms) {
+    // Test with no AR terms (p=0)
+    ArimaGarchSpec spec(0, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.05;
+    summary.parameters.arima_params.ma_coef[0] = 0.3;
+    summary.parameters.garch_params.omega = 0.01;
+    summary.parameters.garch_params.alpha_coef[0] = 0.1;
+    summary.parameters.garch_params.beta_coef[0] = 0.85;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    std::string report = generateTextReport(summary);
+
+    // When p=0, unconditional mean = intercept
+    REQUIRE(report.find("Unconditional mean:       0.050000") != std::string::npos);
+
+    // Verify unconditional variance exists
+    REQUIRE(report.find("0.200000") != std::string::npos);
+}
+
+TEST(generate_text_report_unconditional_moments_multiple_ar) {
+    // Test with multiple AR terms
+    ArimaGarchSpec spec(2, 0, 1, 1, 1);
+    FitSummary summary(spec);
+
+    summary.parameters.arima_params.intercept = 0.1;
+    summary.parameters.arima_params.ar_coef[0] = 0.5;
+    summary.parameters.arima_params.ar_coef[1] = 0.3;  // sum = 0.8 < 1, stationary
+    summary.parameters.arima_params.ma_coef[0] = 0.2;
+    summary.parameters.garch_params.omega = 0.05;
+    summary.parameters.garch_params.alpha_coef[0] = 0.15;
+    summary.parameters.garch_params.beta_coef[0] = 0.80;
+
+    summary.converged = true;
+    summary.iterations = 150;
+    summary.message = "Converged";
+    summary.sample_size = 1000;
+    summary.neg_log_likelihood = 500.0;
+    summary.aic = 1012.0;
+    summary.bic = 1048.0;
+
+    std::string report = generateTextReport(summary);
+
+    // Calculate expected unconditional mean: 0.1 / (1 - 0.5 - 0.3) = 0.1 / 0.2 = 0.5
+    REQUIRE(report.find("0.500000") != std::string::npos);
+
+    // Calculate expected unconditional variance: 0.05 / (1 - 0.15 - 0.80) = 0.05 / 0.05 = 1.0
+    REQUIRE(report.find("1.000000") != std::string::npos);
 }
 
 // ============================================================================
