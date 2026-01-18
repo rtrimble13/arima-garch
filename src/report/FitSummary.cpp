@@ -78,16 +78,57 @@ std::string generateTextReport(const FitSummary& summary) {
     }
     report += "\n";
 
-    // 3. Convergence Information
-    report += "3. Convergence Information\n";
+    // 3. Unconditional Moments (Long-Run Properties)
+    report += "3. Unconditional Moments (Long-Run Properties)\n";
+    report += "   -------------------------------------------\n";
+
+    // Calculate unconditional mean
+    double sum_ar = 0.0;
+    if (summary.spec.arimaSpec.p > 0) {
+        for (std::size_t i = 0; i < summary.spec.arimaSpec.p; ++i) {
+            sum_ar += summary.parameters.arima_params.ar_coef[i];
+        }
+    }
+
+    report += "   Unconditional mean:       ";
+    if (summary.spec.arimaSpec.p == 0) {
+        // No AR terms: unconditional mean = intercept
+        report += fmt::format("{:.6f}\n", summary.parameters.arima_params.intercept);
+    } else if (sum_ar < 1.0) {
+        // Stationary: unconditional mean = intercept / (1 - sum_ar)
+        double unconditional_mean = summary.parameters.arima_params.intercept / (1.0 - sum_ar);
+        report += fmt::format("{:.6f}\n", unconditional_mean);
+    } else {
+        // Non-stationary: unconditional mean doesn't exist
+        report += "Does not exist (non-stationary)\n";
+    }
+
+    // Calculate unconditional variance
+    double unconditional_variance = summary.parameters.garch_params.unconditionalVariance();
+    report += "   Unconditional variance:   ";
+    if (unconditional_variance > 0.0) {
+        report += fmt::format("{:.6f}\n", unconditional_variance);
+    } else {
+        report += "Does not exist (non-stationary GARCH)\n";
+    }
+
+    report += "\n";
+    report += "   Note: Unconditional moments represent long-run average properties.\n";
+    report += "         They exist only when the model is stationary.\n";
+    report += "         For ARIMA: stationarity requires sum of AR coefficients < 1.\n";
+    report += "         For GARCH: stationarity requires sum of ARCH + GARCH coefficients < 1.\n";
+    report += "\n";
+
+    // 4. Convergence Information
+    report += "4. Convergence Information\n";
     report += "   -----------------------\n";
     report += fmt::format("   Status:             {}\n",
                           summary.converged ? "✓ Converged" : "✗ Not converged");
     report += fmt::format("   Iterations:         {}\n", summary.iterations);
     report += fmt::format("   Message:            {}\n\n", summary.message);
 
-    // 4. Model Fit Statistics
-    report += "4. Model Fit Statistics\n";
+    // 5. Model Fit Statistics
+    report += "5. Model Fit Statistics\n";
     report += "   --------------------\n";
     report += fmt::format("   Innovation dist.:   {}", summary.innovation_distribution);
     if (summary.innovation_distribution == "Student-t") {
@@ -102,11 +143,11 @@ std::string generateTextReport(const FitSummary& summary) {
     report += "         AIC = 2k + 2*NLL, BIC = k*log(n) + 2*NLL\n";
     report += "         where k = number of parameters, n = sample size\n\n";
 
-    // 5. Innovation Distribution Comparison (if available)
+    // 6. Innovation Distribution Comparison (if available)
     if (summary.distribution_comparison.has_value()) {
         const auto& dist = summary.distribution_comparison.value();
 
-        report += "5. Innovation Distribution Comparison\n";
+        report += "6. Innovation Distribution Comparison\n";
         report += "   ----------------------------------\n";
         report +=
             fmt::format("   Gaussian log-likelihood:    {:.4f}\n", dist.normal_log_likelihood);
@@ -134,8 +175,8 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
     }
 
-    // 6. Diagnostic Tests (if available)
-    int diag_section_num = summary.distribution_comparison.has_value() ? 6 : 5;
+    // 7. Diagnostic Tests (if available)
+    int diag_section_num = summary.distribution_comparison.has_value() ? 7 : 6;
     if (summary.diagnostics.has_value()) {
         const auto& diag = summary.diagnostics.value();
 
