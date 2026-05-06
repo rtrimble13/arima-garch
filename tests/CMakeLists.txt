@@ -44,7 +44,7 @@ add_executable(test_io_csv
     unit/test_framework.cpp
 )
 target_link_libraries(test_io_csv PRIVATE arimagarch)
-add_test(NAME test_io_csv COMMAND test_io_csv)
+add_test(NAME test_io_csv COMMAND test_io_csv WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_executable(test_io_json
     unit/test_io_json.cpp
@@ -271,7 +271,7 @@ add_executable(test_integration_e2e
     unit/test_framework.cpp
 )
 target_link_libraries(test_integration_e2e PRIVATE arimagarch)
-add_test(NAME test_integration_e2e COMMAND test_integration_e2e)
+add_test(NAME test_integration_e2e COMMAND test_integration_e2e WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Placeholder for tests (keeping for backward compatibility)
 add_executable(test_placeholder

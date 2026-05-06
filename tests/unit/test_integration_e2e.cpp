@@ -21,7 +21,7 @@ using ag::simulation::ArimaGarchSimulator;
 
 TEST(integration_e2e_fit_forecast_simulate) {
     // Step 1: Load data from tiny_returns.csv fixture
-    std::filesystem::path fixture_path = "../../tests/fixtures/tiny_returns.csv";
+    std::filesystem::path fixture_path = "tests/fixtures/tiny_returns.csv";
 
     CsvReaderOptions options;
     options.has_header = true;

@@ -130,11 +130,12 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
 
         double ll = 0.0;
 
-        // Log-likelihood for Student-t(0,1,df)
+        // Log-likelihood for unit-variance Student-t (matches Likelihood.cpp parameterization):
+        // ε_t / sqrt(h_t) ~ t(0, (df-2)/df, df), so log p(z) uses (df-2) in the denominator.
         for (double z : std_residuals) {
             ll += std::lgamma((df + 1.0) / 2.0) - std::lgamma(df / 2.0) -
-                  0.5 * std::log(df * std::numbers::pi) -
-                  ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
+                  0.5 * std::log((df - 2.0) * std::numbers::pi) -
+                  ((df + 1.0) / 2.0) * std::log(1.0 + z * z / (df - 2.0));
         }
 
         return -ll;  // Negate for minimization
@@ -210,12 +211,12 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
         normal_ll -= 0.5 * z * z;
     }
 
-    // Student-t log-likelihood
+    // Student-t log-likelihood using unit-variance parameterization (df-2 in denominator)
     double student_t_ll = 0.0;
     for (double z : residuals.std_eps_t) {
         student_t_ll += std::lgamma((df + 1.0) / 2.0) - std::lgamma(df / 2.0) -
-                        0.5 * std::log(df * std::numbers::pi) -
-                        ((df + 1.0) / 2.0) * std::log(1.0 + z * z / df);
+                        0.5 * std::log((df - 2.0) * std::numbers::pi) -
+                        ((df + 1.0) / 2.0) * std::log(1.0 + z * z / (df - 2.0));
     }
 
     // Step 4: Likelihood ratio test

@@ -48,14 +48,14 @@ ParameterVector ArimaGarchTransform::toConstrained(const ParameterVector& theta,
     // MAX_PERSISTENCE
     double scale_factor = MAX_PERSISTENCE / (1.0 + sum_exp);
 
-    // Apply scaling to ARCH coefficients (alpha)
-    for (int i = 0; i < p; ++i) {
+    // Apply scaling to ARCH coefficients (alpha): q elements at positions 1..q
+    for (int i = 0; i < q; ++i) {
         params[1 + i] = exp_values[i] * scale_factor;
     }
 
-    // Apply scaling to GARCH coefficients (beta)
-    for (int j = 0; j < q; ++j) {
-        params[1 + p + j] = exp_values[p + j] * scale_factor;
+    // Apply scaling to GARCH coefficients (beta): p elements at positions q+1..q+p
+    for (int j = 0; j < p; ++j) {
+        params[1 + q + j] = exp_values[q + j] * scale_factor;
     }
 
     return params;
@@ -141,29 +141,29 @@ bool ArimaGarchTransform::validateConstraints(const ParameterVector& params, int
         return false;
     }
 
-    // Check all ARCH coefficients >= 0
-    for (int i = 0; i < p; ++i) {
+    // Check all ARCH coefficients >= 0 (q elements at positions 1..q)
+    for (int i = 0; i < q; ++i) {
         if (params[1 + i] < 0.0) {
             return false;
         }
     }
 
-    // Check all GARCH coefficients >= 0
-    for (int j = 0; j < q; ++j) {
-        if (params[1 + p + j] < 0.0) {
+    // Check all GARCH coefficients >= 0 (p elements at positions q+1..q+p)
+    for (int j = 0; j < p; ++j) {
+        if (params[1 + q + j] < 0.0) {
             return false;
         }
     }
 
     // Check stationarity: sum(alpha) + sum(beta) < 1
     double sum_alpha = 0.0;
-    for (int i = 0; i < p; ++i) {
+    for (int i = 0; i < q; ++i) {
         sum_alpha += params[1 + i];
     }
 
     double sum_beta = 0.0;
-    for (int j = 0; j < q; ++j) {
-        sum_beta += params[1 + p + j];
+    for (int j = 0; j < p; ++j) {
+        sum_beta += params[1 + q + j];
     }
 
     if (sum_alpha + sum_beta >= 1.0) {

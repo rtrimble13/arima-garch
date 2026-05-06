@@ -218,17 +218,19 @@ public:
      *
      * The theta vector should contain:
      * - theta[0]: unconstrained value for omega (will be exp-transformed)
-     * - theta[1:p]: unconstrained values for ARCH coefficients (alpha)
-     * - theta[p+1:p+q]: unconstrained values for GARCH coefficients (beta)
+     * - theta[1:q]: unconstrained values for ARCH coefficients (alpha), q elements
+     * - theta[q+1:q+p]: unconstrained values for GARCH coefficients (beta), p elements
      *
      * The transformation ensures:
      * - omega = exp(theta[0]) > 0
      * - alpha_i, beta_j are transformed to be >= 0
      * - sum(alpha) + sum(beta) < 1
      *
+     * Convention matches GarchSpec: p = GARCH order (beta count), q = ARCH order (alpha count).
+     *
      * @param theta Unconstrained parameter vector from optimizer
-     * @param p Number of ARCH terms (order of alpha coefficients)
-     * @param q Number of GARCH terms (order of beta coefficients)
+     * @param p Number of GARCH terms (order of beta coefficients, matches GarchSpec::p)
+     * @param q Number of ARCH terms (order of alpha coefficients, matches GarchSpec::q)
      * @return ParameterVector with constrained GARCH parameters [omega, alpha..., beta...]
      * @throws std::invalid_argument if theta.size() != p + q + 1
      */
@@ -242,8 +244,8 @@ public:
      * generate those parameters via toConstrained.
      *
      * @param params Constrained GARCH parameters [omega, alpha..., beta...]
-     * @param p Number of ARCH terms
-     * @param q Number of GARCH terms
+     * @param p Number of GARCH terms (beta count, matches GarchSpec::p)
+     * @param q Number of ARCH terms (alpha count, matches GarchSpec::q)
      * @return ParameterVector with unconstrained theta values
      * @throws std::invalid_argument if params.size() != p + q + 1
      * @throws std::invalid_argument if parameters violate constraints
@@ -260,8 +262,8 @@ public:
      * - sum(alpha) + sum(beta) < 1
      *
      * @param params GARCH parameters [omega, alpha..., beta...]
-     * @param p Number of ARCH terms
-     * @param q Number of GARCH terms
+     * @param p Number of GARCH terms (beta count, matches GarchSpec::p)
+     * @param q Number of ARCH terms (alpha count, matches GarchSpec::q)
      * @return true if all constraints are satisfied, false otherwise
      */
     static bool validateConstraints(const ParameterVector& params, int p, int q) noexcept;

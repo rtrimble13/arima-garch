@@ -55,10 +55,10 @@ std::string generateTextReport(const FitSummary& summary) {
     report += "\n   GARCH:\n";
     report += fmt::format("     Omega:            {:.6f}\n", summary.parameters.garch_params.omega);
 
-    // ARCH (alpha) coefficients
-    if (summary.spec.garchSpec.p > 0) {
+    // ARCH (alpha) coefficients: alpha_coef has q elements
+    if (summary.spec.garchSpec.q > 0) {
         report += "     ARCH (alpha):     ";
-        for (std::size_t i = 0; i < summary.spec.garchSpec.p; ++i) {
+        for (std::size_t i = 0; i < summary.spec.garchSpec.q; ++i) {
             if (i > 0)
                 report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.garch_params.alpha_coef[i]);
@@ -66,10 +66,10 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
     }
 
-    // GARCH (beta) coefficients
-    if (summary.spec.garchSpec.q > 0) {
+    // GARCH (beta) coefficients: beta_coef has p elements
+    if (summary.spec.garchSpec.p > 0) {
         report += "     GARCH (beta):     ";
-        for (std::size_t i = 0; i < summary.spec.garchSpec.q; ++i) {
+        for (std::size_t i = 0; i < summary.spec.garchSpec.p; ++i) {
             if (i > 0)
                 report += ", ";
             report += fmt::format("{:.6f}", summary.parameters.garch_params.beta_coef[i]);

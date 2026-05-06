@@ -93,14 +93,14 @@ TEST(transform_stationarity_constraint) {
     }
 }
 
-// Test GARCH(2,2) model
+// Test GARCH(2,2) model: p=2 GARCH betas, q=2 ARCH alphas
 TEST(transform_garch_22) {
     ParameterVector theta(5, 0.0);
     theta[0] = 1.0;  // omega
-    theta[1] = 0.5;  // alpha1
-    theta[2] = 0.3;  // alpha2
-    theta[3] = 0.2;  // beta1
-    theta[4] = 0.1;  // beta2
+    theta[1] = 0.5;  // alpha1 (ARCH)
+    theta[2] = 0.3;  // alpha2 (ARCH)
+    theta[3] = 0.2;  // beta1 (GARCH)
+    theta[4] = 0.1;  // beta2 (GARCH)
 
     ParameterVector params = ArimaGarchTransform::toConstrained(theta, 2, 2);
 
@@ -257,13 +257,13 @@ TEST(transform_extreme_theta_values) {
     }
 }
 
-// Test GARCH(3,2) with random inputs
+// Test GARCH(3,2) with random inputs: p=3 GARCH betas, q=2 ARCH alphas
 TEST(transform_garch_32_random) {
     std::mt19937 gen(999);
     std::uniform_real_distribution<> dis(-5.0, 5.0);
 
     for (int trial = 0; trial < 50; ++trial) {
-        ParameterVector theta(6, 0.0);  // 1 + 3 + 2
+        ParameterVector theta(6, 0.0);  // 1 + q(2) + p(3) = 6
         for (std::size_t i = 0; i < theta.size(); ++i) {
             theta[i] = dis(gen);
         }
@@ -276,14 +276,14 @@ TEST(transform_garch_32_random) {
         // Check omega
         REQUIRE(params[0] > 0.0);
 
-        // Check all alphas
-        for (int i = 0; i < 3; ++i) {
+        // Check ARCH (alpha) coefficients: q=2 elements at positions 1-2
+        for (int i = 0; i < 2; ++i) {
             REQUIRE(params[1 + i] >= 0.0);
         }
 
-        // Check all betas
-        for (int j = 0; j < 2; ++j) {
-            REQUIRE(params[1 + 3 + j] >= 0.0);
+        // Check GARCH (beta) coefficients: p=3 elements at positions 3-5
+        for (int j = 0; j < 3; ++j) {
+            REQUIRE(params[1 + 2 + j] >= 0.0);
         }
 
         // Check stationarity

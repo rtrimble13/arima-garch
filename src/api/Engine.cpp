@@ -128,6 +128,7 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         if (compute_diagnostics) {
             std::size_t ljung_box_lags = std::min(static_cast<std::size_t>(10), n / 5);
             ljung_box_lags = std::max(ljung_box_lags, k + 1);
+            ljung_box_lags = std::min(ljung_box_lags, n - 1);
 
             try {
                 std::string innovation_dist = use_student_t ? "Student-t" : "Normal";
