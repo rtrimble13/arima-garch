@@ -237,10 +237,16 @@ def parse_simulation_csv(filepath: Path) -> Tuple[pd.DataFrame, int, int]:
         if missing_cols:
             raise ValueError(f"Simulation CSV missing required columns: {missing_cols}")
         
-        # Calculate dimensions
+        # Validate and calculate dimensions
         n_paths = df['path'].nunique()
-        n_obs_per_path = df.groupby('path').size().iloc[0]
-        
+        path_sizes = df.groupby('path').size()
+        if path_sizes.nunique() != 1:
+            raise ValueError(
+                f"Simulation paths have inconsistent lengths: "
+                f"{path_sizes.value_counts().to_dict()}"
+            )
+        n_obs_per_path = int(path_sizes.iloc[0])
+
         return df, n_paths, n_obs_per_path
     except Exception as e:
         raise ValueError(f"Error loading simulation file {filepath}: {e}") from e

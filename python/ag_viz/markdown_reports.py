@@ -6,8 +6,9 @@ with accompanying visuals for different analysis types.
 """
 
 import base64
+import os
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -19,31 +20,36 @@ from ag_viz.utils import format_model_spec
 def _image_to_data_uri(image_path: Path) -> str:
     """
     Convert an image file to a data URI for embedding in Markdown.
-    
+
     Parameters
     ----------
     image_path : Path
         Path to the image file.
-    
+
     Returns
     -------
     str
         Data URI string for the image.
     """
-    with open(image_path, 'rb') as f:
+    with open(image_path, "rb") as f:
         image_data = f.read()
-    
-    b64_data = base64.b64encode(image_data).decode('utf-8')
-    extension = image_path.suffix.lower().lstrip('.')
-    mime_type = 'image/png' if extension == 'png' else f'image/{extension}'
-    
+
+    b64_data = base64.b64encode(image_data).decode("utf-8")
+    extension = image_path.suffix.lower().lstrip(".")
+    mime_type = "image/png" if extension == "png" else f"image/{extension}"
+
     return f"data:{mime_type};base64,{b64_data}"
 
 
-def _get_image_markdown(image_path: Path, alt_text: str, use_data_uri: bool = False) -> str:
+def _get_image_markdown(
+    image_path: Path,
+    alt_text: str,
+    use_data_uri: bool = False,
+    report_path: Optional[Path] = None,
+) -> str:
     """
     Generate Markdown for displaying an image.
-    
+
     Parameters
     ----------
     image_path : Path
@@ -51,8 +57,12 @@ def _get_image_markdown(image_path: Path, alt_text: str, use_data_uri: bool = Fa
     alt_text : str
         Alternative text for the image.
     use_data_uri : bool, optional
-        If True, embed image as data URI; otherwise use relative path (default: False).
-    
+        If True, embed image as data URI; otherwise use a path (default: False).
+    report_path : Optional[Path], optional
+        Path of the report file being written. When provided, the image path in
+        the Markdown is expressed relative to the report's directory so that the
+        link resolves correctly regardless of where the report is opened.
+
     Returns
     -------
     str
@@ -61,9 +71,13 @@ def _get_image_markdown(image_path: Path, alt_text: str, use_data_uri: bool = Fa
     if use_data_uri and image_path.exists():
         data_uri = _image_to_data_uri(image_path)
         return f"![{alt_text}]({data_uri})"
-    else:
-        # Use relative path
-        return f"![{alt_text}]({image_path.name})"
+
+    if report_path is not None:
+        rel = os.path.relpath(image_path, Path(report_path).parent)
+        return f"![{alt_text}]({rel})"
+
+    # Fallback: absolute path (always resolvable, though not portable)
+    return f"![{alt_text}]({image_path})"
 
 
 def generate_fit_report(
@@ -71,11 +85,11 @@ def generate_fit_report(
     model_json: Dict[str, Any],
     plot_path: Path,
     output_path: Path,
-    use_data_uri: bool = False
+    use_data_uri: bool = False,
 ) -> Path:
     """
     Generate a Markdown report for model fitting results.
-    
+
     Parameters
     ----------
     data : pd.DataFrame
@@ -88,7 +102,7 @@ def generate_fit_report(
         Path where the Markdown report will be saved.
     use_data_uri : bool, optional
         If True, embed images as data URIs (default: False).
-    
+
     Returns
     -------
     Path
@@ -96,12 +110,11 @@ def generate_fit_report(
     """
     values = data.iloc[:, 0].values
     model_spec = format_model_spec(model_json)
-    
-    # Extract model parameters if available
-    params = model_json.get('parameters', {})
-    arima_params = params.get('arima', {})
-    garch_params = params.get('garch', {})
-    
+
+    params = model_json.get("parameters", {})
+    arima_params = params.get("arima", {})
+    garch_params = params.get("garch", {})
+
     report = f"""# ARIMA-GARCH Model Fit Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -144,68 +157,64 @@ The GARCH (Generalized AutoRegressive Conditional Heteroskedasticity) component 
 ### Interpretation
 
 """
-    
-    # Add interpretation of statistics
+
     skewness = stats.skew(values)
     kurtosis = stats.kurtosis(values)
-    
+
     if abs(skewness) < 0.5:
         report += "- **Skewness:** The distribution appears approximately symmetric.\n"
     elif skewness > 0:
-        report += f"- **Skewness:** The distribution is right-skewed (positively skewed) with a tail extending toward positive values.\n"
+        report += "- **Skewness:** The distribution is right-skewed (positively skewed) with a tail extending toward positive values.\n"
     else:
-        report += f"- **Skewness:** The distribution is left-skewed (negatively skewed) with a tail extending toward negative values.\n"
-    
+        report += "- **Skewness:** The distribution is left-skewed (negatively skewed) with a tail extending toward negative values.\n"
+
     if abs(kurtosis) < 0.5:
         report += "- **Kurtosis:** The distribution has approximately normal tail behavior (mesokurtic).\n"
     elif kurtosis > 0:
-        report += f"- **Kurtosis:** The distribution exhibits heavy tails (leptokurtic), suggesting more extreme values than a normal distribution.\n"
+        report += "- **Kurtosis:** The distribution exhibits heavy tails (leptokurtic), suggesting more extreme values than a normal distribution.\n"
     else:
-        report += f"- **Kurtosis:** The distribution has light tails (platykurtic), with fewer extreme values than a normal distribution.\n"
-    
+        report += "- **Kurtosis:** The distribution has light tails (platykurtic), with fewer extreme values than a normal distribution.\n"
+
     report += f"""
 
 ## Model Parameters
 
 ### ARIMA Parameters
 """
-    
-    # Add ARIMA parameters if available
-    if 'intercept' in arima_params:
+
+    if "intercept" in arima_params:
         report += f"- **Intercept (μ):** {arima_params['intercept']:.6f}\n"
-    
-    if 'ar_coef' in arima_params and arima_params['ar_coef']:
+
+    if "ar_coef" in arima_params and arima_params["ar_coef"]:
         report += "- **AR Coefficients (φ):**\n"
-        for i, coef in enumerate(arima_params['ar_coef'], 1):
+        for i, coef in enumerate(arima_params["ar_coef"], 1):
             report += f"  - φ{i} = {coef:.6f}\n"
-    
-    if 'ma_coef' in arima_params and arima_params['ma_coef']:
+
+    if "ma_coef" in arima_params and arima_params["ma_coef"]:
         report += "- **MA Coefficients (θ):**\n"
-        for i, coef in enumerate(arima_params['ma_coef'], 1):
+        for i, coef in enumerate(arima_params["ma_coef"], 1):
             report += f"  - θ{i} = {coef:.6f}\n"
-    
+
     report += """
 ### GARCH Parameters
 """
-    
-    # Add GARCH parameters if available
-    if 'omega' in garch_params:
+
+    if "omega" in garch_params:
         report += f"- **Omega (ω):** {garch_params['omega']:.6f} - Base level of volatility\n"
-    
-    if 'alpha_coef' in garch_params and garch_params['alpha_coef']:
+
+    if "alpha_coef" in garch_params and garch_params["alpha_coef"]:
         report += "- **Alpha Coefficients (α):** Response to past shocks\n"
-        for i, coef in enumerate(garch_params['alpha_coef'], 1):
+        for i, coef in enumerate(garch_params["alpha_coef"], 1):
             report += f"  - α{i} = {coef:.6f}\n"
-    
-    if 'beta_coef' in garch_params and garch_params['beta_coef']:
+
+    if "beta_coef" in garch_params and garch_params["beta_coef"]:
         report += "- **Beta Coefficients (β):** Persistence of volatility\n"
-        for i, coef in enumerate(garch_params['beta_coef'], 1):
+        for i, coef in enumerate(garch_params["beta_coef"], 1):
             report += f"  - β{i} = {coef:.6f}\n"
-    
-    # Check for volatility persistence
-    if 'alpha_coef' in garch_params and 'beta_coef' in garch_params:
-        if garch_params['alpha_coef'] and garch_params['beta_coef']:
-            persistence = sum(garch_params['alpha_coef']) + sum(garch_params['beta_coef'])
+
+    if "alpha_coef" in garch_params and "beta_coef" in garch_params:
+        if garch_params["alpha_coef"] and garch_params["beta_coef"]:
+            persistence = sum(garch_params["alpha_coef"]) + sum(garch_params["beta_coef"])
             report += f"\n**Volatility Persistence:** {persistence:.4f}\n"
             if persistence > 0.99:
                 report += "- Very high persistence indicates volatility shocks have long-lasting effects.\n"
@@ -213,12 +222,12 @@ The GARCH (Generalized AutoRegressive Conditional Heteroskedasticity) component 
                 report += "- High persistence suggests volatility shocks decay slowly.\n"
             else:
                 report += "- Moderate persistence indicates volatility shocks dissipate relatively quickly.\n"
-    
+
     report += f"""
 
 ## Visualizations
 
-{_get_image_markdown(plot_path, "Fit Diagnostics Plot", use_data_uri)}
+{_get_image_markdown(plot_path, "Fit Diagnostics Plot", use_data_uri, output_path)}
 
 The plot above shows the observed time series data along with key summary statistics for the fitted model.
 
@@ -276,14 +285,13 @@ The model was successfully estimated using maximum likelihood estimation. Key mo
 
 *Report generated by ag-viz on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*
 """
-    
-    # Ensure output directory exists
+
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write the report
-    with open(output_path, 'w') as f:
+
+    with open(output_path, "w") as f:
         f.write(report)
-    
+
     return output_path
 
 
@@ -292,11 +300,11 @@ def generate_forecast_report(
     forecast_df: pd.DataFrame,
     plot_path: Path,
     output_path: Path,
-    use_data_uri: bool = False
+    use_data_uri: bool = False,
 ) -> Path:
     """
     Generate a Markdown report for forecast results.
-    
+
     Parameters
     ----------
     model_json : Dict[str, Any]
@@ -309,7 +317,7 @@ def generate_forecast_report(
         Path where the Markdown report will be saved.
     use_data_uri : bool, optional
         If True, embed images as data URIs (default: False).
-    
+
     Returns
     -------
     Path
@@ -317,7 +325,7 @@ def generate_forecast_report(
     """
     model_spec = format_model_spec(model_json)
     horizon = len(forecast_df)
-    
+
     report = f"""# ARIMA-GARCH Forecast Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -361,7 +369,7 @@ Note: As the forecast horizon increases, prediction intervals typically widen, r
 
 ## Forecast Trajectory
 
-{_get_image_markdown(plot_path, "Forecast Plot with Confidence Intervals", use_data_uri)}
+{_get_image_markdown(plot_path, "Forecast Plot with Confidence Intervals", use_data_uri, output_path)}
 
 The plot above shows the mean forecast (blue line) along with 68% and 95% confidence intervals.
 
@@ -370,37 +378,36 @@ The plot above shows the mean forecast (blue line) along with 68% and 95% confid
 | Step | Mean Forecast | Std Dev | 95% CI Lower | 95% CI Upper |
 |------|---------------|---------|--------------|--------------|
 """
-    
-    # Add forecast table rows
+
     for _, row in forecast_df.iterrows():
-        step = int(row['step'])
-        mean = row['mean']
-        std_dev = row['std_dev']
+        step = int(row["step"])
+        mean = row["mean"]
+        std_dev = row["std_dev"]
         ci_lower = mean - 1.96 * std_dev
         ci_upper = mean + 1.96 * std_dev
         report += f"| {step} | {mean:.6f} | {std_dev:.6f} | {ci_lower:.6f} | {ci_upper:.6f} |\n"
-    
+
     report += f"""
 
 ## Key Insights
 
 """
-    
-    # Add insights based on forecast characteristics
-    mean_forecast = forecast_df['mean'].values
-    std_devs = forecast_df['std_dev'].values
-    
-    # Check forecast trend
+
+    mean_forecast = forecast_df["mean"].values
+    std_devs = forecast_df["std_dev"].values
+
+    # Use average forecast std dev as the scale reference so the threshold
+    # doesn't collapse to zero for near-zero mean forecasts.
     if len(mean_forecast) > 1:
         trend = mean_forecast[-1] - mean_forecast[0]
-        if abs(trend) < 0.01 * abs(mean_forecast[0]):
+        scale = float(np.mean(std_devs)) if len(std_devs) > 0 and np.mean(std_devs) > 0 else 1.0
+        if abs(trend) < 0.05 * scale:
             report += "- **Trend:** The forecast exhibits a relatively stable trajectory with minimal drift.\n"
         elif trend > 0:
             report += f"- **Trend:** The forecast shows an upward trend of approximately {trend:.4f} over the horizon.\n"
         else:
             report += f"- **Trend:** The forecast shows a downward trend of approximately {abs(trend):.4f} over the horizon.\n"
-    
-    # Check uncertainty evolution
+
     if len(std_devs) > 1:
         uncertainty_increase = std_devs[-1] / std_devs[0]
         if uncertainty_increase > 1.5:
@@ -409,18 +416,18 @@ The plot above shows the mean forecast (blue line) along with 68% and 95% confid
             report += f"- **Uncertainty Growth:** Forecast uncertainty increases moderately (by {(uncertainty_increase-1)*100:.1f}%) over the horizon.\n"
         else:
             report += "- **Uncertainty:** Forecast uncertainty remains relatively stable across the horizon.\n"
-    
-    # Volatility assessment
+
     avg_vol = np.mean(std_devs)
     if avg_vol > 0:
-        cv = np.std(mean_forecast) / abs(np.mean(mean_forecast)) if np.mean(mean_forecast) != 0 else float('inf')
-        if not np.isinf(cv):
+        mean_abs = abs(np.mean(mean_forecast))
+        if mean_abs > 0:
+            cv = np.std(mean_forecast) / mean_abs
             report += f"- **Coefficient of Variation:** {cv:.4f} - "
             if cv < 0.5:
                 report += "Relatively low variability in forecasts.\n"
             else:
                 report += "Substantial variability in forecasts.\n"
-    
+
     report += f"""
 
 ## Caveats and Considerations
@@ -432,7 +439,7 @@ The plot above shows the mean forecast (blue line) along with 68% and 95% confid
    - Parameters remain stable (no structural breaks)
    - No unforeseen shocks or regime changes
 
-3. **Confidence Intervals:** 
+3. **Confidence Intervals:**
    - Assume normally distributed forecast errors
    - Do not account for parameter estimation uncertainty
    - May understate true uncertainty in volatile markets
@@ -468,14 +475,13 @@ The plot above shows the mean forecast (blue line) along with 68% and 95% confid
 
 *Report generated by ag-viz on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*
 """
-    
-    # Ensure output directory exists
+
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write the report
-    with open(output_path, 'w') as f:
+
+    with open(output_path, "w") as f:
         f.write(report)
-    
+
     return output_path
 
 
@@ -485,11 +491,11 @@ def generate_diagnostics_report(
     diagnostics_json: Optional[Dict[str, Any]],
     plot_path: Path,
     output_path: Path,
-    use_data_uri: bool = False
+    use_data_uri: bool = False,
 ) -> Path:
     """
     Generate a Markdown report for diagnostic analysis results.
-    
+
     Parameters
     ----------
     model_json : Dict[str, Any]
@@ -504,7 +510,7 @@ def generate_diagnostics_report(
         Path where the Markdown report will be saved.
     use_data_uri : bool, optional
         If True, embed images as data URIs (default: False).
-    
+
     Returns
     -------
     Path
@@ -512,7 +518,7 @@ def generate_diagnostics_report(
     """
     model_spec = format_model_spec(model_json)
     n_obs = len(data)
-    
+
     report = f"""# ARIMA-GARCH Diagnostic Analysis Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -541,7 +547,7 @@ Diagnostic tests assess whether the fitted model adequately captures the pattern
 ### Diagnostic Tests
 
 #### Ljung-Box Test
-Tests for autocorrelation in residuals at multiple lags. 
+Tests for autocorrelation in residuals at multiple lags.
 - **Null Hypothesis:** Residuals are independently distributed (no autocorrelation)
 - **Interpretation:** p-value > 0.05 suggests residuals are uncorrelated (desired)
 
@@ -558,26 +564,24 @@ Tests for normality of residuals.
 ## Diagnostic Test Results
 
 """
-    
-    # Add test results if available
+
     if diagnostics_json:
-        ljung_box = diagnostics_json.get('ljung_box_test', {})
-        jarque_bera = diagnostics_json.get('jarque_bera_test', {})
-        
+        ljung_box = diagnostics_json.get("ljung_box_test", {})
+        jarque_bera = diagnostics_json.get("jarque_bera_test", {})
+
         if ljung_box:
             report += "### Ljung-Box Test Results\n\n"
             report += "| Lag | Test Statistic | p-value | Result |\n"
             report += "|-----|----------------|---------|--------|\n"
-            
-            lags = ljung_box.get('lags', [])
-            statistics = ljung_box.get('statistics', [])
-            pvalues = ljung_box.get('pvalues', [])
-            
-            for i, (lag, stat, pval) in enumerate(zip(lags, statistics, pvalues)):
+
+            lags = ljung_box.get("lags", [])
+            statistics = ljung_box.get("statistics", [])
+            pvalues = ljung_box.get("pvalues", [])
+
+            for lag, stat, pval in zip(lags, statistics, pvalues):
                 result = "✓ Pass" if pval > 0.05 else "✗ Fail"
                 report += f"| {lag} | {stat:.4f} | {pval:.4f} | {result} |\n"
-            
-            # Interpretation
+
             failing_tests = sum(1 for p in pvalues if p <= 0.05)
             if failing_tests == 0:
                 report += "\n**Interpretation:** All Ljung-Box tests pass, indicating residuals are free from significant autocorrelation. The model adequately captures temporal dependencies.\n\n"
@@ -585,15 +589,15 @@ Tests for normality of residuals.
                 report += f"\n**Interpretation:** {failing_tests} out of {len(pvalues)} tests show some autocorrelation. Consider increasing model orders or investigating specific lags.\n\n"
             else:
                 report += f"\n**Interpretation:** Significant autocorrelation detected in residuals. The model may be misspecified. Consider alternative model orders.\n\n"
-        
+
         if jarque_bera:
             report += "### Jarque-Bera Normality Test\n\n"
             report += "| Statistic | Value |\n"
             report += "|-----------|-------|\n"
             report += f"| Test Statistic | {jarque_bera.get('statistic', 'N/A')} |\n"
             report += f"| p-value | {jarque_bera.get('pvalue', 'N/A')} |\n"
-            
-            pval = jarque_bera.get('pvalue', 1.0)
+
+            pval = jarque_bera.get("pvalue", 1.0)
             if isinstance(pval, (int, float)):
                 if pval > 0.05:
                     report += "\n**Interpretation:** Residuals appear approximately normally distributed (p > 0.05). This supports model assumptions.\n\n"
@@ -601,11 +605,11 @@ Tests for normality of residuals.
                     report += "\n**Interpretation:** Residuals deviate from normality (p ≤ 0.05). This is common in financial data and may suggest considering Student-t innovations or checking for outliers.\n\n"
     else:
         report += "*Diagnostic test results not available.*\n\n"
-    
+
     report += f"""
 ## Residual Analysis Plots
 
-{_get_image_markdown(plot_path, "Residual Diagnostic Plots", use_data_uri)}
+{_get_image_markdown(plot_path, "Residual Diagnostic Plots", use_data_uri, output_path)}
 
 The comprehensive diagnostic plot above includes:
 
@@ -620,24 +624,22 @@ The comprehensive diagnostic plot above includes:
 ### Model Adequacy Assessment
 
 """
-    
-    # Provide assessment based on available information
+
     if diagnostics_json:
-        ljung_box = diagnostics_json.get('ljung_box_test', {})
-        pvalues = ljung_box.get('pvalues', [])
-        
+        ljung_box = diagnostics_json.get("ljung_box_test", {})
+        pvalues = ljung_box.get("pvalues", [])
+
         if pvalues:
             passing_rate = sum(1 for p in pvalues if p > 0.05) / len(pvalues)
-            
+
             if passing_rate > 0.8:
                 report += "- **Overall Assessment:** The model demonstrates good fit with most diagnostic tests passing.\n"
             elif passing_rate > 0.5:
                 report += "- **Overall Assessment:** The model shows acceptable fit, though some improvements may be possible.\n"
             else:
                 report += "- **Overall Assessment:** The model may benefit from specification changes or alternative orders.\n"
-        
-        # Check normality
-        jb_pval = diagnostics_json.get('jarque_bera_test', {}).get('pvalue', None)
+
+        jb_pval = diagnostics_json.get("jarque_bera_test", {}).get("pvalue", None)
         if jb_pval is not None and isinstance(jb_pval, (int, float)):
             if jb_pval < 0.01:
                 report += "- **Normality:** Residuals show substantial departure from normality. Consider robust methods or alternative innovation distributions.\n"
@@ -645,7 +647,7 @@ The comprehensive diagnostic plot above includes:
                 report += "- **Normality:** Residuals show some departure from normality, which is common in practice.\n"
     else:
         report += "- Examine the residual plots above for visual assessment of model adequacy.\n"
-    
+
     report += """
 
 ## Caveats and Considerations
@@ -710,14 +712,13 @@ The comprehensive diagnostic plot above includes:
 
 *Report generated by ag-viz on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*
 """
-    
-    # Ensure output directory exists
+
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write the report
-    with open(output_path, 'w') as f:
+
+    with open(output_path, "w") as f:
         f.write(report)
-    
+
     return output_path
 
 
@@ -728,11 +729,11 @@ def generate_simulation_report(
     output_path: Path,
     n_paths: int,
     length: int,
-    use_data_uri: bool = False
+    use_data_uri: bool = False,
 ) -> Path:
     """
     Generate a Markdown report for simulation results.
-    
+
     Parameters
     ----------
     model_json : Dict[str, Any]
@@ -749,14 +750,14 @@ def generate_simulation_report(
         Length of each simulation path.
     use_data_uri : bool, optional
         If True, embed images as data URIs (default: False).
-    
+
     Returns
     -------
     Path
         Path to the saved Markdown report.
     """
     model_spec = format_model_spec(model_json)
-    
+
     report = f"""# ARIMA-GARCH Simulation Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -794,12 +795,10 @@ Each simulated path is generated by:
 ## Simulation Statistics
 
 """
-    
-    # Calculate statistics across all paths
-    # simulation_df has columns: 'path', 'observation', 'return', 'volatility'
-    all_values = simulation_df['return'].values
-    all_values = all_values[~np.isnan(all_values)]  # Remove NaN values
-    
+
+    all_values = simulation_df["return"].values
+    all_values = all_values[~np.isnan(all_values)]
+
     if len(all_values) > 0:
         report += f"""
 ### Aggregate Statistics (All Paths)
@@ -822,11 +821,9 @@ Each simulated path is generated by:
 ### Terminal Value Statistics (End of Horizon)
 
 """
-        # Get terminal values (last observation of each path)
-        # Group by path and get the last return value for each path
-        terminal_values = simulation_df.groupby('path')['return'].last().values
+        terminal_values = simulation_df.groupby("path")["return"].last().values
         terminal_values = terminal_values[~np.isnan(terminal_values)]
-        
+
         report += f"""
 | Statistic | Value |
 |-----------|-------|
@@ -838,25 +835,23 @@ Each simulated path is generated by:
 | 95th Percentile | {np.percentile(terminal_values, 95):.6f} |
 
 """
-    
+
     report += f"""
 ## Simulation Paths Visualization
 
-{_get_image_markdown(plot_path, "Simulation Paths with Percentile Bands", use_data_uri)}
+{_get_image_markdown(plot_path, "Simulation Paths with Percentile Bands", use_data_uri, output_path)}
 
 The plot above shows:
 - **Individual Paths:** Sample trajectories from the simulation
 - **Mean Path:** Average across all simulated paths
-- **Percentile Bands:** Shaded regions showing 5th-95th and 25th-75th percentiles
+- **Percentile Bands:** Shaded regions showing 5th-95th percentiles
 - **Terminal Distribution:** Histogram of final values across all paths
 
 ## Key Insights
 
 """
-    
-    # Provide insights based on simulation characteristics
+
     if len(all_values) > 0:
-        # Volatility assessment
         vol = np.std(all_values)
         report += f"- **Volatility:** The simulated paths exhibit a standard deviation of {vol:.4f}, "
         if vol > 0.1:
@@ -865,11 +860,10 @@ The plot above shows:
             report += "indicating moderate variability in potential outcomes.\n"
         else:
             report += "indicating relatively low variability in potential outcomes.\n"
-        
-        # Tail behavior
+
         skew = stats.skew(all_values)
         kurt = stats.kurtosis(all_values)
-        
+
         if abs(skew) > 0.5:
             direction = "right" if skew > 0 else "left"
             report += f"- **Asymmetry:** Distribution is {direction}-skewed (skewness = {skew:.2f}), suggesting "
@@ -877,19 +871,17 @@ The plot above shows:
                 report += "more frequent large positive outcomes.\n"
             else:
                 report += "more frequent large negative outcomes.\n"
-        
+
         if kurt > 1.0:
             report += f"- **Tail Risk:** High kurtosis ({kurt:.2f}) indicates heavy tails with more extreme values than a normal distribution, suggesting non-negligible tail risk.\n"
-        
-        # Range of outcomes
+
         value_range = np.max(all_values) - np.min(all_values)
         report += f"- **Range of Outcomes:** Simulated values span a range of {value_range:.4f}, from {np.min(all_values):.4f} to {np.max(all_values):.4f}.\n"
-        
-        # Terminal value spread
+
         if len(terminal_values) > 0:
             terminal_range = np.percentile(terminal_values, 95) - np.percentile(terminal_values, 5)
             report += f"- **Terminal Uncertainty:** The 90% confidence interval for terminal values spans {terminal_range:.4f}, illustrating the degree of outcome uncertainty.\n"
-    
+
     report += """
 
 ## Applications
@@ -950,17 +942,7 @@ Compare simulated characteristics with historical data:
 
 3. **Compare with Historical Data:** Validate that simulated characteristics match observed patterns
 
-4. **Sensitivity Analysis:** Re-simulate with alternative model specifications to assess robustness:
-   ```bash
-   # Try alternative model orders
-   ag-viz fit -d data.csv -a 2,0,2 -g 1,1 -o alt_model.json
-   ag-viz simulate -m alt_model.json -p {n_paths} -n {length} -o alt_simulation.csv --markdown
-   ```
-
-5. **Extend Simulation:** For long-term planning, simulate longer horizons:
-   ```bash
-   ag-viz simulate -m model.json -p 1000 -n 5000 -o long_term_sim.csv --markdown
-   ```
+4. **Sensitivity Analysis:** Re-simulate with alternative model specifications to assess robustness
 
 ## References
 
@@ -972,12 +954,11 @@ Compare simulated characteristics with historical data:
 
 *Report generated by ag-viz on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*
 """
-    
-    # Ensure output directory exists
+
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write the report
-    with open(output_path, 'w') as f:
+
+    with open(output_path, "w") as f:
         f.write(report)
-    
+
     return output_path

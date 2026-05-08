@@ -15,20 +15,43 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 
+def _validate_ag_executable(path: Path) -> bool:
+    """
+    Verify that the binary at path is the ag ARIMA-GARCH tool.
+
+    Calls the binary with --help and checks for ARIMA/GARCH keywords.
+    Prevents silently picking up The Silver Searcher or other tools named 'ag'.
+    Returns False if the binary is unreachable, times out, or doesn't identify as
+    the ARIMA-GARCH tool.
+    """
+    try:
+        result = subprocess.run(
+            [str(path), "--help"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        combined = (result.stdout + result.stderr).lower()
+        return any(kw in combined for kw in ("arima", "garch", "fit", "forecast"))
+    except Exception:
+        return False
+
+
 def find_ag_executable() -> Optional[Path]:
     """
     Locate the ag CLI tool executable.
-    
+
     Searches in the following order:
     1. AG_EXECUTABLE environment variable
-    2. ag in system PATH
-    3. Common build locations relative to this package
-    
+    2. Common build locations relative to this package (ninja CMake presets)
+    3. ag in system PATH, validated to ensure it is the ARIMA-GARCH tool
+       (not The Silver Searcher or another program named 'ag')
+
     Returns
     -------
     Optional[Path]
         Path to the ag executable if found, None otherwise.
-    
+
     Examples
     --------
     >>> ag_path = find_ag_executable()
@@ -39,50 +62,56 @@ def find_ag_executable() -> Optional[Path]:
     env_path = os.environ.get("AG_EXECUTABLE")
     if env_path and Path(env_path).exists():
         return Path(env_path)
-    
-    # Check system PATH
-    ag_path = shutil.which("ag")
-    if ag_path:
-        return Path(ag_path)
-    
-    # Check common build locations relative to package
+
+    # Check common build locations produced by the ninja CMake presets.
+    # These match the binaryDir patterns in CMakePresets.json:
+    #   build/ninja-release, build/ninja-debug, build/ninja-relwithdebinfo, build/ninja-minsizerel
     package_dir = Path(__file__).parent.parent.parent
     common_locations = [
-        package_dir / "build" / "src" / "ag",
-        package_dir / "build" / "Release" / "src" / "ag",
-        package_dir / "build" / "Debug" / "src" / "ag",
+        package_dir / "build" / "ninja-release" / "src" / "ag",
+        package_dir / "build" / "ninja-debug" / "src" / "ag",
+        package_dir / "build" / "ninja-relwithdebinfo" / "src" / "ag",
+        package_dir / "build" / "ninja-minsizerel" / "src" / "ag",
     ]
-    
+
     for location in common_locations:
         if location.exists():
             return location
-    
+
+    # Check system PATH last. 'ag' is also The Silver Searcher (a code search
+    # tool), so validate before returning.
+    ag_path = shutil.which("ag")
+    if ag_path:
+        path = Path(ag_path)
+        if _validate_ag_executable(path):
+            return path
+
     return None
 
 
 def run_ag_command(args: List[str], check: bool = True) -> subprocess.CompletedProcess:
     """
     Execute an ag CLI command with error handling.
-    
+
     Parameters
     ----------
     args : List[str]
         Command-line arguments for the ag executable (without the 'ag' prefix).
     check : bool, optional
         If True, raise CalledProcessError on non-zero exit code (default: True).
-    
+
     Returns
     -------
     subprocess.CompletedProcess
         The completed process with stdout, stderr, and return code.
-    
+
     Raises
     ------
     RuntimeError
         If the ag executable cannot be found.
     subprocess.CalledProcessError
         If the command fails and check=True.
-    
+
     Examples
     --------
     >>> result = run_ag_command(['fit', '-d', 'data.csv', '-a', '1,0,1', '-g', '1,1'])
@@ -94,9 +123,9 @@ def run_ag_command(args: List[str], check: bool = True) -> subprocess.CompletedP
             "ag executable not found. Please ensure it is built or set "
             "the AG_EXECUTABLE environment variable to its location."
         )
-    
+
     cmd = [str(ag_exec)] + args
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -116,17 +145,17 @@ def run_ag_command(args: List[str], check: bool = True) -> subprocess.CompletedP
 def ensure_output_dir(path: Path) -> Path:
     """
     Create output directory if it doesn't exist.
-    
+
     Parameters
     ----------
     path : Path
         Path to the directory to create.
-    
+
     Returns
     -------
     Path
         The created or existing directory path.
-    
+
     Examples
     --------
     >>> output_dir = ensure_output_dir(Path('./output'))
@@ -141,17 +170,17 @@ def ensure_output_dir(path: Path) -> Path:
 def format_model_spec(model_json: Dict[str, Any]) -> str:
     """
     Format model specification for display.
-    
+
     Parameters
     ----------
     model_json : Dict[str, Any]
         Model JSON data containing specification and parameters.
-    
+
     Returns
     -------
     str
         Formatted string representation of the model specification.
-    
+
     Examples
     --------
     >>> model = {"spec": {"arima": {"p": 1, "d": 0, "q": 1}, "garch": {"p": 1, "q": 1}}}
@@ -162,10 +191,10 @@ def format_model_spec(model_json: Dict[str, Any]) -> str:
         spec = model_json.get("spec", {})
         arima = spec.get("arima", {})
         garch = spec.get("garch", {})
-        
+
         arima_str = f"ARIMA({arima.get('p', 0)},{arima.get('d', 0)},{arima.get('q', 0)})"
         garch_str = f"GARCH({garch.get('p', 0)},{garch.get('q', 0)})"
-        
+
         return f"{arima_str}-{garch_str}"
     except Exception:
         return "Unknown Model"

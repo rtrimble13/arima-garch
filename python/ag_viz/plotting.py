@@ -9,7 +9,7 @@ Provides publication-quality plotting functions for:
 """
 
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Dict, Any
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,14 +30,14 @@ from ag_viz.utils import format_model_spec
 def _compute_acf(series: np.ndarray, nlags: int = 20) -> np.ndarray:
     """
     Compute autocorrelation function.
-    
+
     Parameters
     ----------
     series : np.ndarray
         Time series data.
     nlags : int, optional
         Number of lags to compute (default: 20).
-    
+
     Returns
     -------
     np.ndarray
@@ -45,25 +45,117 @@ def _compute_acf(series: np.ndarray, nlags: int = 20) -> np.ndarray:
     """
     mean = np.mean(series)
     var = np.var(series)
-    
+
     if var == 0:
         return np.zeros(nlags + 1)
-    
+
     normalized = series - mean
     acf = np.zeros(nlags + 1)
     acf[0] = 1.0
-    
+
     for lag in range(1, nlags + 1):
         if lag < len(series):
             acf[lag] = np.sum(normalized[:-lag] * normalized[lag:]) / (len(series) * var)
-    
+
     return acf
+
+
+def _compute_residuals(data: pd.DataFrame, model_json: Dict[str, Any]) -> np.ndarray:
+    """
+    Compute standardized residuals from fitted ARIMA-GARCH model parameters.
+
+    Applies the ARIMA filter to obtain innovations, then normalizes by the
+    GARCH conditional standard deviation:
+
+        ε_t = z_t - μ - Σ φ_i (z_{t-i} - μ) - Σ θ_j ε_{t-j}
+        h_t = ω + Σ α_i ε²_{t-i} + Σ β_j h_{t-j}
+        e_t = ε_t / sqrt(h_t)
+
+    where z_t is the d-fold differenced series.
+
+    Falls back to demeaned series normalized by sample std when model parameters
+    are unavailable (e.g. empty parameters dict in tests).
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Time series data (first column used).
+    model_json : Dict[str, Any]
+        Model specification and parameters from JSON.
+
+    Returns
+    -------
+    np.ndarray
+        Array of standardized residuals.
+    """
+    values = data.iloc[:, 0].values.astype(float).copy()
+
+    spec = model_json.get("spec", {})
+    params = model_json.get("parameters", {})
+
+    arima_spec = spec.get("arima", {})
+    garch_spec = spec.get("garch", {})
+    arima_params = params.get("arima", {})
+    garch_params = params.get("garch", {})
+
+    d = int(arima_spec.get("d", 0))
+
+    # Apply differencing
+    z = values.copy()
+    for _ in range(d):
+        z = np.diff(z)
+
+    n = len(z)
+    if n == 0:
+        return np.array([])
+
+    sample_var = float(np.var(z))
+    if sample_var <= 0:
+        sample_var = 1.0
+
+    # ARIMA parameters — default to sample mean / no AR-MA if missing
+    mu = float(arima_params.get("intercept", np.mean(z)))
+    ar_coef = np.array(arima_params.get("ar_coef", []), dtype=float)
+    ma_coef = np.array(arima_params.get("ma_coef", []), dtype=float)
+
+    # GARCH parameters — default omega to 5% of sample variance if missing
+    omega = float(garch_params.get("omega", sample_var * 0.05))
+    omega = max(omega, 1e-10)
+    alpha_coef = np.array(garch_params.get("alpha_coef", []), dtype=float)
+    beta_coef = np.array(garch_params.get("beta_coef", []), dtype=float)
+
+    # Compute ARIMA innovations recursively:
+    #   ε_t = (z_t - μ) - Σ φ_i (z_{t-i} - μ) - Σ θ_j ε_{t-j}
+    innovations = np.zeros(n)
+    for t in range(n):
+        pred = mu
+        for i, phi in enumerate(ar_coef):
+            if t - i - 1 >= 0:
+                pred += phi * (z[t - i - 1] - mu)
+        for j, theta in enumerate(ma_coef):
+            if t - j - 1 >= 0:
+                pred += theta * innovations[t - j - 1]
+        innovations[t] = z[t] - pred
+
+    # Compute GARCH conditional variance:
+    #   h_t = ω + Σ α_i ε²_{t-i} + Σ β_j h_{t-j}
+    # Initialise pre-sample values with the unconditional variance
+    h = np.zeros(n)
+    for t in range(n):
+        h_t = omega
+        for i, alpha in enumerate(alpha_coef):
+            h_t += alpha * (innovations[t - i - 1] ** 2 if t - i - 1 >= 0 else sample_var)
+        for j, beta in enumerate(beta_coef):
+            h_t += beta * (h[t - j - 1] if t - j - 1 >= 0 else sample_var)
+        h[t] = max(h_t, 1e-10)
+
+    return innovations / np.sqrt(h)
 
 
 # Set default style
 sns.set_style("whitegrid")
-plt.rcParams['figure.figsize'] = (12, 8)
-plt.rcParams['font.size'] = 10
+plt.rcParams["figure.figsize"] = (12, 8)
+plt.rcParams["font.size"] = 10
 
 
 def plot_fit_diagnostics(
@@ -71,15 +163,16 @@ def plot_fit_diagnostics(
     model_json: Dict[str, Any],
     output_dir: Path,
     show: bool = False,
+    output_filename: str = "fit_diagnostics.png",
 ) -> Path:
     """
     Generate fit diagnostic plots.
-    
+
     Creates a visualization showing:
     - Time series plot of observed data
     - Model specification summary
     - Summary statistics panel
-    
+
     Parameters
     ----------
     data : pd.DataFrame
@@ -90,12 +183,14 @@ def plot_fit_diagnostics(
         Directory to save the plot.
     show : bool, optional
         If True, display the plot (default: False).
-    
+    output_filename : str, optional
+        Name of the output file (default: 'fit_diagnostics.png').
+
     Returns
     -------
     Path
         Path to the saved plot file.
-    
+
     Examples
     --------
     >>> data = load_csv_data('data.csv')
@@ -104,18 +199,18 @@ def plot_fit_diagnostics(
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), height_ratios=[3, 1])
-    
+
     # Plot time series
     values = data.iloc[:, 0].values
-    ax1.plot(values, linewidth=1, alpha=0.8, label='Observed Data')
-    ax1.set_xlabel('Observation')
-    ax1.set_ylabel('Value')
-    ax1.set_title(f'Time Series Data - {format_model_spec(model_json)}')
+    ax1.plot(values, linewidth=1, alpha=0.8, label="Observed Data")
+    ax1.set_xlabel("Observation")
+    ax1.set_ylabel("Value")
+    ax1.set_title(f"Time Series Data - {format_model_spec(model_json)}")
     ax1.legend()
     ax1.grid(True, alpha=0.3)
-    
+
     # Summary statistics panel
     summary_text = (
         f"Model: {format_model_spec(model_json)}\n"
@@ -127,21 +222,28 @@ def plot_fit_diagnostics(
         f"Skewness: {stats.skew(values):.4f}\n"
         f"Kurtosis: {stats.kurtosis(values):.4f}"
     )
-    
-    ax2.text(0.1, 0.5, summary_text, fontsize=11, family='monospace',
-             verticalalignment='center', transform=ax2.transAxes)
-    ax2.axis('off')
-    
+
+    ax2.text(
+        0.1,
+        0.5,
+        summary_text,
+        fontsize=11,
+        family="monospace",
+        verticalalignment="center",
+        transform=ax2.transAxes,
+    )
+    ax2.axis("off")
+
     plt.tight_layout()
-    
-    output_path = output_dir / 'fit_diagnostics.png'
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    
+
+    output_path = output_dir / output_filename
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
     if show:
         plt.show()
     else:
         plt.close()
-    
+
     return output_path
 
 
@@ -154,7 +256,7 @@ def plot_forecast(
 ) -> Optional[Path]:
     """
     Generate forecast visualization with confidence intervals.
-    
+
     Parameters
     ----------
     model_path : Path
@@ -167,65 +269,64 @@ def plot_forecast(
         If True, display the plot (default: False).
     save : Optional[Path], optional
         Path to save the plot. If None, uses 'forecast.png' in current directory.
-    
+
     Returns
     -------
     Optional[Path]
         Path to the saved plot file, or None if not saved.
-    
+
     Examples
     --------
     >>> plot_forecast(Path('model.json'), Path('forecast.csv'), show=False)
     """
-    # Load data
     model = load_model_json(model_path)
     forecast = load_forecast_csv(forecast_csv)
-    
-    # Create figure
+
     fig, ax = plt.subplots(figsize=(12, 6))
-    
-    # Plot mean forecast
-    steps = forecast['step'].values
-    mean_forecast = forecast['mean'].values
-    std_dev = forecast['std_dev'].values
-    
-    ax.plot(steps, mean_forecast, 'b-', linewidth=2, label='Mean Forecast')
-    
-    # Plot confidence intervals
-    colors = ['lightblue', 'lightyellow']
+
+    steps = forecast["step"].values
+    mean_forecast = forecast["mean"].values
+    std_dev = forecast["std_dev"].values
+
+    ax.plot(steps, mean_forecast, "b-", linewidth=2, label="Mean Forecast")
+
+    colors = ["lightblue", "lightyellow"]
     alphas = [0.5, 0.3]
-    
+
     for i, conf_level in enumerate(confidence_levels):
         z_score = stats.norm.ppf((1 + conf_level) / 2)
         upper = mean_forecast + z_score * std_dev
         lower = mean_forecast - z_score * std_dev
-        
+
         ax.fill_between(
-            steps, lower, upper,
+            steps,
+            lower,
+            upper,
             color=colors[i % len(colors)],
             alpha=alphas[i % len(alphas)],
-            label=f'{int(conf_level * 100)}% CI'
+            label=f"{int(conf_level * 100)}% CI",
         )
-    
-    ax.set_xlabel('Forecast Horizon (steps ahead)', fontsize=12)
-    ax.set_ylabel('Forecasted Value', fontsize=12)
-    ax.set_title(f'Forecast - {format_model_spec(model)}', fontsize=14, fontweight='bold')
-    ax.legend(loc='best')
+
+    ax.set_xlabel("Forecast Horizon (steps ahead)", fontsize=12)
+    ax.set_ylabel("Forecasted Value", fontsize=12)
+    ax.set_title(f"Forecast - {format_model_spec(model)}", fontsize=14, fontweight="bold")
+    ax.legend(loc="best")
     ax.grid(True, alpha=0.3)
-    
+
     plt.tight_layout()
-    
+
     if save is None:
-        save = Path('forecast.png')
-    
+        save = Path("forecast.png")
+
     save = Path(save)
-    plt.savefig(save, dpi=300, bbox_inches='tight')
-    
+    save.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save, dpi=300, bbox_inches="tight")
+
     if show:
         plt.show()
     else:
         plt.close()
-    
+
     return save
 
 
@@ -233,19 +334,21 @@ def plot_residual_diagnostics(
     model_path: Path,
     data_path: Path,
     diagnostics_json: Optional[Path] = None,
-    output_dir: Path = Path('./diagnostics'),
+    output_dir: Path = Path("./diagnostics"),
+    show: bool = False,
+    output_filename: str = "residual_diagnostics.png",
 ) -> Path:
     """
     Generate comprehensive residual diagnostic plots.
-    
-    Creates a multi-panel figure with:
+
+    Computes actual standardized residuals from the fitted model parameters,
+    then creates a multi-panel figure with:
     - Standardized residuals time series
     - Residuals histogram with normal distribution overlay
     - QQ-plot for normality assessment
     - ACF plot of residuals
     - ACF plot of squared residuals
-    - Ljung-Box test p-values visualization
-    
+
     Parameters
     ----------
     model_path : Path
@@ -253,15 +356,20 @@ def plot_residual_diagnostics(
     data_path : Path
         Path to the original data CSV file.
     diagnostics_json : Optional[Path], optional
-        Path to diagnostics JSON file if available.
+        Path to diagnostics JSON file if available (currently unused; reserved
+        for future Ljung-Box overlay on ACF plots).
     output_dir : Path, optional
         Directory to save the plot (default: './diagnostics').
-    
+    show : bool, optional
+        If True, display the plot (default: False).
+    output_filename : str, optional
+        Name of the output file (default: 'residual_diagnostics.png').
+
     Returns
     -------
     Path
         Path to the saved plot file.
-    
+
     Examples
     --------
     >>> plot_path = plot_residual_diagnostics(
@@ -273,88 +381,90 @@ def plot_residual_diagnostics(
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load data
+
     model = load_model_json(model_path)
     data = load_csv_data(data_path)
-    
-    # For this simplified version, generate synthetic residuals
-    # In practice, these would be computed from the model and data
-    n_obs = len(data)
-    np.random.seed(42)
-    residuals = np.random.standard_normal(n_obs)
-    
-    # Create multi-panel figure
+
+    residuals = _compute_residuals(data, model)
+
     fig = plt.figure(figsize=(15, 10))
     gs = fig.add_gridspec(3, 2, hspace=0.3, wspace=0.3)
-    
+
     # 1. Standardized residuals time series
     ax1 = fig.add_subplot(gs[0, :])
     ax1.plot(residuals, linewidth=0.8, alpha=0.8)
-    ax1.axhline(0, color='red', linestyle='--', linewidth=1, alpha=0.5)
-    ax1.axhline(2, color='orange', linestyle=':', linewidth=1, alpha=0.5)
-    ax1.axhline(-2, color='orange', linestyle=':', linewidth=1, alpha=0.5)
-    ax1.set_xlabel('Observation')
-    ax1.set_ylabel('Standardized Residuals')
-    ax1.set_title('Standardized Residuals', fontweight='bold')
+    ax1.axhline(0, color="red", linestyle="--", linewidth=1, alpha=0.5)
+    ax1.axhline(2, color="orange", linestyle=":", linewidth=1, alpha=0.5)
+    ax1.axhline(-2, color="orange", linestyle=":", linewidth=1, alpha=0.5)
+    ax1.set_xlabel("Observation")
+    ax1.set_ylabel("Standardized Residuals")
+    ax1.set_title("Standardized Residuals", fontweight="bold")
     ax1.grid(True, alpha=0.3)
-    
+
     # 2. Histogram with normal overlay
     ax2 = fig.add_subplot(gs[1, 0])
-    ax2.hist(residuals, bins=30, density=True, alpha=0.7, edgecolor='black')
+    ax2.hist(residuals, bins=30, density=True, alpha=0.7, edgecolor="black")
     x = np.linspace(residuals.min(), residuals.max(), 100)
-    ax2.plot(x, norm.pdf(x, 0, 1), 'r-', linewidth=2, label='N(0,1)')
-    ax2.set_xlabel('Standardized Residuals')
-    ax2.set_ylabel('Density')
-    ax2.set_title('Residuals Distribution', fontweight='bold')
+    ax2.plot(x, norm.pdf(x, 0, 1), "r-", linewidth=2, label="N(0,1)")
+    ax2.set_xlabel("Standardized Residuals")
+    ax2.set_ylabel("Density")
+    ax2.set_title("Residuals Distribution", fontweight="bold")
     ax2.legend()
     ax2.grid(True, alpha=0.3)
-    
+
     # 3. QQ-plot
     ax3 = fig.add_subplot(gs[1, 1])
     probplot(residuals, dist="norm", plot=ax3)
-    ax3.set_title('Q-Q Plot', fontweight='bold')
+    ax3.set_title("Q-Q Plot", fontweight="bold")
     ax3.grid(True, alpha=0.3)
-    
+
     # 4. ACF of residuals
     ax4 = fig.add_subplot(gs[2, 0])
     nlags = min(20, len(residuals) // 2)
     acf_vals = _compute_acf(residuals, nlags=nlags)
     lags = np.arange(len(acf_vals))
-    
-    ax4.bar(lags, acf_vals, width=0.3, color='steelblue', alpha=0.7)
-    ax4.axhline(0, color='black', linewidth=0.8)
+
+    ax4.bar(lags, acf_vals, width=0.3, color="steelblue", alpha=0.7)
+    ax4.axhline(0, color="black", linewidth=0.8)
     confidence_interval = 1.96 / np.sqrt(len(residuals))
-    ax4.axhline(confidence_interval, color='blue', linestyle='--', alpha=0.5)
-    ax4.axhline(-confidence_interval, color='blue', linestyle='--', alpha=0.5)
-    ax4.set_xlabel('Lag')
-    ax4.set_ylabel('ACF')
-    ax4.set_title('ACF of Residuals', fontweight='bold')
+    ax4.axhline(confidence_interval, color="blue", linestyle="--", alpha=0.5)
+    ax4.axhline(-confidence_interval, color="blue", linestyle="--", alpha=0.5)
+    ax4.set_xlabel("Lag")
+    ax4.set_ylabel("ACF")
+    ax4.set_title("ACF of Residuals", fontweight="bold")
     ax4.set_ylim([-1, 1])
     ax4.grid(True, alpha=0.3)
-    
+
     # 5. ACF of squared residuals
     ax5 = fig.add_subplot(gs[2, 1])
-    squared_residuals = residuals ** 2
+    squared_residuals = residuals**2
     acf_vals_sq = _compute_acf(squared_residuals, nlags=nlags)
-    
-    ax5.bar(lags, acf_vals_sq, width=0.3, color='steelblue', alpha=0.7)
-    ax5.axhline(0, color='black', linewidth=0.8)
-    ax5.axhline(confidence_interval, color='blue', linestyle='--', alpha=0.5)
-    ax5.axhline(-confidence_interval, color='blue', linestyle='--', alpha=0.5)
-    ax5.set_xlabel('Lag')
-    ax5.set_ylabel('ACF')
-    ax5.set_title('ACF of Squared Residuals', fontweight='bold')
+
+    ax5.bar(lags, acf_vals_sq, width=0.3, color="steelblue", alpha=0.7)
+    ax5.axhline(0, color="black", linewidth=0.8)
+    ax5.axhline(confidence_interval, color="blue", linestyle="--", alpha=0.5)
+    ax5.axhline(-confidence_interval, color="blue", linestyle="--", alpha=0.5)
+    ax5.set_xlabel("Lag")
+    ax5.set_ylabel("ACF")
+    ax5.set_title("ACF of Squared Residuals", fontweight="bold")
     ax5.set_ylim([-1, 1])
     ax5.grid(True, alpha=0.3)
-    
-    fig.suptitle(f'Residual Diagnostics - {format_model_spec(model)}',
-                 fontsize=16, fontweight='bold', y=0.995)
-    
-    output_path = output_dir / 'residual_diagnostics.png'
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
+
+    fig.suptitle(
+        f"Residual Diagnostics - {format_model_spec(model)}",
+        fontsize=16,
+        fontweight="bold",
+        y=0.995,
+    )
+
+    output_path = output_dir / output_filename
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
     return output_path
 
 
@@ -366,13 +476,13 @@ def plot_simulation_paths(
 ) -> Path:
     """
     Visualize simulation paths with statistical summaries.
-    
+
     Creates visualizations showing:
     - Multiple simulated path overlays (semi-transparent)
     - Mean path highlighted
     - Percentile bands (5th-95th)
     - Distribution of terminal values
-    
+
     Parameters
     ----------
     simulation_csv : Path
@@ -383,12 +493,12 @@ def plot_simulation_paths(
         Path to save the plot. If None, saves as 'simulation_paths.png'.
     show : bool, optional
         If True, display the plot (default: False).
-    
+
     Returns
     -------
     Path
         Path to the saved plot file.
-    
+
     Examples
     --------
     >>> plot_path = plot_simulation_paths(
@@ -397,62 +507,74 @@ def plot_simulation_paths(
     ...     output_path=Path('./output/simulation.png')
     ... )
     """
-    # Load simulation data
     sim_data, n_paths, n_obs = parse_simulation_csv(simulation_csv)
-    
-    # Create figure with subplots
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    
-    # Plot 1: Simulated paths
+
     n_to_plot = min(n_paths_to_plot, n_paths)
-    
+
     # Plot individual paths (semi-transparent)
-    for path_id in range(n_to_plot):
-        path_data = sim_data[sim_data['path'] == path_id]
-        ax1.plot(path_data['observation'], path_data['return'],
-                alpha=0.3, linewidth=0.8, color='gray')
-    
+    path_ids = sim_data["path"].unique()
+    for path_id in path_ids[:n_to_plot]:
+        path_data = sim_data[sim_data["path"] == path_id]
+        ax1.plot(
+            path_data["observation"],
+            path_data["return"],
+            alpha=0.3,
+            linewidth=0.8,
+            color="gray",
+        )
+
     # Calculate and plot mean path
-    mean_path = sim_data.groupby('observation')['return'].mean()
-    ax1.plot(mean_path.index, mean_path.values,
-            color='blue', linewidth=2, label='Mean Path')
-    
+    mean_path = sim_data.groupby("observation")["return"].mean()
+    ax1.plot(mean_path.index, mean_path.values, color="blue", linewidth=2, label="Mean Path")
+
     # Calculate and plot percentile bands
-    p5 = sim_data.groupby('observation')['return'].quantile(0.05)
-    p95 = sim_data.groupby('observation')['return'].quantile(0.95)
-    ax1.fill_between(p5.index, p5.values, p95.values,
-                     alpha=0.2, color='blue', label='5th-95th Percentile')
-    
-    ax1.set_xlabel('Observation', fontsize=12)
-    ax1.set_ylabel('Simulated Returns', fontsize=12)
-    ax1.set_title(f'Simulated Paths (showing {n_to_plot} of {n_paths})',
-                 fontsize=14, fontweight='bold')
-    ax1.legend(loc='best')
+    p5 = sim_data.groupby("observation")["return"].quantile(0.05)
+    p95 = sim_data.groupby("observation")["return"].quantile(0.95)
+    ax1.fill_between(
+        p5.index, p5.values, p95.values, alpha=0.2, color="blue", label="5th-95th Percentile"
+    )
+
+    ax1.set_xlabel("Observation", fontsize=12)
+    ax1.set_ylabel("Simulated Returns", fontsize=12)
+    ax1.set_title(
+        f"Simulated Paths (showing {n_to_plot} of {n_paths})", fontsize=14, fontweight="bold"
+    )
+    ax1.legend(loc="best")
     ax1.grid(True, alpha=0.3)
-    
-    # Plot 2: Distribution of terminal values
-    terminal_values = sim_data[sim_data['observation'] == n_obs - 1]['return']
-    ax2.hist(terminal_values, bins=30, density=True, alpha=0.7,
-            edgecolor='black', color='steelblue')
-    ax2.axvline(terminal_values.mean(), color='red', linestyle='--',
-               linewidth=2, label=f'Mean: {terminal_values.mean():.4f}')
-    ax2.set_xlabel('Terminal Value', fontsize=12)
-    ax2.set_ylabel('Density', fontsize=12)
-    ax2.set_title('Distribution of Terminal Values', fontsize=14, fontweight='bold')
+
+    # Distribution of terminal values — use groupby last() to be robust to
+    # both 0-indexed and 1-indexed observation numbering in the CSV.
+    terminal_values = sim_data.groupby("path")["return"].last()
+    ax2.hist(
+        terminal_values, bins=30, density=True, alpha=0.7, edgecolor="black", color="steelblue"
+    )
+    ax2.axvline(
+        terminal_values.mean(),
+        color="red",
+        linestyle="--",
+        linewidth=2,
+        label=f"Mean: {terminal_values.mean():.4f}",
+    )
+    ax2.set_xlabel("Terminal Value", fontsize=12)
+    ax2.set_ylabel("Density", fontsize=12)
+    ax2.set_title("Distribution of Terminal Values", fontsize=14, fontweight="bold")
     ax2.legend()
     ax2.grid(True, alpha=0.3)
-    
+
     plt.tight_layout()
-    
+
     if output_path is None:
-        output_path = Path('simulation_paths.png')
-    
+        output_path = Path("simulation_paths.png")
+
     output_path = Path(output_path)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
     if show:
         plt.show()
     else:
         plt.close()
-    
+
     return output_path
