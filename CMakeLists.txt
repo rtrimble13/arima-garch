@@ -1,9 +1,23 @@
 cmake_minimum_required(VERSION 3.14)
-project(arima-garch VERSION 1.1.2 LANGUAGES CXX)
+
+# Resolve project version from git tag. See cmake/GetVersion.cmake
+# and docs/versioning.md.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+include(GetVersion)
+ag_get_version()
+message(STATUS "arima-garch version: ${AG_VERSION_FULL}")
+
+project(arima-garch VERSION ${AG_VERSION_NUMERIC} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Generated Version.hpp consumed by the library and CLI.
+configure_file(
+  ${CMAKE_SOURCE_DIR}/cmake/Version.hpp.in
+  ${CMAKE_BINARY_DIR}/generated/ag/Version.hpp
+  @ONLY)
 
 # Include GNUInstallDirs for standard installation directories
 include(GNUInstallDirs)

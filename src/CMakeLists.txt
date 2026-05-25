@@ -41,6 +41,7 @@ add_library(arimagarch STATIC
 
 target_include_directories(arimagarch PUBLIC
     ${PROJECT_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/generated
 )
 
 target_link_libraries(arimagarch PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
@@ -77,4 +78,9 @@ install(TARGETS arimagarch ag
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ag
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.hpp"
+)
+
+# Install the generated Version.hpp alongside the public headers.
+install(FILES ${CMAKE_BINARY_DIR}/generated/ag/Version.hpp
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ag
 )

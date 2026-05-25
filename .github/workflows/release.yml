@@ -35,7 +35,13 @@ jobs:
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
-    
+
+    # Write a VERSION file so source consumers without .git still
+    # resolve the right version. See docs/versioning.md.
+    - name: Write VERSION file
+      shell: bash
+      run: echo "${{ steps.get_version.outputs.version }}" > VERSION
+
     - name: Setup CMake
       uses: lukka/get-cmake@latest
     
