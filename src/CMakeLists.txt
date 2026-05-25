@@ -53,6 +53,20 @@ add_executable(ag
 
 target_link_libraries(ag PRIVATE arimagarch CLI11::CLI11)
 
+# Stage `ag` under examples/terminal/bin so the terminal example scripts find
+# it at a stable, generator-independent path. Opt-in:
+#   cmake --build <build-dir> --target ag-examples
+add_custom_target(ag-examples
+    DEPENDS ag
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${PROJECT_SOURCE_DIR}/examples/terminal/bin
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:ag>
+        ${PROJECT_SOURCE_DIR}/examples/terminal/bin/ag
+    COMMENT "Stage ag binary at examples/terminal/bin/ag for example scripts"
+    VERBATIM
+)
+
 # Install rules for library and executable
 install(TARGETS arimagarch ag
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
