@@ -96,6 +96,32 @@ cmake --build build --target ag
 cmake --build build --target test_placeholder
 ```
 
+### Python (ag-viz) Development Environment
+
+The Python visualization package (`ag-viz`, under `python/`) uses a **project-local virtual environment** at `.venv/` as the default — created with the stdlib `venv` module and managed with `pip`. Do **not** use conda, poetry, uv, or install `ag-viz` into your base/global Python; the repo's VSCode settings and Makefile targets all assume `.venv/`.
+
+The Makefile wraps the common steps:
+
+```bash
+make py-install        # create .venv/ and install ag-viz (editable)
+make py-install-dev    # same, plus dev extras (pytest, black, jupyter, ...)
+make py-test           # run pytest inside .venv
+make py-format         # run black inside .venv
+make py-clean          # remove .venv/
+```
+
+Manual equivalent:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e "python/[dev]"
+pytest python/tests
+```
+
+`.venv/` is gitignored — never commit it.
+
 ### Running Tests
 
 The project has comprehensive test suites. As you add features, ensure you add corresponding tests:

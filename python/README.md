@@ -34,15 +34,25 @@
    cmake --build build
    ```
 
-2. **Install Python package**:
+2. **Install the Python package into a project-local venv** (project default — not conda/poetry/uv):
+
    ```bash
-   # Install in development mode (recommended)
-   pip install -e python/
-   
-   # Or install from source
-   cd python/
-   pip install .
+   # From the repository root, fastest path via the Makefile wrapper:
+   make py-install            # creates .venv/ and installs ag-viz (editable)
+   source .venv/bin/activate  # activate to use `ag-viz` on your shell PATH
    ```
+
+   Manual equivalent (also from the repository root):
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install --upgrade pip
+   pip install -e python/        # editable install (recommended for development)
+   # or: pip install python/     # non-editable install
+   ```
+
+   `.venv/` is gitignored. Do **not** install `ag-viz` into your base/global Python or into a conda environment.
 
 ### Optional: Set Environment Variable
 
@@ -285,23 +295,34 @@ Shows multiple simulated paths with mean path, percentile bands, and terminal va
 
 ## Development
 
-Install development dependencies:
+Install development dependencies into the project venv:
 
 ```bash
-pip install -e python/[dev]
+make py-install-dev   # creates .venv/ if needed and installs ag-viz[dev] (editable)
+```
+
+Manual equivalent:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e "python/[dev]"
 ```
 
 Run tests:
 
 ```bash
-cd python/
-pytest tests/
+make py-test          # runs pytest inside .venv
+# or, with .venv activated:
+pytest python/tests
 ```
 
 Format code:
 
 ```bash
-black ag_viz/ tests/
+make py-format        # runs black inside .venv
+# or, with .venv activated:
+black python/ag_viz python/tests
 ```
 
 ## Integration with C++ CLI
@@ -333,10 +354,13 @@ If you see a warning about the `ag` executable not being found:
 
 ### Import errors
 
-Ensure all dependencies are installed:
+Ensure all dependencies are installed in the project venv:
 
 ```bash
-pip install -r python/requirements.txt
+make py-install                   # or: make py-install-dev
+# Manual:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -r python/requirements.txt
 ```
 
 ### Plot display issues

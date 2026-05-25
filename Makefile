@@ -63,7 +63,8 @@ else
   BUILD_PARALLEL =
 endif
 
-.PHONY: all release debug relwithdebinfo minsizerel configure build test clean reconfigure info
+.PHONY: all release debug relwithdebinfo minsizerel configure build test clean reconfigure info \
+        venv py-install py-install-dev py-test py-format py-clean
 
 all: release
 
@@ -103,3 +104,38 @@ info:
 	@echo "BUILD_PRESET=$(BUILD_PRESET)"
 	@echo "TEST_PRESET=$(TEST_PRESET)"
 	@echo "BUILD_DIR=$(BUILD_DIR)"
+
+# ---- Python (ag-viz) ----
+# Project-local venv is the default for all Python work; do not use conda/poetry/uv.
+PY_DIR   ?= python
+VENV_DIR ?= .venv
+PY       ?= python3
+VENV_PY  := $(VENV_DIR)/bin/python
+VENV_PIP := $(VENV_DIR)/bin/pip
+
+$(VENV_DIR)/bin/python:
+	@echo "==> Creating venv at $(VENV_DIR)"
+	@$(PY) -m venv $(VENV_DIR)
+	@$(VENV_PIP) install --upgrade pip
+
+venv: $(VENV_DIR)/bin/python
+
+py-install: venv
+	@echo "==> Installing $(PY_DIR) into $(VENV_DIR) (editable)"
+	@$(VENV_PIP) install -e $(PY_DIR)
+
+py-install-dev: venv
+	@echo "==> Installing $(PY_DIR)[dev] into $(VENV_DIR) (editable)"
+	@$(VENV_PIP) install -e "$(PY_DIR)[dev]"
+
+py-test: py-install-dev
+	@echo "==> Running Python tests in $(VENV_DIR)"
+	@$(VENV_PY) -m pytest $(PY_DIR)/tests
+
+py-format: py-install-dev
+	@echo "==> Formatting Python code"
+	@$(VENV_DIR)/bin/black $(PY_DIR)/ag_viz $(PY_DIR)/tests
+
+py-clean:
+	@echo "==> Removing venv: $(VENV_DIR)"
+	@rm -rf $(VENV_DIR)

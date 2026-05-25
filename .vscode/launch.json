@@ -27,7 +27,16 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "ag-viz (Python, .venv)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "ag_viz.cli",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/.venv/bin/python"
         }
-    
     ]
 }

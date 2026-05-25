@@ -319,8 +319,14 @@ make
 cmake -S . -B build
 cmake --build build
 
-# Install the Python visualization package
-pip install -e python/
+# Install ag-viz into a project-local venv (project default — not conda/poetry/uv)
+make py-install            # creates .venv/ and installs ag-viz in editable mode
+source .venv/bin/activate  # activate to use ag-viz on your shell PATH
+
+# Manual equivalent:
+#   python3 -m venv .venv
+#   source .venv/bin/activate
+#   pip install -e python/
 ```
 
 ### Quick Start
