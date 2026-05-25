@@ -287,6 +287,12 @@ Draft releases are automatically updated as PRs are merged to main:
    - The draft release notes will be used for the published release
    - If no draft exists, release notes will be auto-generated from commits
 
+> **Note:** The tag is the only place a version is declared. The C++
+> library, the CLI `--version` flag, embedded JSON metadata, and the
+> Python `ag-viz` package all derive their version from the tag at
+> configure/install time. Do not edit version constants in source.
+> See [docs/versioning.md](docs/versioning.md) for the full mechanism.
+
 
 ### Pull Request Checklist
 

@@ -10,6 +10,7 @@
  * - diagnostics: Run diagnostic tests
  */
 
+#include "ag/Version.hpp"
 #include "ag/api/Engine.hpp"
 #include "ag/cli/CliUtils.hpp"
 #include "ag/io/Json.hpp"
@@ -549,7 +550,7 @@ int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
 int main(int argc, char* argv[]) {
     CLI::App app{"ARIMA-GARCH Time Series Modeling CLI", "ag"};
     app.require_subcommand(0, 1);  // Allow 0 or 1 subcommand (0 for --help)
-    app.set_version_flag("--version,-v", "1.1.2");
+    app.set_version_flag("--version,-v", ag::kVersion);
 
     // Fit subcommand
     auto* fit = app.add_subcommand("fit", "Fit ARIMA-GARCH model to time series data");

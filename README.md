@@ -399,6 +399,7 @@ Quick overview:
 - [ARIMA Residuals](docs/arima_residuals.md) - ARIMA residual handling
 - [Dependencies](docs/dependencies.md) - Dependency management
 - [Style Guide](docs/style.md) - Code style guidelines
+- [Versioning](docs/versioning.md) - How project version is derived from git tags
 
 ## License
 

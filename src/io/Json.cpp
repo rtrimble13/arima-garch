@@ -1,5 +1,7 @@
 #include "ag/io/Json.hpp"
 
+#include "ag/Version.hpp"
+
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -28,7 +30,7 @@ static std::string getCurrentTimestamp() {
 
 // ModelMetadata implementation
 ModelMetadata::ModelMetadata()
-    : timestamp(getCurrentTimestamp()), version("0.1.0"), model_type("ArimaGarch") {}
+    : timestamp(getCurrentTimestamp()), version(ag::kVersion), model_type("ArimaGarch") {}
 
 ModelMetadata::ModelMetadata(const std::string& ts, const std::string& ver, const std::string& type)
     : timestamp(ts), version(ver), model_type(type) {}

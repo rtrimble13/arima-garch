@@ -1,10 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ag-viz"
-version = "0.1.0"
+# Version is derived from the repo's most recent vX.Y.Z git tag by
+# setuptools-scm. See docs/versioning.md.
+dynamic = ["version"]
 description = "Visualization tools for ARIMA-GARCH models"
 readme = "README.md"
 authors = [
@@ -51,6 +53,17 @@ ag-viz = "ag_viz.cli:cli"
 Homepage = "https://github.com/rtrimble13/arima-garch"
 Repository = "https://github.com/rtrimble13/arima-garch"
 Issues = "https://github.com/rtrimble13/arima-garch/issues"
+
+[tool.setuptools_scm]
+# This pyproject.toml lives in python/; the git repo root is one level up.
+root = ".."
+# Match the same vX.Y.Z tags that the C++ side reads.
+tag_regex = '^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$'
+# Bake the resolved version into a generated file (gitignored).
+version_file = "ag_viz/_version.py"
+# Used only if neither git nor a baked-in version is available
+# (e.g. installing from a bare source tarball without .git).
+fallback_version = "0.0.0+unknown"
 
 [tool.black]
 line-length = 100
