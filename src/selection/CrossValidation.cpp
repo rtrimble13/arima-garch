@@ -1,8 +1,6 @@
 #include "ag/selection/CrossValidation.hpp"
 
-#include "ag/estimation/Likelihood.hpp"
-#include "ag/estimation/Optimizer.hpp"
-#include "ag/estimation/ParameterInitialization.hpp"
+#include "ag/estimation/FitDriver.hpp"
 #include "ag/forecasting/Forecaster.hpp"
 #include "ag/models/composite/ArimaGarchModel.hpp"
 
@@ -43,146 +41,28 @@ computeCrossValidationScore(const double* data, std::size_t n_obs,
     // Rolling origin cross-validation
     for (std::size_t window_end = config.min_train_size; window_end < n_obs; ++window_end) {
         try {
-            // Training data: [0, window_end)
             const double* train_data = data;
-            std::size_t train_size = window_end;
+            const std::size_t train_size = window_end;
+            const double actual_value = data[window_end];
 
-            // Test data: data[window_end] (1-step-ahead target)
-            double actual_value = data[window_end];
-
-            // Initialize parameters from training data
-            auto [arima_init, garch_init] =
-                ag::estimation::initializeArimaGarchParameters(train_data, train_size, spec);
-
-            // Create likelihood function
-            ag::estimation::ArimaGarchLikelihood likelihood(spec);
-
-            // Pack parameters into vector for optimization
-            std::vector<double> initial_params;
-
-            // Add ARIMA parameters if not zero-order
-            if (!spec.arimaSpec.isZeroOrder()) {
-                initial_params.push_back(arima_init.intercept);
-                for (int i = 0; i < spec.arimaSpec.p; ++i) {
-                    initial_params.push_back(arima_init.ar_coef[i]);
-                }
-                for (int i = 0; i < spec.arimaSpec.q; ++i) {
-                    initial_params.push_back(arima_init.ma_coef[i]);
-                }
-            }
-
-            // Add GARCH parameters
-            initial_params.push_back(garch_init.omega);
-            for (int i = 0; i < spec.garchSpec.p; ++i) {
-                initial_params.push_back(garch_init.alpha_coef[i]);
-            }
-            for (int i = 0; i < spec.garchSpec.q; ++i) {
-                initial_params.push_back(garch_init.beta_coef[i]);
-            }
-
-            // Define objective function with constraints
-            auto objective = [&](const std::vector<double>& params) -> double {
-                ag::models::arima::ArimaParameters arima_p(spec.arimaSpec.p, spec.arimaSpec.q);
-                ag::models::garch::GarchParameters garch_p(spec.garchSpec.p, spec.garchSpec.q);
-
-                std::size_t idx = 0;
-
-                // Unpack ARIMA parameters if not zero-order
-                if (!spec.arimaSpec.isZeroOrder()) {
-                    arima_p.intercept = params[idx++];
-                    for (int i = 0; i < spec.arimaSpec.p; ++i) {
-                        arima_p.ar_coef[i] = params[idx++];
-                    }
-                    for (int i = 0; i < spec.arimaSpec.q; ++i) {
-                        arima_p.ma_coef[i] = params[idx++];
-                    }
-                }
-
-                // Unpack GARCH parameters
-                garch_p.omega = params[idx++];
-                for (int i = 0; i < spec.garchSpec.p; ++i) {
-                    garch_p.alpha_coef[i] = params[idx++];
-                }
-                for (int i = 0; i < spec.garchSpec.q; ++i) {
-                    garch_p.beta_coef[i] = params[idx++];
-                }
-
-                // Check GARCH constraints
-                if (!garch_p.isPositive() || !garch_p.isStationary()) {
-                    return 1e10;  // Penalty for constraint violation
-                }
-
-                // Compute negative log-likelihood
-                try {
-                    return likelihood.computeNegativeLogLikelihood(train_data, train_size, arima_p,
-                                                                   garch_p);
-                } catch (...) {
-                    return 1e10;  // Penalty for computation errors
-                }
-            };
-
-            // Set up optimizer
-            ag::estimation::NelderMeadOptimizer optimizer(1e-6, 1e-6, 2000);
-
-            // Optimize with random restarts for robustness
-            auto result = ag::estimation::optimizeWithRestarts(optimizer, objective, initial_params,
-                                                               3, 0.15, 42);
-
-            // Check if optimization succeeded
-            if (!result.converged) {
-                // Skip this window if fitting failed
+            auto outcome = ag::estimation::runFit(train_data, train_size, spec);
+            if (!outcome || !outcome->converged) {
                 continue;
             }
 
-            // Unpack optimized parameters
-            ag::models::arima::ArimaParameters fitted_arima(spec.arimaSpec.p, spec.arimaSpec.q);
-            ag::models::garch::GarchParameters fitted_garch(spec.garchSpec.p, spec.garchSpec.q);
-
-            std::size_t idx = 0;
-            if (!spec.arimaSpec.isZeroOrder()) {
-                fitted_arima.intercept = result.parameters[idx++];
-                for (int i = 0; i < spec.arimaSpec.p; ++i) {
-                    fitted_arima.ar_coef[i] = result.parameters[idx++];
-                }
-                for (int i = 0; i < spec.arimaSpec.q; ++i) {
-                    fitted_arima.ma_coef[i] = result.parameters[idx++];
-                }
-            }
-            fitted_garch.omega = result.parameters[idx++];
-            for (int i = 0; i < spec.garchSpec.p; ++i) {
-                fitted_garch.alpha_coef[i] = result.parameters[idx++];
-            }
-            for (int i = 0; i < spec.garchSpec.q; ++i) {
-                fitted_garch.beta_coef[i] = result.parameters[idx++];
-            }
-
-            // Create model with fitted parameters and initialize state
-            ag::models::composite::ArimaGarchParameters params(spec);
-            params.arima_params = fitted_arima;
-            params.garch_params = fitted_garch;
-
-            ag::models::composite::ArimaGarchModel model(spec, params);
-
-            // Initialize model state by processing training data
+            ag::models::composite::ArimaGarchModel model(spec, outcome->parameters);
             for (std::size_t i = 0; i < train_size; ++i) {
                 model.update(train_data[i]);
             }
 
-            // Make 1-step-ahead forecast
             ag::forecasting::Forecaster forecaster(model);
             auto forecast_result = forecaster.forecast(1);
+            const double forecast_value = forecast_result.mean_forecasts[0];
 
-            double forecast_value = forecast_result.mean_forecasts[0];
-
-            // Compute squared error
-            double error = actual_value - forecast_value;
-            double squared_error = error * error;
-
-            sum_squared_errors += squared_error;
-            successful_forecasts++;
-
+            const double error = actual_value - forecast_value;
+            sum_squared_errors += error * error;
+            ++successful_forecasts;
         } catch (...) {
-            // Skip this window if any error occurs
             continue;
         }
     }

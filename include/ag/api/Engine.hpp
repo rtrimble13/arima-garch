@@ -179,13 +179,6 @@ public:
              bool use_student_t = false, double student_t_df = 2.0);
 
 private:
-    // Configuration parameters for optimization
-    static constexpr double OPTIMIZER_FTOL = 1e-6;
-    static constexpr double OPTIMIZER_XTOL = 1e-6;
-    static constexpr int OPTIMIZER_MAX_ITER = 2000;
-    static constexpr int NUM_RESTARTS = 3;
-    static constexpr double PERTURBATION_SCALE = 0.15;
-
     /**
      * @brief Validate Student-t degrees of freedom parameter.
      * @param df Degrees of freedom to validate
@@ -198,26 +191,6 @@ private:
         }
         return "";
     }
-
-    /**
-     * @brief Helper to pack ARIMA-GARCH parameters into a vector.
-     * @param arima_params ARIMA parameters
-     * @param garch_params GARCH parameters
-     * @return Vector of packed parameters
-     */
-    std::vector<double> packParameters(const models::arima::ArimaParameters& arima_params,
-                                       const models::garch::GarchParameters& garch_params) const;
-
-    /**
-     * @brief Helper to unpack vector into ARIMA-GARCH parameters.
-     * @param params Parameter vector
-     * @param spec Model specification
-     * @param out_arima Output ARIMA parameters
-     * @param out_garch Output GARCH parameters
-     */
-    void unpackParameters(const std::vector<double>& params, const models::ArimaGarchSpec& spec,
-                          models::arima::ArimaParameters& out_arima,
-                          models::garch::GarchParameters& out_garch) const;
 };
 
 }  // namespace ag::api

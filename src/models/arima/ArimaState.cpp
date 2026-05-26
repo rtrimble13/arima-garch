@@ -1,6 +1,8 @@
 #include "ag/models/arima/ArimaState.hpp"
 
-#include <algorithm>
+#include "ag/util/Differencing.hpp"
+#include "ag/util/SlidingWindow.hpp"
+
 #include <stdexcept>
 
 namespace ag::models::arima {
@@ -50,40 +52,12 @@ void ArimaState::initialize(const double* data, std::size_t size) {
 }
 
 void ArimaState::update(double observation, double residual) {
-    // Update observation history (shift left and add new)
-    if (p_ > 0) {
-        std::shift_left(obs_history_.begin(), obs_history_.end(), 1);
-        obs_history_.back() = observation;
-    }
-
-    // Update residual history (shift left and add new)
-    if (q_ > 0) {
-        std::shift_left(residual_history_.begin(), residual_history_.end(), 1);
-        residual_history_.back() = residual;
-    }
+    ag::util::shiftAndAppend(obs_history_, observation);
+    ag::util::shiftAndAppend(residual_history_, residual);
 }
 
 std::vector<double> ArimaState::applyDifferencing(const double* data, std::size_t size) const {
-    if (d_ == 0) {
-        return std::vector<double>(data, data + size);
-    }
-
-    std::vector<double> result(data, data + size);
-    std::vector<double> temp;
-
-    // Apply differencing d times
-    for (int order = 0; order < d_; ++order) {
-        temp.clear();
-        temp.reserve(result.size() - 1);
-
-        for (std::size_t i = 1; i < result.size(); ++i) {
-            temp.push_back(result[i] - result[i - 1]);
-        }
-
-        result = std::move(temp);
-    }
-
-    return result;
+    return ag::util::differenceSeries(data, size, d_);
 }
 
 }  // namespace ag::models::arima

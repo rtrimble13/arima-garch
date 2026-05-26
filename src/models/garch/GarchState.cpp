@@ -1,5 +1,8 @@
 #include "ag/models/garch/GarchState.hpp"
 
+#include "ag/util/NumericConstants.hpp"
+#include "ag/util/SlidingWindow.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -57,13 +60,8 @@ void GarchState::initialize(const double* residuals, std::size_t size,
 }
 
 void GarchState::update(double conditional_variance, double squared_residual) {
-    // Update variance history (shift left and add new)
-    std::shift_left(variance_history_.begin(), variance_history_.end(), 1);
-    variance_history_.back() = conditional_variance;
-
-    // Update squared residual history (shift left and add new)
-    std::shift_left(squared_residual_history_.begin(), squared_residual_history_.end(), 1);
-    squared_residual_history_.back() = squared_residual;
+    ag::util::shiftAndAppend(variance_history_, conditional_variance);
+    ag::util::shiftAndAppend(squared_residual_history_, squared_residual);
 }
 
 double GarchState::computeSampleVariance(const double* residuals, std::size_t size) const {
@@ -85,7 +83,7 @@ double GarchState::computeSampleVariance(const double* residuals, std::size_t si
     double variance = sum_sq_diff / static_cast<double>(size - 1);
 
     // Ensure variance is positive (handle numerical issues)
-    return std::max(variance, 1e-10);
+    return std::max(variance, ag::util::MIN_VARIANCE);
 }
 
 }  // namespace ag::models::garch

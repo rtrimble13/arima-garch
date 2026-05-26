@@ -159,110 +159,114 @@ void NelderMeadOptimizer::shrink(std::vector<std::vector<double>>& simplex,
     }
 }
 
+namespace {
+
+// Sort simplex vertices in-place by ascending objective value, keeping
+// vertex coordinates and their corresponding objective values aligned.
+void sortSimplexByValue(std::vector<std::vector<double>>& simplex,
+                        std::vector<double>& simplex_values) {
+    const std::size_t n_vertices = simplex.size();
+    std::vector<std::size_t> indices(n_vertices);
+    for (std::size_t i = 0; i < n_vertices; ++i) {
+        indices[i] = i;
+    }
+    std::sort(indices.begin(), indices.end(), [&simplex_values](std::size_t a, std::size_t b) {
+        return simplex_values[a] < simplex_values[b];
+    });
+
+    std::vector<std::vector<double>> sorted_simplex(n_vertices);
+    std::vector<double> sorted_values(n_vertices);
+    for (std::size_t i = 0; i < n_vertices; ++i) {
+        sorted_simplex[i] = std::move(simplex[indices[i]]);
+        sorted_values[i] = simplex_values[indices[i]];
+    }
+    simplex = std::move(sorted_simplex);
+    simplex_values = std::move(sorted_values);
+}
+
+}  // namespace
+
+void NelderMeadOptimizer::stepSimplex(std::vector<std::vector<double>>& simplex,
+                                      std::vector<double>& simplex_values,
+                                      const ObjectiveFunction& objective) const {
+    const std::size_t n_vertices = simplex.size();
+    const std::vector<double> centroid = computeCentroid(simplex);
+
+    // Reflection
+    std::vector<double> reflected = reflect(centroid, simplex.back());
+    const double f_reflected = objective(reflected);
+
+    if (f_reflected < simplex_values[n_vertices - 2] && f_reflected >= simplex_values[0]) {
+        // Reflected point is better than second worst, but not the new best:
+        // accept it.
+        simplex.back() = std::move(reflected);
+        simplex_values.back() = f_reflected;
+        return;
+    }
+
+    if (f_reflected < simplex_values[0]) {
+        // Reflected point is the new best: try to push further (expansion).
+        std::vector<double> expanded = expand(centroid, reflected);
+        const double f_expanded = objective(expanded);
+        if (f_expanded < f_reflected) {
+            simplex.back() = std::move(expanded);
+            simplex_values.back() = f_expanded;
+        } else {
+            simplex.back() = std::move(reflected);
+            simplex_values.back() = f_reflected;
+        }
+        return;
+    }
+
+    // Reflection failed: try contraction.
+    std::vector<double> contracted = contract(centroid, simplex.back());
+    const double f_contracted = objective(contracted);
+    if (f_contracted < simplex_values.back()) {
+        simplex.back() = std::move(contracted);
+        simplex_values.back() = f_contracted;
+        return;
+    }
+
+    // Contraction also failed: shrink simplex toward the best vertex and
+    // re-evaluate the moved vertices.
+    shrink(simplex, simplex[0]);
+    for (std::size_t i = 1; i < n_vertices; ++i) {
+        simplex_values[i] = objective(simplex[i]);
+    }
+}
+
 OptimizationResult NelderMeadOptimizer::minimize(const ObjectiveFunction& objective,
                                                  const std::vector<double>& initial_params) {
     if (initial_params.empty()) {
         throw std::invalid_argument("Initial parameter vector cannot be empty");
     }
 
-    // Initialize simplex
     std::vector<std::vector<double>> simplex = initializeSimplex(initial_params);
     const std::size_t n_vertices = simplex.size();
 
-    // Evaluate objective at all simplex vertices
     std::vector<double> simplex_values(n_vertices);
     for (std::size_t i = 0; i < n_vertices; ++i) {
         simplex_values[i] = objective(simplex[i]);
     }
 
-    // Main optimization loop
     int iteration = 0;
     bool converged = false;
-
     while (iteration < max_iterations_) {
-        // Sort simplex by objective value (best to worst)
-        std::vector<std::size_t> indices(n_vertices);
-        for (std::size_t i = 0; i < n_vertices; ++i) {
-            indices[i] = i;
-        }
-        std::sort(indices.begin(), indices.end(), [&simplex_values](std::size_t a, std::size_t b) {
-            return simplex_values[a] < simplex_values[b];
-        });
-
-        // Reorder simplex and values
-        std::vector<std::vector<double>> sorted_simplex(n_vertices);
-        std::vector<double> sorted_values(n_vertices);
-        for (std::size_t i = 0; i < n_vertices; ++i) {
-            sorted_simplex[i] = simplex[indices[i]];
-            sorted_values[i] = simplex_values[indices[i]];
-        }
-        simplex = sorted_simplex;
-        simplex_values = sorted_values;
-
-        // Check convergence
+        sortSimplexByValue(simplex, simplex_values);
         if (hasConverged(simplex_values, simplex)) {
             converged = true;
             break;
         }
-
-        // Compute centroid of all points except worst
-        std::vector<double> centroid = computeCentroid(simplex);
-
-        // Try reflection
-        std::vector<double> reflected = reflect(centroid, simplex.back());
-        double f_reflected = objective(reflected);
-
-        if (f_reflected < simplex_values[n_vertices - 2] && f_reflected >= simplex_values[0]) {
-            // Reflected point is better than second worst but not better than best
-            simplex.back() = reflected;
-            simplex_values.back() = f_reflected;
-        } else if (f_reflected < simplex_values[0]) {
-            // Reflected point is best so far, try expansion
-            std::vector<double> expanded = expand(centroid, reflected);
-            double f_expanded = objective(expanded);
-
-            if (f_expanded < f_reflected) {
-                simplex.back() = expanded;
-                simplex_values.back() = f_expanded;
-            } else {
-                simplex.back() = reflected;
-                simplex_values.back() = f_reflected;
-            }
-        } else {
-            // Reflected point is worse than second worst, try contraction
-            std::vector<double> contracted = contract(centroid, simplex.back());
-            double f_contracted = objective(contracted);
-
-            if (f_contracted < simplex_values.back()) {
-                simplex.back() = contracted;
-                simplex_values.back() = f_contracted;
-            } else {
-                // Contraction failed, shrink simplex
-                shrink(simplex, simplex[0]);
-
-                // Re-evaluate all vertices except best
-                for (std::size_t i = 1; i < n_vertices; ++i) {
-                    simplex_values[i] = objective(simplex[i]);
-                }
-            }
-        }
-
+        stepSimplex(simplex, simplex_values, objective);
         ++iteration;
     }
 
-    // Prepare result
     OptimizationResult result;
     result.parameters = simplex[0];
     result.objective_value = simplex_values[0];
     result.converged = converged;
     result.iterations = iteration;
-
-    if (converged) {
-        result.message = "Converged";
-    } else {
-        result.message = "Maximum iterations reached";
-    }
-
+    result.message = converged ? "Converged" : "Maximum iterations reached";
     return result;
 }
 

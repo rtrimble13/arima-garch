@@ -2,557 +2,23 @@
  * @file cli/main.cpp
  * @brief Command-line interface for ARIMA-GARCH modeling.
  *
- * Provides subcommands for:
- * - fit: Fit ARIMA-GARCH model to data
- * - select: Automatic model selection
- * - forecast: Generate forecasts
- * - simulate: Simulate synthetic data
- * - diagnostics: Run diagnostic tests
+ * Argument parsing and subcommand dispatch. The actual command
+ * implementations live under src/cli/handlers/.
  */
 
 #include "ag/Version.hpp"
-#include "ag/api/Engine.hpp"
-#include "ag/cli/CliUtils.hpp"
-#include "ag/io/Json.hpp"
-#include "ag/models/ArimaGarchSpec.hpp"
-#include "ag/report/FitSummary.hpp"
-#include "ag/selection/CandidateGrid.hpp"
-#include "ag/simulation/ArimaGarchSimulator.hpp"
-#include "ag/stats/Descriptive.hpp"
 
-#include <algorithm>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <sstream>
 #include <string>
-#include <vector>
 
+#include "Handlers.hpp"
 #include <CLI/CLI.hpp>
-#include <fmt/core.h>
-#include <nlohmann/json.hpp>
-
-using ag::api::Engine;
-using ag::models::ArimaGarchSpec;
-
-// Error handling wrapper for CLI handlers
-template <typename Func>
-int executeWithErrorHandling(Func&& func) {
-    try {
-        return func();
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
-
-// Fit subcommand handler
-int handleFit(const std::string& dataFile, const std::string& arimaOrder,
-              const std::string& garchOrder, const std::string& outputFile, bool no_header,
-              bool use_student_t, double student_t_df) {
-    return executeWithErrorHandling([&]() {
-        fmt::print("Loading data from {}...\n", dataFile);
-        auto data = ag::cli::loadData(dataFile, !no_header);
-        fmt::print("Loaded {} observations\n", data.size());
-
-        // Parse model specification with support for ARIMA-only models
-        int p = 0, d = 0, q = 0;
-        int P = 0, Q = 0;  // Default to no GARCH
-
-        // Parse ARIMA order if provided, otherwise default to ARIMA(0,0,0)
-        if (!arimaOrder.empty()) {
-            auto arima_tuple = ag::cli::parseArimaOrder(arimaOrder);
-            p = std::get<0>(arima_tuple);
-            d = std::get<1>(arima_tuple);
-            q = std::get<2>(arima_tuple);
-        }
-
-        // Parse GARCH order if provided, otherwise no GARCH
-        if (!garchOrder.empty()) {
-            auto garch_tuple = ag::cli::parseGarchOrder(garchOrder);
-            P = std::get<0>(garch_tuple);
-            Q = std::get<1>(garch_tuple);
-        }
-
-        // Ensure at least one component is specified
-        if (arimaOrder.empty() && garchOrder.empty()) {
-            fmt::print("Error: Must specify at least --arima or --garch parameters\n");
-            return 1;
-        }
-
-        ArimaGarchSpec spec(p, d, q, P, Q);
-
-        // Print appropriate model description
-        std::string dist_str = use_student_t
-                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
-                                   : " with Gaussian innovations";
-        if (arimaOrder.empty()) {
-            fmt::print(
-                "Fitting GARCH({},{}) model (ARIMA component uses defaults: ARIMA(0,0,0)){}...\n",
-                P, Q, dist_str);
-        } else if (garchOrder.empty()) {
-            fmt::print("Fitting ARIMA({},{},{}) model (no GARCH component){}...\n", p, d, q,
-                       dist_str);
-        } else {
-            fmt::print("Fitting ARIMA({},{},{})-GARCH({},{}) model{}...\n", p, d, q, P, Q,
-                       dist_str);
-        }
-
-        Engine engine;
-        auto fit_result = engine.fit(data, spec, true, use_student_t, student_t_df);
-
-        if (!fit_result) {
-            fmt::print("Error: {}\n", fit_result.error().message);
-            return 1;
-        }
-
-        fmt::print("✅ Model fitted successfully\n");
-        fmt::print("Converged: {}\n", fit_result.value().summary.converged);
-        fmt::print("Iterations: {}\n", fit_result.value().summary.iterations);
-        fmt::print("AIC: {:.4f}\n", fit_result.value().summary.aic);
-        fmt::print("BIC: {:.4f}\n", fit_result.value().summary.bic);
-
-        // Save model to file
-        if (!outputFile.empty()) {
-            auto save_result = ag::io::JsonWriter::saveModel(outputFile, *fit_result.value().model);
-            if (save_result) {
-                fmt::print("Model saved to {}\n", outputFile);
-            } else {
-                fmt::print("Warning: Failed to save model to {}\n", outputFile);
-            }
-        }
-
-        // Print fit summary report
-        fmt::print("\n{}\n", ag::report::generateTextReport(fit_result.value().summary));
-
-        return 0;
-    });
-}
-
-// Select subcommand handler
-int handleSelect(const std::string& dataFile, int maxP, int maxD, int maxQ, int maxGarchP,
-                 int maxGarchQ, const std::string& criterion, const std::string& outputFile,
-                 int topK, bool no_header) {
-    try {
-        fmt::print("Loading data from {}...\n", dataFile);
-        auto data = ag::cli::loadData(dataFile, !no_header);
-        fmt::print("Loaded {} observations\n", data.size());
-
-        // Generate candidate grid
-        ag::selection::CandidateGridConfig config(maxP, maxD, maxQ, maxGarchP, maxGarchQ);
-        ag::selection::CandidateGrid grid(config);
-        auto candidates = grid.generate();
-
-        fmt::print("Generated {} candidate models\n", candidates.size());
-        fmt::print("Performing model selection using {}...\n", criterion);
-
-        // Parse selection criterion
-        ag::selection::SelectionCriterion crit = ag::selection::SelectionCriterion::BIC;
-        if (criterion == "AIC") {
-            crit = ag::selection::SelectionCriterion::AIC;
-        } else if (criterion == "AICc") {
-            crit = ag::selection::SelectionCriterion::AICc;
-        } else if (criterion == "CV") {
-            crit = ag::selection::SelectionCriterion::CV;
-        }
-
-        Engine engine;
-        bool build_ranking = (topK > 0);
-        auto select_result = engine.auto_select(data, candidates, crit, build_ranking);
-
-        if (!select_result) {
-            fmt::print("Error: {}\n", select_result.error().message);
-            return 1;
-        }
-
-        auto& result = select_result.value();
-        auto& spec = result.selected_spec;
-
-        fmt::print("✅ Model selection completed\n");
-        fmt::print("Best model: ARIMA({},{},{})-GARCH({},{})\n", spec.arimaSpec.p, spec.arimaSpec.d,
-                   spec.arimaSpec.q, spec.garchSpec.p, spec.garchSpec.q);
-        fmt::print("Candidates evaluated: {}\n", result.candidates_evaluated);
-        fmt::print("Candidates failed: {}\n", result.candidates_failed);
-        fmt::print("AIC: {:.4f}\n", result.summary.aic);
-        fmt::print("BIC: {:.4f}\n", result.summary.bic);
-
-        // Print ranking table if requested
-        if (topK > 0 && !result.ranking.empty()) {
-            fmt::print("\n=== Model Ranking (Top {}) ===\n",
-                       std::min(topK, static_cast<int>(result.ranking.size())));
-
-            // Calculate dynamic table width based on column widths
-            const int rank_width = 6;
-            const int model_width = 20;
-            const int score_width = 12;
-            const int converged_width = 12;
-            const int total_width = rank_width + model_width + score_width + converged_width;
-
-            fmt::print("{:<6} {:<20} {:<12} {:<12}\n", "Rank", "Model", criterion, "Converged");
-            fmt::print("{:-<{}}\n", "", total_width);
-
-            int rank = 1;
-            int display_count = std::min(topK, static_cast<int>(result.ranking.size()));
-            for (int i = 0; i < display_count; ++i) {
-                const auto& entry = result.ranking[i];
-                std::string model_str = fmt::format("ARIMA({},{},{})-GARCH({},{})", entry.p,
-                                                    entry.d, entry.q, entry.garch_p, entry.garch_q);
-                fmt::print("{:<6} {:<20} {:<12.4f} {:<12}\n", rank++, model_str, entry.score,
-                           entry.converged ? "Yes" : "No");
-            }
-            fmt::print("\n");
-        }
-
-        // Save model to file
-        if (!outputFile.empty()) {
-            auto save_result = ag::io::JsonWriter::saveModel(outputFile, *result.model);
-            if (save_result) {
-                fmt::print("Model saved to {}\n", outputFile);
-            } else {
-                fmt::print("Warning: Failed to save model to {}\n", outputFile);
-            }
-        }
-
-        // Print fit summary
-        fmt::print("\n{}\n", ag::report::generateTextReport(result.summary));
-
-        return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
-
-// Forecast subcommand handler
-int handleForecast(const std::string& modelFile, int horizon, const std::string& outputFile) {
-    try {
-        fmt::print("Loading model from {}...\n", modelFile);
-        auto model_result = ag::io::JsonReader::loadModel(modelFile);
-        if (!model_result) {
-            fmt::print("Error: Failed to load model from {}\n", modelFile);
-            return 1;
-        }
-
-        fmt::print("Generating {}-step ahead forecasts...\n", horizon);
-
-        Engine engine;
-        auto forecast_result = engine.forecast(*model_result, horizon);
-
-        if (!forecast_result) {
-            fmt::print("Error: {}\n", forecast_result.error().message);
-            return 1;
-        }
-
-        fmt::print("✅ Forecasts generated\n\n");
-        fmt::print("Step  Mean Forecast  Std Dev\n");
-        fmt::print("----  -------------  -------\n");
-
-        for (int i = 0; i < horizon; ++i) {
-            fmt::print("{:4d}  {:13.6f}  {:7.6f}\n", i + 1,
-                       forecast_result.value().mean_forecasts[i],
-                       std::sqrt(forecast_result.value().variance_forecasts[i]));
-        }
-
-        // Save forecasts to file
-        if (!outputFile.empty()) {
-            std::ofstream file(outputFile);
-            if (!file) {
-                fmt::print("Warning: Failed to open output file {}\n", outputFile);
-                return 0;
-            }
-            file << "step,mean,variance,std_dev\n";
-            for (int i = 0; i < horizon; ++i) {
-                file << (i + 1) << "," << forecast_result.value().mean_forecasts[i] << ","
-                     << forecast_result.value().variance_forecasts[i] << ","
-                     << std::sqrt(forecast_result.value().variance_forecasts[i]) << "\n";
-            }
-            fmt::print("\nForecasts saved to {}\n", outputFile);
-        }
-
-        return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
-
-// Simulate subcommand handler
-int handleSimulate(const std::string& arimaOrder, const std::string& garchOrder, int length,
-                   unsigned int seed, const std::string& outputFile, bool use_student_t,
-                   double student_t_df) {
-    try {
-        // Parse model specification
-        auto [p, d, q] = ag::cli::parseArimaOrder(arimaOrder);
-        auto [P, Q] = ag::cli::parseGarchOrder(garchOrder);
-        ArimaGarchSpec spec(p, d, q, P, Q);
-
-        // Use default parameters for simulation
-        ag::models::composite::ArimaGarchParameters params(spec);
-        params.arima_params.intercept = 0.0;
-        if (p > 0)
-            params.arima_params.ar_coef[0] = 0.5;
-        if (q > 0)
-            params.arima_params.ma_coef[0] = 0.3;
-        params.garch_params.omega = 0.01;
-        if (P > 0)
-            params.garch_params.alpha_coef[0] = 0.1;
-        if (Q > 0)
-            params.garch_params.beta_coef[0] = 0.85;
-
-        std::string dist_str = use_student_t
-                                   ? fmt::format(" with Student-t(df={:.1f})", student_t_df)
-                                   : " with Gaussian innovations";
-        fmt::print("Simulating {} observations from ARIMA({},{},{})-GARCH({},{}) model{}...\n",
-                   length, p, d, q, P, Q, dist_str);
-
-        Engine engine;
-        auto sim_result = engine.simulate(spec, params, length, seed, use_student_t, student_t_df);
-
-        if (!sim_result) {
-            fmt::print("Error: {}\n", sim_result.error().message);
-            return 1;
-        }
-
-        fmt::print("✅ Simulation completed\n");
-
-        // Save simulation to file
-        if (!outputFile.empty()) {
-            std::ofstream file(outputFile);
-            if (!file) {
-                fmt::print("Warning: Failed to open output file {}\n", outputFile);
-                return 0;
-            }
-            file << "observation,return,volatility\n";
-            for (size_t i = 0; i < sim_result.value().returns.size(); ++i) {
-                file << (i + 1) << "," << sim_result.value().returns[i] << ","
-                     << sim_result.value().volatilities[i] << "\n";
-            }
-            fmt::print("Simulation saved to {}\n", outputFile);
-        }
-
-        return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
-
-// Simulate from saved model subcommand handler
-int handleSimulateFromModel(const std::string& modelFile, int numPaths, int length,
-                            unsigned int seed, const std::string& outputFile, bool computeStats) {
-    try {
-        fmt::print("Loading model from {}...\n", modelFile);
-        auto model_result = ag::io::JsonReader::loadModel(modelFile);
-        if (!model_result) {
-            fmt::print("Error: Failed to load model from {}\n", modelFile);
-            return 1;
-        }
-
-        auto& model = *model_result;
-        const auto& spec = model.getSpec();
-
-        fmt::print("Model: ARIMA({},{},{})-GARCH({},{})\n", spec.arimaSpec.p, spec.arimaSpec.d,
-                   spec.arimaSpec.q, spec.garchSpec.p, spec.garchSpec.q);
-
-        // Get parameters from the loaded model
-        ag::models::composite::ArimaGarchParameters params(spec);
-        params.arima_params = model.getArimaParams();
-        params.garch_params = model.getGarchParams();
-
-        fmt::print("Simulating {} paths of {} observations each (seed={})...\n", numPaths, length,
-                   seed);
-
-        // Create simulator with loaded parameters
-        ag::simulation::ArimaGarchSimulator simulator(spec, params);
-
-        // Generate all paths
-        std::vector<ag::simulation::SimulationResult> all_paths;
-        all_paths.reserve(numPaths);
-
-        for (int path = 0; path < numPaths; ++path) {
-            // Use hash-based seeding to avoid overflow and ensure good distribution
-            // Each path gets a unique but reproducible seed based on the base seed
-            unsigned int path_seed = seed ^ (std::hash<int>{}(path) + 0x9e3779b9);
-            auto result = simulator.simulate(length, path_seed);
-            all_paths.push_back(std::move(result));
-        }
-
-        fmt::print("✅ Simulation completed\n");
-
-        // Save results to CSV
-        if (!outputFile.empty()) {
-            std::ofstream file(outputFile);
-            if (!file) {
-                fmt::print("Error: Failed to open output file {}\n", outputFile);
-                return 1;
-            }
-
-            // Write header
-            file << "path,observation,return,volatility\n";
-
-            // Write all paths
-            for (int path = 0; path < numPaths; ++path) {
-                const auto& result = all_paths[path];
-                for (size_t i = 0; i < result.returns.size(); ++i) {
-                    file << (path + 1) << "," << (i + 1) << "," << result.returns[i] << ","
-                         << result.volatilities[i] << "\n";
-                }
-            }
-
-            fmt::print("Simulation results saved to {}\n", outputFile);
-        }
-
-        // Compute and display summary statistics if requested
-        if (computeStats) {
-            fmt::print("\n=== Summary Statistics Across All Paths ===\n");
-
-            // Aggregate all returns
-            std::vector<double> all_returns;
-            all_returns.reserve(numPaths * length);
-            for (const auto& result : all_paths) {
-                all_returns.insert(all_returns.end(), result.returns.begin(), result.returns.end());
-            }
-
-            double mean_ret = ag::stats::mean(all_returns);
-            double std_ret = std::sqrt(ag::stats::variance(all_returns));
-            double min_ret = *std::min_element(all_returns.begin(), all_returns.end());
-            double max_ret = *std::max_element(all_returns.begin(), all_returns.end());
-            double skew_ret = ag::stats::skewness(all_returns);
-            double kurt_ret = ag::stats::kurtosis(all_returns);
-
-            fmt::print("Returns (aggregated over {} paths):\n", numPaths);
-            fmt::print("  Mean:     {:.6f}\n", mean_ret);
-            fmt::print("  Std Dev:  {:.6f}\n", std_ret);
-            fmt::print("  Min:      {:.6f}\n", min_ret);
-            fmt::print("  Max:      {:.6f}\n", max_ret);
-            fmt::print("  Skewness: {:.6f}\n", skew_ret);
-            fmt::print("  Kurtosis: {:.6f}\n", kurt_ret);
-
-            // First path statistics
-            fmt::print("\nFirst path statistics (for reproducibility check):\n");
-            const auto& first_path = all_paths[0];
-            fmt::print("  First 5 returns: ");
-            for (int i = 0; i < std::min(5, static_cast<int>(first_path.returns.size())); ++i) {
-                fmt::print("{:.6f} ", first_path.returns[i]);
-            }
-            fmt::print("\n");
-        }
-
-        return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
-
-// Diagnostics subcommand handler
-int handleDiagnostics(const std::string& modelFile, const std::string& dataFile,
-                      const std::string& outputFile, bool no_header) {
-    try {
-        fmt::print("Loading model from {}...\n", modelFile);
-        auto model_result = ag::io::JsonReader::loadModel(modelFile);
-        if (!model_result) {
-            fmt::print("Error: Failed to load model from {}\n", modelFile);
-            return 1;
-        }
-
-        fmt::print("Loading data from {}...\n", dataFile);
-        auto data = ag::cli::loadData(dataFile, !no_header);
-        fmt::print("Loaded {} observations\n", data.size());
-
-        // Run diagnostics
-        fmt::print("Running diagnostic tests...\n");
-
-        auto& model = *model_result;
-        std::size_t ljung_box_lags = std::min(static_cast<std::size_t>(10), data.size() / 5);
-
-        // Reconstruct parameters from the model
-        ag::models::composite::ArimaGarchParameters params(model.getSpec());
-        params.arima_params = model.getArimaParams();
-        params.garch_params = model.getGarchParams();
-
-        auto diagnostics = ag::diagnostics::computeDiagnostics(model.getSpec(), params, data,
-                                                               ljung_box_lags, true);
-
-        fmt::print("✅ Diagnostics completed\n\n");
-
-        // Print diagnostics report
-        fmt::print("=== Diagnostic Tests ===\n\n");
-
-        fmt::print("Ljung-Box Test (raw residuals):\n");
-        fmt::print("  Statistic: {:.4f}\n", diagnostics.ljung_box_residuals.statistic);
-        fmt::print("  P-value: {:.4f}\n", diagnostics.ljung_box_residuals.p_value);
-        fmt::print("  DOF: {}\n", diagnostics.ljung_box_residuals.dof);
-        fmt::print("  Lags: {}\n\n", diagnostics.ljung_box_residuals.lags);
-
-        fmt::print("Ljung-Box Test (squared residuals):\n");
-        fmt::print("  Statistic: {:.4f}\n", diagnostics.ljung_box_squared.statistic);
-        fmt::print("  P-value: {:.4f}\n", diagnostics.ljung_box_squared.p_value);
-        fmt::print("  DOF: {}\n", diagnostics.ljung_box_squared.dof);
-        fmt::print("  Lags: {}\n\n", diagnostics.ljung_box_squared.lags);
-
-        fmt::print("Jarque-Bera Test:\n");
-        fmt::print("  Statistic: {:.4f}\n", diagnostics.jarque_bera.statistic);
-        fmt::print("  P-value: {:.4f}\n\n", diagnostics.jarque_bera.p_value);
-
-        if (diagnostics.adf.has_value()) {
-            fmt::print("Augmented Dickey-Fuller Test:\n");
-            fmt::print("  Statistic: {:.4f}\n", diagnostics.adf->statistic);
-            fmt::print("  P-value: {:.4f}\n", diagnostics.adf->p_value);
-            fmt::print("  Lags: {}\n", diagnostics.adf->lags);
-            fmt::print("  Critical values:\n");
-            fmt::print("    1%:  {:.4f}\n", diagnostics.adf->critical_value_1pct);
-            fmt::print("    5%:  {:.4f}\n", diagnostics.adf->critical_value_5pct);
-            fmt::print("    10%: {:.4f}\n\n", diagnostics.adf->critical_value_10pct);
-        }
-
-        // Save diagnostics to JSON file if requested
-        if (!outputFile.empty()) {
-            nlohmann::json j;
-            j["ljung_box_residuals"]["statistic"] = diagnostics.ljung_box_residuals.statistic;
-            j["ljung_box_residuals"]["p_value"] = diagnostics.ljung_box_residuals.p_value;
-            j["ljung_box_residuals"]["dof"] = diagnostics.ljung_box_residuals.dof;
-            j["ljung_box_residuals"]["lags"] = diagnostics.ljung_box_residuals.lags;
-
-            j["ljung_box_squared"]["statistic"] = diagnostics.ljung_box_squared.statistic;
-            j["ljung_box_squared"]["p_value"] = diagnostics.ljung_box_squared.p_value;
-            j["ljung_box_squared"]["dof"] = diagnostics.ljung_box_squared.dof;
-            j["ljung_box_squared"]["lags"] = diagnostics.ljung_box_squared.lags;
-
-            j["jarque_bera"]["statistic"] = diagnostics.jarque_bera.statistic;
-            j["jarque_bera"]["p_value"] = diagnostics.jarque_bera.p_value;
-
-            if (diagnostics.adf.has_value()) {
-                j["adf"]["statistic"] = diagnostics.adf->statistic;
-                j["adf"]["p_value"] = diagnostics.adf->p_value;
-                j["adf"]["lags"] = diagnostics.adf->lags;
-                j["adf"]["critical_value_1pct"] = diagnostics.adf->critical_value_1pct;
-                j["adf"]["critical_value_5pct"] = diagnostics.adf->critical_value_5pct;
-                j["adf"]["critical_value_10pct"] = diagnostics.adf->critical_value_10pct;
-            }
-
-            std::ofstream file(outputFile);
-            if (file) {
-                file << j.dump(2);
-                fmt::print("Diagnostics saved to {}\n", outputFile);
-            } else {
-                fmt::print("Warning: Failed to save diagnostics to {}\n", outputFile);
-            }
-        }
-
-        return 0;
-    } catch (const std::exception& e) {
-        fmt::print("Error: {}\n", e.what());
-        return 1;
-    }
-}
 
 int main(int argc, char* argv[]) {
     CLI::App app{"ARIMA-GARCH Time Series Modeling CLI", "ag"};
-    app.require_subcommand(0, 1);  // Allow 0 or 1 subcommand (0 for --help)
+    app.require_subcommand(0, 1);
     app.set_version_flag("--version,-v", ag::kVersion);
 
-    // Fit subcommand
+    // ----- fit -----
     auto* fit = app.add_subcommand("fit", "Fit ARIMA-GARCH model to time series data");
     std::string fit_data_file;
     std::string fit_arima_order;
@@ -572,16 +38,14 @@ int main(int argc, char* argv[]) {
     fit->add_option("--t-dist", fit_student_t_df,
                     "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
         ->check(CLI::PositiveNumber);
-
     fit->callback([&]() {
-        // Check if Student-t flag was provided and set proper values
-        bool use_student_t = fit->count("--t-dist") > 0;
-        double df = use_student_t ? fit_student_t_df : 2.0;
-        return handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file,
-                         fit_no_header, use_student_t, df);
+        const bool use_student_t = fit->count("--t-dist") > 0;
+        const double df = use_student_t ? fit_student_t_df : 2.0;
+        return ag::cli::handleFit(fit_data_file, fit_arima_order, fit_garch_order, fit_output_file,
+                                  fit_no_header, use_student_t, df);
     });
 
-    // Select subcommand
+    // ----- select -----
     auto* select = app.add_subcommand("select", "Automatic model selection from candidate grid");
     std::string select_data_file;
     int select_max_p = 2;
@@ -610,14 +74,13 @@ int main(int argc, char* argv[]) {
                        "Display top K models in ranking table (default: 0, disabled)");
     select->add_flag("--no-header", select_no_header,
                      "CSV file has no header row (default: expect header)");
-
     select->callback([&]() {
-        return handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
-                            select_max_garch_p, select_max_garch_q, select_criterion,
-                            select_output_file, select_top_k, select_no_header);
+        return ag::cli::handleSelect(select_data_file, select_max_p, select_max_d, select_max_q,
+                                     select_max_garch_p, select_max_garch_q, select_criterion,
+                                     select_output_file, select_top_k, select_no_header);
     });
 
-    // Forecast subcommand
+    // ----- forecast -----
     auto* forecast = app.add_subcommand("forecast", "Generate forecasts from fitted model");
     std::string forecast_model_file;
     int forecast_horizon = 10;
@@ -629,12 +92,11 @@ int main(int argc, char* argv[]) {
                          "Forecast horizon (number of steps ahead, default: 10)");
     forecast->add_option("-o,--output,--out", forecast_output_file,
                          "Output forecast file (CSV format)");
-
     forecast->callback([&]() {
-        return handleForecast(forecast_model_file, forecast_horizon, forecast_output_file);
+        return ag::cli::handleForecast(forecast_model_file, forecast_horizon, forecast_output_file);
     });
 
-    // Simulate subcommand
+    // ----- sim (synthetic from spec) -----
     auto* simulate = app.add_subcommand("sim", "Simulate synthetic time series data");
     std::string sim_arima_order;
     std::string sim_garch_order;
@@ -656,16 +118,14 @@ int main(int argc, char* argv[]) {
         ->add_option("--t-dist", sim_student_t_df,
                      "Use Student-t distribution with specified degrees of freedom (default: 2.0)")
         ->check(CLI::PositiveNumber);
-
     simulate->callback([&]() {
-        // Check if Student-t flag was provided and set proper values
-        bool use_student_t = simulate->count("--t-dist") > 0;
-        double df = use_student_t ? sim_student_t_df : 2.0;
-        return handleSimulate(sim_arima_order, sim_garch_order, sim_length, sim_seed,
-                              sim_output_file, use_student_t, df);
+        const bool use_student_t = simulate->count("--t-dist") > 0;
+        const double df = use_student_t ? sim_student_t_df : 2.0;
+        return ag::cli::handleSimulate(sim_arima_order, sim_garch_order, sim_length, sim_seed,
+                                       sim_output_file, use_student_t, df);
     });
 
-    // Simulate from saved model subcommand
+    // ----- simulate (multi-path from saved model) -----
     auto* simulate_model =
         app.add_subcommand("simulate", "Simulate multiple paths from a saved model");
     std::string simmodel_model_file;
@@ -688,13 +148,13 @@ int main(int argc, char* argv[]) {
         ->required();
     simulate_model->add_flag("--stats", simmodel_compute_stats,
                              "Compute and display summary statistics");
-
     simulate_model->callback([&]() {
-        return handleSimulateFromModel(simmodel_model_file, simmodel_num_paths, simmodel_length,
-                                       simmodel_seed, simmodel_output_file, simmodel_compute_stats);
+        return ag::cli::handleSimulateFromModel(simmodel_model_file, simmodel_num_paths,
+                                                simmodel_length, simmodel_seed,
+                                                simmodel_output_file, simmodel_compute_stats);
     });
 
-    // Diagnostics subcommand
+    // ----- diagnostics -----
     auto* diagnostics = app.add_subcommand("diagnostics", "Run diagnostic tests on fitted model");
     std::string diag_model_file;
     std::string diag_data_file;
@@ -711,13 +171,11 @@ int main(int argc, char* argv[]) {
                             "Output diagnostics file (JSON format)");
     diagnostics->add_flag("--no-header", diag_no_header,
                           "CSV file has no header row (default: expect header)");
-
     diagnostics->callback([&]() {
-        return handleDiagnostics(diag_model_file, diag_data_file, diag_output_file, diag_no_header);
+        return ag::cli::handleDiagnostics(diag_model_file, diag_data_file, diag_output_file,
+                                          diag_no_header);
     });
 
-    // Parse command line
     CLI11_PARSE(app, argc, argv);
-
     return 0;
 }

@@ -3,6 +3,7 @@
 #include "ag/stats/ACF.hpp"
 #include "ag/stats/Descriptive.hpp"
 #include "ag/stats/PACF.hpp"
+#include "ag/util/Differencing.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -37,25 +38,6 @@ double computeVariance(const double* data, std::size_t size) {
     return sum_sq / static_cast<double>(size - 1);
 }
 
-// Apply differencing to data
-std::vector<double> difference(const double* data, std::size_t size, int d) {
-    std::vector<double> result(data, data + size);
-
-    for (int order = 0; order < d; ++order) {
-        if (result.size() < 2) {
-            break;  // Can't difference anymore
-        }
-        std::vector<double> diff;
-        diff.reserve(result.size() - 1);
-        for (std::size_t i = 1; i < result.size(); ++i) {
-            diff.push_back(result[i] - result[i - 1]);
-        }
-        result = std::move(diff);
-    }
-
-    return result;
-}
-
 }  // namespace
 
 ag::models::arima::ArimaParameters initializeArimaParameters(const double* data, std::size_t size,
@@ -77,7 +59,7 @@ ag::models::arima::ArimaParameters initializeArimaParameters(const double* data,
     // Apply differencing if needed
     std::vector<double> working_data;
     if (d > 0) {
-        working_data = difference(data, size, d);
+        working_data = ag::util::differenceSeries(data, size, d);
         if (working_data.size() < 10) {
             throw std::invalid_argument("Insufficient data after differencing");
         }

@@ -67,19 +67,13 @@ public:
                                                        const ArimaParameters& params) const;
 
     /**
-     * @brief Get the ARIMA specification for this model.
-     * @return The ARIMA(p,d,q) specification
-     */
-    [[nodiscard]] const ag::models::ArimaSpec& getSpec() const noexcept { return spec_; }
-
-private:
-    ag::models::ArimaSpec spec_;  // ARIMA(p,d,q) specification
-
-    /**
      * @brief Compute the conditional mean for a single observation.
      *
      * Calculates the expected value based on the ARIMA model equation:
      * E[y_t] = c + φ₁*y_{t-1} + ... + φₚ*y_{t-p} + θ₁*ε_{t-1} + ... + θ_q*ε_{t-q}
+     *
+     * Exposed so the composite ARIMA-GARCH model can share this recursion
+     * step without reimplementing it.
      *
      * @param state Current state containing historical observations and residuals
      * @param params Model parameters
@@ -87,6 +81,15 @@ private:
      */
     [[nodiscard]] double computeConditionalMean(const ArimaState& state,
                                                 const ArimaParameters& params) const;
+
+    /**
+     * @brief Get the ARIMA specification for this model.
+     * @return The ARIMA(p,d,q) specification
+     */
+    [[nodiscard]] const ag::models::ArimaSpec& getSpec() const noexcept { return spec_; }
+
+private:
+    ag::models::ArimaSpec spec_;  // ARIMA(p,d,q) specification
 };
 
 }  // namespace ag::models::arima

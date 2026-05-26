@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ag/estimation/InnovationSpec.hpp"
 #include "ag/models/composite/ArimaGarchModel.hpp"
 #include "ag/simulation/Innovations.hpp"
 
@@ -8,13 +9,11 @@
 
 namespace ag::simulation {
 
-/**
- * @brief Innovation distribution type for simulation.
- */
-enum class InnovationDistribution {
-    Normal,   // Standard normal N(0,1)
-    StudentT  // Standardized Student-t with specified degrees of freedom
-};
+// Re-export the canonical estimation::InnovationDistribution into the
+// simulation namespace so legacy call sites (Engine, examples, CLI)
+// continue to resolve ag::simulation::InnovationDistribution::Normal /
+// ::StudentT without modification.
+using InnovationDistribution = ag::estimation::InnovationDistribution;
 
 /**
  * @brief Result of an ARIMA-GARCH simulation.

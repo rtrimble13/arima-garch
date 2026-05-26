@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ag/estimation/InnovationSpec.hpp"
 #include "ag/models/ArimaGarchSpec.hpp"
 #include "ag/models/arima/ArimaModel.hpp"
 #include "ag/models/garch/GarchModel.hpp"
@@ -9,13 +10,9 @@
 
 namespace ag::estimation {
 
-/**
- * @brief Innovation distribution type for likelihood estimation.
- */
-enum class InnovationDistribution {
-    Normal,   // Standard normal N(0,1)
-    StudentT  // Standardized Student-t with specified degrees of freedom
-};
+// InnovationDistribution is defined in InnovationSpec.hpp; included here
+// so existing call sites that reach for it through Likelihood.hpp still
+// compile.
 
 /**
  * @brief Likelihood computation for ARIMA-GARCH models with Normal or Student-t innovations.
@@ -89,25 +86,6 @@ public:
     [[nodiscard]] InnovationDistribution getDistribution() const noexcept { return dist_; }
 
 private:
-    /**
-     * @brief Compute log-likelihood contribution for a single Student-t innovation.
-     *
-     * Computes the log-likelihood for a standardized residual under Student-t distribution:
-     *   log L = log(Γ((df+1)/2)) - log(Γ(df/2)) - 0.5*log(π*(df-2)*h_t)
-     *           - 0.5*(df+1)*log(1 + z_t²)
-     * where z_t = ε_t / sqrt((df-2)*h_t) is the standardized residual
-     *
-     * The negative log-likelihood contribution is:
-     *   -log L = -log(Γ((df+1)/2)) + log(Γ(df/2)) + 0.5*log(π*(df-2)*h_t)
-     *            + 0.5*(df+1)*log(1 + ε_t²/((df-2)*h_t))
-     *
-     * @param residual ARIMA residual ε_t
-     * @param variance Conditional variance h_t
-     * @param df Degrees of freedom (must be > 2)
-     * @return Negative log-likelihood contribution for this observation
-     */
-    [[nodiscard]] double studentTLogLikelihood(double residual, double variance, double df) const;
-
     ag::models::ArimaGarchSpec spec_;      // Model specification
     InnovationDistribution dist_;          // Innovation distribution type
     ag::models::arima::ArimaModel arima_;  // ARIMA model for residuals

@@ -1,5 +1,8 @@
 #include "ag/models/composite/ArimaGarchModel.hpp"
 
+#include "ag/util/NumericConstants.hpp"
+
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -79,53 +82,16 @@ ArimaGarchOutput ArimaGarchModel::predict() const {
 }
 
 double ArimaGarchModel::computeConditionalMean() const {
-    double mean = params_.arima_params.intercept;
-
-    // Add AR component: φ₁*y_{t-1} + φ₂*y_{t-2} + ... + φₚ*y_{t-p}
-    const auto& obs_history = mean_state_.getObservationHistory();
-    for (int i = 0; i < spec_.arimaSpec.p; ++i) {
-        // History is stored with oldest first, so obs_history[0] is y_{t-p}
-        // and obs_history[p-1] is y_{t-1}
-        mean += params_.arima_params.ar_coef[i] * obs_history[spec_.arimaSpec.p - 1 - i];
-    }
-
-    // Add MA component: θ₁*ε_{t-1} + θ₂*ε_{t-2} + ... + θ_q*ε_{t-q}
-    const auto& residual_history = mean_state_.getResidualHistory();
-    for (int i = 0; i < spec_.arimaSpec.q; ++i) {
-        // History is stored with oldest first, so residual_history[0] is ε_{t-q}
-        // and residual_history[q-1] is ε_{t-1}
-        mean += params_.arima_params.ma_coef[i] * residual_history[spec_.arimaSpec.q - 1 - i];
-    }
-
-    return mean;
+    return arima_model_.computeConditionalMean(mean_state_, params_.arima_params);
 }
 
 double ArimaGarchModel::computeConditionalVariance() const {
     if (spec_.garchSpec.isNull()) {
-        // For ARIMA-only models (no GARCH component), use constant variance
-        // Use the initial variance which is computed from residual sample variance
+        // ARIMA-only models use a constant variance held in the state.
         return var_state_.getInitialVariance();
     }
-
-    // For ARIMA-GARCH models, use GARCH recursion
-    const auto& var_history = var_state_.getVarianceHistory();
-    const auto& sq_res_history = var_state_.getSquaredResidualHistory();
-
-    double h_t = params_.garch_params.omega;
-
-    // Add ARCH component: α₁*ε²_{t-1} + α₂*ε²_{t-2} + ... + α_q*ε²_{t-q}
-    for (int i = 0; i < spec_.garchSpec.q; ++i) {
-        h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
-    }
-
-    // Add GARCH component: β₁*h_{t-1} + β₂*h_{t-2} + ... + βₚ*h_{t-p}
-    for (int i = 0; i < spec_.garchSpec.p; ++i) {
-        h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
-    }
-
-    // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against numerical
-    // issues)
-    return std::max(h_t, 1e-10);
+    return std::max(garch_model_.computeConditionalVariance(var_state_, params_.garch_params),
+                    ag::util::MIN_VARIANCE);
 }
 
 }  // namespace ag::models::composite

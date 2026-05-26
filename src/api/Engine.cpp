@@ -1,9 +1,8 @@
 #include "ag/api/Engine.hpp"
 
 #include "ag/diagnostics/DiagnosticReport.hpp"
-#include "ag/estimation/Likelihood.hpp"
-#include "ag/estimation/Optimizer.hpp"
-#include "ag/estimation/ParameterInitialization.hpp"
+#include "ag/estimation/FitDriver.hpp"
+#include "ag/estimation/InnovationSpec.hpp"
 #include "ag/selection/DistributionSelector.hpp"
 #include "ag/selection/InformationCriteria.hpp"
 
@@ -39,78 +38,37 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
     }
 
     try {
-        // Step 1: Initialize parameters
-        auto [arima_init, garch_init] =
-            estimation::initializeArimaGarchParameters(data.data(), data.size(), spec);
+        estimation::FitOptions options;
+        options.innovation = use_student_t ? estimation::InnovationSpec::studentT(student_t_df)
+                                           : estimation::InnovationSpec::normal();
+        options.optimizer.seed = 0;  // Engine historically used a nondeterministic seed.
 
-        // Step 2: Build likelihood function with specified distribution
-        estimation::InnovationDistribution dist = use_student_t
-                                                      ? estimation::InnovationDistribution::StudentT
-                                                      : estimation::InnovationDistribution::Normal;
-        estimation::ArimaGarchLikelihood likelihood(spec, dist);
-
-        // Step 3: Pack initial parameters
-        std::vector<double> initial_params = packParameters(arima_init, garch_init);
-
-        // Step 4: Define objective function with constraint checking
-        auto objective = [&](const std::vector<double>& params) -> double {
-            models::arima::ArimaParameters arima_p(spec.arimaSpec.p, spec.arimaSpec.q);
-            models::garch::GarchParameters garch_p(spec.garchSpec.p, spec.garchSpec.q);
-
-            unpackParameters(params, spec, arima_p, garch_p);
-
-            // Check GARCH constraints (skip if ARIMA-only model)
-            if (!spec.garchSpec.isNull()) {
-                if (!garch_p.isPositive() || !garch_p.isStationary()) {
-                    return 1e10;  // Penalty for constraint violation
-                }
-            }
-
-            try {
-                return likelihood.computeNegativeLogLikelihood(data.data(), data.size(), arima_p,
-                                                               garch_p, student_t_df);
-            } catch (...) {
-                return 1e10;  // Penalty for evaluation failure
-            }
-        };
-
-        // Step 5: Run optimization with random restarts
-        estimation::NelderMeadOptimizer optimizer(OPTIMIZER_FTOL, OPTIMIZER_XTOL,
-                                                  OPTIMIZER_MAX_ITER);
-        auto opt_result = estimation::optimizeWithRestarts(optimizer, objective, initial_params,
-                                                           NUM_RESTARTS, PERTURBATION_SCALE, 0);
-
-        if (!opt_result.converged) {
+        auto fit_outcome = estimation::runFit(data.data(), data.size(), spec, options);
+        if (!fit_outcome) {
             return unexpected<EngineError>(
-                {"Optimization failed to converge: " + opt_result.message});
+                {"Optimization failed: parameter initialization or fit pipeline error"});
+        }
+        if (!fit_outcome->converged) {
+            return unexpected<EngineError>(
+                {"Optimization failed to converge: " + fit_outcome->message});
         }
 
-        // Step 6: Unpack optimized parameters
-        models::arima::ArimaParameters arima_params(spec.arimaSpec.p, spec.arimaSpec.q);
-        models::garch::GarchParameters garch_params(spec.garchSpec.p, spec.garchSpec.q);
-        unpackParameters(opt_result.parameters, spec, arima_params, garch_params);
-
-        // Step 7: Build the fitted model
-        models::composite::ArimaGarchParameters model_params(spec);
-        model_params.arima_params = arima_params;
-        model_params.garch_params = garch_params;
-
+        // Build the fitted model from the converged parameters.
+        models::composite::ArimaGarchParameters model_params = fit_outcome->parameters;
         auto fitted_model =
             std::make_shared<models::composite::ArimaGarchModel>(spec, model_params);
 
-        // Initialize model state with data
         for (const auto& value : data) {
             fitted_model->update(value);
         }
 
-        // Step 8: Create FitSummary
         report::FitSummary summary(spec);
         summary.parameters = model_params;
-        summary.converged = opt_result.converged;
-        summary.iterations = opt_result.iterations;
-        summary.message = opt_result.message;
+        summary.converged = fit_outcome->converged;
+        summary.iterations = fit_outcome->iterations;
+        summary.message = fit_outcome->message;
         summary.sample_size = data.size();
-        summary.neg_log_likelihood = opt_result.objective_value;
+        summary.neg_log_likelihood = fit_outcome->neg_log_likelihood;
         summary.innovation_distribution = use_student_t ? "Student-t" : "Normal";
         summary.student_t_df = use_student_t ? student_t_df : 0.0;
 
@@ -120,7 +78,7 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         // Note: df parameter is user-provided, not estimated, so we don't count it in k
         std::size_t k = spec.totalParamCount();
         std::size_t n = data.size();
-        double log_lik = -opt_result.objective_value;  // Convert NLL to log-likelihood
+        double log_lik = -fit_outcome->neg_log_likelihood;  // Convert NLL to log-likelihood
         summary.aic = selection::computeAIC(log_lik, k);
         summary.bic = selection::computeBIC(log_lik, k, n);
 
@@ -266,60 +224,6 @@ Engine::simulate(const models::ArimaGarchSpec& spec,
         return sim_result;
     } catch (const std::exception& e) {
         return unexpected<EngineError>({"Simulation failed: " + std::string(e.what())});
-    }
-}
-
-std::vector<double>
-Engine::packParameters(const models::arima::ArimaParameters& arima_params,
-                       const models::garch::GarchParameters& garch_params) const {
-    std::vector<double> params;
-
-    // Pack ARIMA parameters
-    params.push_back(arima_params.intercept);
-    for (const auto& ar : arima_params.ar_coef) {
-        params.push_back(ar);
-    }
-    for (const auto& ma : arima_params.ma_coef) {
-        params.push_back(ma);
-    }
-
-    // Pack GARCH parameters (skip if null GARCH)
-    if (!garch_params.alpha_coef.empty() || !garch_params.beta_coef.empty()) {
-        params.push_back(garch_params.omega);
-        for (const auto& alpha : garch_params.alpha_coef) {
-            params.push_back(alpha);
-        }
-        for (const auto& beta : garch_params.beta_coef) {
-            params.push_back(beta);
-        }
-    }
-
-    return params;
-}
-
-void Engine::unpackParameters(const std::vector<double>& params, const models::ArimaGarchSpec& spec,
-                              models::arima::ArimaParameters& out_arima,
-                              models::garch::GarchParameters& out_garch) const {
-    std::size_t idx = 0;
-
-    // Unpack ARIMA parameters
-    out_arima.intercept = params[idx++];
-    for (std::size_t i = 0; i < spec.arimaSpec.p; ++i) {
-        out_arima.ar_coef[i] = params[idx++];
-    }
-    for (std::size_t i = 0; i < spec.arimaSpec.q; ++i) {
-        out_arima.ma_coef[i] = params[idx++];
-    }
-
-    // Unpack GARCH parameters (skip if null GARCH)
-    if (!spec.garchSpec.isNull()) {
-        out_garch.omega = params[idx++];
-        for (std::size_t i = 0; i < spec.garchSpec.q; ++i) {
-            out_garch.alpha_coef[i] = params[idx++];
-        }
-        for (std::size_t i = 0; i < spec.garchSpec.p; ++i) {
-            out_garch.beta_coef[i] = params[idx++];
-        }
     }
 }
 

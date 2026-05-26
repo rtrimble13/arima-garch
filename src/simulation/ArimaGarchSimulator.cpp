@@ -1,5 +1,7 @@
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
+#include "ag/util/NumericConstants.hpp"
+
 #include <cmath>
 #include <stdexcept>
 
@@ -72,38 +74,11 @@ SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed,
             z_t = innovations.drawStudentT(df.value());
         }
 
-        // Get current states before update
-        const auto& mean_state = model.getArimaState();
-        const auto& var_state = model.getGarchState();
-
-        // Compute conditional mean
-        double mu_t = params_.arima_params.intercept;
-
-        const auto& obs_history = mean_state.getObservationHistory();
-        for (int i = 0; i < spec_.arimaSpec.p; ++i) {
-            mu_t += params_.arima_params.ar_coef[i] * obs_history[spec_.arimaSpec.p - 1 - i];
-        }
-
-        const auto& residual_history = mean_state.getResidualHistory();
-        for (int i = 0; i < spec_.arimaSpec.q; ++i) {
-            mu_t += params_.arima_params.ma_coef[i] * residual_history[spec_.arimaSpec.q - 1 - i];
-        }
-
-        // Compute conditional variance
-        double h_t = params_.garch_params.omega;
-
-        const auto& var_history = var_state.getVarianceHistory();
-        const auto& sq_res_history = var_state.getSquaredResidualHistory();
-
-        for (int i = 0; i < spec_.garchSpec.q; ++i) {
-            h_t += params_.garch_params.alpha_coef[i] * sq_res_history[spec_.garchSpec.q - 1 - i];
-        }
-
-        for (int i = 0; i < spec_.garchSpec.p; ++i) {
-            h_t += params_.garch_params.beta_coef[i] * var_history[spec_.garchSpec.p - 1 - i];
-        }
-
-        h_t = std::max(h_t, 1e-10);  // Ensure positive variance
+        // Compute conditional mean/variance from the model itself rather
+        // than reimplementing the recursion here.
+        const auto pred = model.predict();
+        const double mu_t = pred.mu_t;
+        const double h_t = std::max(pred.h_t, ag::util::MIN_VARIANCE);
 
         // Generate return: y_t = μ_t + sqrt(h_t) * z_t
         double y_t = mu_t + std::sqrt(h_t) * z_t;

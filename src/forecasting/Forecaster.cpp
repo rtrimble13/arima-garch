@@ -1,13 +1,15 @@
 #include "ag/forecasting/Forecaster.hpp"
 
+#include "ag/util/NumericConstants.hpp"
+
 #include <algorithm>
 #include <stdexcept>
 
 namespace ag::forecasting {
 
 namespace {
-// Minimum variance threshold to guard against numerical issues
-constexpr double MIN_VARIANCE = 1e-10;
+// Alias the shared variance floor so call sites in this file stay readable.
+constexpr double MIN_VARIANCE = ag::util::MIN_VARIANCE;
 }  // namespace
 
 Forecaster::Forecaster(const ag::models::composite::ArimaGarchModel& model) : model_(model) {}
