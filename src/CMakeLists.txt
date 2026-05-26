@@ -6,10 +6,12 @@ add_library(arimagarch STATIC
     diagnostics/DiagnosticReport.cpp
     diagnostics/Residuals.cpp
     estimation/Constraints.cpp
+    estimation/FitDriver.cpp
     estimation/Likelihood.cpp
     estimation/NumericalDerivatives.cpp
     estimation/Optimizer.cpp
     estimation/ParameterInitialization.cpp
+    estimation/ParameterVector.cpp
     forecasting/Forecaster.cpp
     io/CsvReader.cpp
     io/CsvWriter.cpp
@@ -34,6 +36,7 @@ add_library(arimagarch STATIC
     stats/JarqueBera.cpp
     stats/LjungBox.cpp
     stats/PACF.cpp
+    util/Differencing.cpp
     util/LinearAlgebra.cpp
     util/Logging.cpp
     util/Timer.cpp
@@ -50,8 +53,15 @@ target_link_libraries(arimagarch PUBLIC fmt::fmt nlohmann_json::nlohmann_json)
 add_executable(ag
     cli/main.cpp
     cli/CliUtils.cpp
+    cli/handlers/DiagnosticsHandler.cpp
+    cli/handlers/FitHandler.cpp
+    cli/handlers/ForecastHandler.cpp
+    cli/handlers/SelectHandler.cpp
+    cli/handlers/SimulateFromModelHandler.cpp
+    cli/handlers/SimulateHandler.cpp
 )
 
+target_include_directories(ag PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
 target_link_libraries(ag PRIVATE arimagarch CLI11::CLI11)
 
 # Stage `ag` under examples/terminal/bin so the terminal example scripts find

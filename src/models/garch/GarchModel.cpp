@@ -1,5 +1,7 @@
 #include "ag/models/garch/GarchModel.hpp"
 
+#include "ag/util/NumericConstants.hpp"
+
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
@@ -129,7 +131,7 @@ std::vector<double> GarchModel::computeConditionalVariances(const double* residu
 
         // Ensure h_t > 0 (should be guaranteed by positive parameters, but guard against
         // numerical issues)
-        h_t = std::max(h_t, 1e-10);
+        h_t = std::max(h_t, ag::util::MIN_VARIANCE);
 
         conditional_variances.push_back(h_t);
 

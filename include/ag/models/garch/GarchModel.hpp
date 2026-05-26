@@ -101,19 +101,15 @@ public:
                                 const GarchParameters& params) const;
 
     /**
-     * @brief Get the GARCH specification for this model.
-     * @return The GARCH(p,q) specification
-     */
-    [[nodiscard]] const ag::models::GarchSpec& getSpec() const noexcept { return spec_; }
-
-private:
-    ag::models::GarchSpec spec_;  // GARCH(p,q) specification
-
-    /**
      * @brief Compute the conditional variance for a single observation.
      *
      * Calculates the conditional variance based on the GARCH model equation:
      * h_t = ω + α₁*ε²_{t-1} + ... + α_q*ε²_{t-q} + β₁*h_{t-1} + ... + βₚ*h_{t-p}
+     *
+     * Exposed so the composite ARIMA-GARCH model and the simulator can
+     * share this recursion step without reimplementing it. The raw
+     * recursion is returned; callers that need positivity floors should
+     * apply ag::util::MIN_VARIANCE.
      *
      * @param state Current state containing historical variances and squared residuals
      * @param params Model parameters
@@ -121,6 +117,15 @@ private:
      */
     [[nodiscard]] double computeConditionalVariance(const GarchState& state,
                                                     const GarchParameters& params) const;
+
+    /**
+     * @brief Get the GARCH specification for this model.
+     * @return The GARCH(p,q) specification
+     */
+    [[nodiscard]] const ag::models::GarchSpec& getSpec() const noexcept { return spec_; }
+
+private:
+    ag::models::GarchSpec spec_;  // GARCH(p,q) specification
 };
 
 }  // namespace ag::models::garch

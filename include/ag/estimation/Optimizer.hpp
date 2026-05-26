@@ -8,6 +8,32 @@
 namespace ag::estimation {
 
 /**
+ * @brief Penalty value returned by likelihood objective functions when the
+ *        proposed parameters violate model constraints (e.g. GARCH positivity
+ *        or stationarity). Large enough that the optimizer reliably moves
+ *        away from infeasible regions, finite to avoid corrupting simplex
+ *        arithmetic.
+ */
+inline constexpr double CONSTRAINT_PENALTY = 1e10;
+
+/**
+ * @brief Bundled configuration for the Nelder-Mead fit pipeline.
+ *
+ * Mirrors the production tuning previously hard-coded at multiple call
+ * sites (Engine, ModelSelector, CrossValidation). The defaults match the
+ * actually-used values; the IOptimizer DEFAULT_FTOL/XTOL constants are
+ * tighter (1e-8) and remain available for callers that want them.
+ */
+struct OptimizerConfig {
+    double ftol = 1e-6;                // Function value tolerance
+    double xtol = 1e-6;                // Parameter tolerance
+    int max_iterations = 2000;         // Hard cap on iterations per restart
+    int restarts = 3;                  // Additional perturbed restarts (0 = single run)
+    double perturbation_scale = 0.15;  // Std-dev of normal perturbation per parameter
+    unsigned int seed = 42;            // RNG seed for perturbations; 0 = nondeterministic
+};
+
+/**
  * @brief Result of an optimization run.
  *
  * OptimizationResult contains the optimal parameters found by the optimizer,
@@ -247,6 +273,16 @@ private:
      */
     void shrink(std::vector<std::vector<double>>& simplex,
                 const std::vector<double>& best_point) const;
+
+    /**
+     * @brief Advance a sorted simplex by one Nelder-Mead step
+     *        (reflection / expansion / contraction / shrink). The simplex
+     *        and corresponding objective values are updated in place.
+     *
+     * Precondition: @p simplex is sorted ascending by @p simplex_values.
+     */
+    void stepSimplex(std::vector<std::vector<double>>& simplex, std::vector<double>& simplex_values,
+                     const ObjectiveFunction& objective) const;
 };
 
 /**
