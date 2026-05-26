@@ -19,9 +19,12 @@ namespace ag::estimation {
  * mismatch existed: Engine packed the ARIMA intercept unconditionally
  * while ModelSelector and CrossValidation skipped the ARIMA block
  * entirely for zero-order specs. The Selector convention is adopted here
- * (skip the ARIMA block when spec.arimaSpec.isZeroOrder()): the
- * intercept and AR/MA arrays are degenerate at p=q=0 and would only add
- * a useless optimization dimension.
+ * (skip the ARIMA block when spec.arimaSpec.isZeroOrder()): for a
+ * zero-order ARIMA spec the intercept is intentionally fixed at zero
+ * rather than estimated. With no AR or MA structure to anchor it, adding
+ * the intercept as a free optimization parameter would provide no
+ * useful information. Callers that need a non-zero constant mean should
+ * difference the data or use a non-zero-order ARIMA spec.
  *
  * Layout (when present, in order):
  *   - intercept (if !arimaSpec.isZeroOrder())

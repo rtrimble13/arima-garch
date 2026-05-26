@@ -1,11 +1,18 @@
 #include "ag/util/Differencing.hpp"
 
+#include <stdexcept>
 #include <utility>
 
 namespace ag::util {
 
 std::vector<double> differenceSeries(const double* data, std::size_t size, int d) {
-    if (size == 0 || data == nullptr) {
+    if (data == nullptr && size > 0) {
+        throw std::invalid_argument("differenceSeries: data is null but size > 0");
+    }
+    if (d < 0) {
+        throw std::invalid_argument("differenceSeries: d must be >= 0");
+    }
+    if (size == 0) {
         return {};
     }
 

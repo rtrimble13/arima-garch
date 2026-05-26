@@ -44,10 +44,14 @@ struct FitOutcome {
  * violations and for likelihood-computation exceptions, exactly matching
  * the prior behavior.
  *
- * Returns std::nullopt only when parameter initialization itself throws
- * (e.g. insufficient data); convergence/non-convergence is reported via
- * FitOutcome::converged so callers can decide whether to accept the
- * result.
+ * Returns std::nullopt only when data is null or empty (a programming
+ * error that should have been caught by the caller). All other failure
+ * modes — parameter initialization exceptions (e.g. insufficient data
+ * after differencing), likelihood evaluation failures in the no-free-
+ * parameters path, optimizer exceptions, and parameter-unpack failures —
+ * are reported as FitOutcome{converged=false, message=<reason>} so callers
+ * receive actionable diagnostics. Successful convergence is indicated by
+ * FitOutcome{converged=true}.
  */
 [[nodiscard]] std::optional<FitOutcome> runFit(const double* data, std::size_t n,
                                                const ag::models::ArimaGarchSpec& spec,

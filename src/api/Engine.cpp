@@ -46,7 +46,7 @@ expected<FitResult, EngineError> Engine::fit(const std::vector<double>& data,
         auto fit_outcome = estimation::runFit(data.data(), data.size(), spec, options);
         if (!fit_outcome) {
             return unexpected<EngineError>(
-                {"Optimization failed: parameter initialization or fit pipeline error"});
+                {"Optimization failed: null or empty data passed to fit pipeline"});
         }
         if (!fit_outcome->converged) {
             return unexpected<EngineError>(
