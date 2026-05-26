@@ -1,0 +1,6 @@
+# Generated example output
+var/*
+!var/.gitkeep
+
+# Staged copy of the ag binary (created by `cmake --build <dir> --target ag-examples`)
+bin/

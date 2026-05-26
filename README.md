@@ -147,6 +147,11 @@ Benchmarks are useful for:
 
 ### Command-Line Interface
 
+> **Tip:** for a runnable walkthrough of every CLI subcommand and notable flag,
+> see [`examples/terminal/`](examples/terminal/) — 13 numbered bash scripts
+> with matching markdown explainers. Stage the binary into the example
+> directory with `cmake --build build/ninja-release --target ag-examples`.
+
 Run the CLI tool:
 
 ```bash
