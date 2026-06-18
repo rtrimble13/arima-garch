@@ -181,9 +181,40 @@ double compute_ols_tstat(const std::vector<double>& y, const std::vector<std::ve
 }
 
 /**
+ * @brief Residual sum of squares of the OLS fit of y on X.
+ *
+ * Fits β̂ = (X'X)⁻¹X'y and returns Σ(y - Xβ̂)². Returns +∞ if the system is
+ * singular so the caller can skip that specification.
+ *
+ * @param y Response vector
+ * @param X Design matrix (row-major)
+ * @return Residual sum of squares, or +∞ on a singular system
+ */
+double compute_ols_rss(const std::vector<double>& y, const std::vector<std::vector<double>>& X) {
+    std::vector<double> beta = ag::util::solveLeastSquares(X, y, 1e-12);
+    if (beta.empty()) {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    const std::size_t n = y.size();
+    const std::size_t k = X[0].size();
+    double rss = 0.0;
+    for (std::size_t t = 0; t < n; ++t) {
+        double fitted = 0.0;
+        for (std::size_t i = 0; i < k; ++i) {
+            fitted += X[t][i] * beta[i];
+        }
+        const double resid = y[t] - fitted;
+        rss += resid * resid;
+    }
+    return rss;
+}
+
+/**
  * @brief Automatically select number of lags using information criterion.
  *
- * Uses modified AIC (MAIC) for lag selection.
+ * Uses AIC computed from the actual OLS residual sum of squares for lag
+ * selection.
  *
  * @param data Time series data
  * @param max_lags Maximum lags to consider
@@ -253,20 +284,17 @@ std::size_t select_lags(std::span<const double> data, std::size_t max_lags,
             X.push_back(row);
         }
 
-        // Compute RSS for this specification
+        // Compute RSS for this specification by actually fitting the ADF
+        // regression. Scoring the information criterion off the (lag-invariant)
+        // variance of Δy made the IC monotone in the parameter penalty and
+        // therefore always selected lag 0.
         try {
-            // NOTE: For computational efficiency, we use a simplified RSS approximation
-            // based on the variance of the dependent variable rather than fitting
-            // the full regression. This provides a reasonable heuristic for lag selection
-            // while avoiding the computational cost of repeated OLS fits.
-            // A more sophisticated implementation could use actual regression fits.
-            double y_mean = std::accumulate(y.begin(), y.end(), 0.0) / y.size();
-            double rss = 0.0;
-            for (const auto& val : y) {
-                rss += (val - y_mean) * (val - y_mean);
+            double rss = compute_ols_rss(y, X);
+            if (!std::isfinite(rss) || rss <= 0.0) {
+                continue;  // Singular/degenerate fit for this lag; skip.
             }
 
-            // Modified AIC
+            // AIC from the real residual sum of squares.
             double ic = std::log(rss / n_obs) + 2.0 * k_total / n_obs;
 
             if (ic < best_ic) {
