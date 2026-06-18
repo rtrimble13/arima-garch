@@ -38,9 +38,12 @@ void GarchState::initialize(const double* residuals, std::size_t size,
         throw std::invalid_argument("Residuals size must be positive");
     }
 
-    // Determine initial variance (h_0)
-    if (unconditional_variance > 0.0) {
-        // Use provided unconditional variance (when stationary)
+    // Determine initial variance (h_0). Use the provided unconditional variance
+    // when it is a usable finite positive value; otherwise (non-stationary —
+    // signalled by NaN — or unspecified) fall back to the sample variance. The
+    // isfinite check, rather than a bare > 0.0, avoids relying on a 0.0 magic
+    // value and cleanly handles the NaN returned at the stationarity boundary.
+    if (std::isfinite(unconditional_variance) && unconditional_variance > 0.0) {
         initial_variance_ = unconditional_variance;
     } else {
         // Use sample variance of residuals as fallback

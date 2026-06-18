@@ -3,6 +3,7 @@
 #include "ag/util/NumericConstants.hpp"
 
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 
@@ -53,17 +54,18 @@ bool GarchParameters::isStationary() const noexcept {
 }
 
 double GarchParameters::unconditionalVariance() const noexcept {
-    if (!isStationary()) {
-        return 0.0;
-    }
-
     double sum_alpha = std::accumulate(alpha_coef.begin(), alpha_coef.end(), 0.0);
     double sum_beta = std::accumulate(beta_coef.begin(), beta_coef.end(), 0.0);
     double denominator = 1.0 - sum_alpha - sum_beta;
 
-    // Guard against division by zero (though stationarity check should prevent this)
-    if (denominator <= 0.0) {
-        return 0.0;
+    // The unconditional variance does not exist at or above the stationarity
+    // boundary. A small margin keeps a near-singular denominator from producing
+    // an absurd value. Signal "not available" with NaN rather than the old 0.0
+    // sentinel, which conflated non-stationarity with the legitimate value 0 and
+    // forced GarchState to switch initialization on a 0.0 magic value.
+    constexpr double STATIONARITY_MARGIN = 1e-10;
+    if (denominator <= STATIONARITY_MARGIN) {
+        return std::numeric_limits<double>::quiet_NaN();
     }
 
     return omega / denominator;
