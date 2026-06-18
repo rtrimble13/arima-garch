@@ -113,10 +113,14 @@ expected<data::TimeSeries, CsvReadError>
 CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions& options) {
     std::vector<std::string> header_row;
     std::vector<std::vector<std::string>> all_rows;
+    // Physical (1-based) line number of each stored data row, so error messages
+    // point at the real line even when blank lines are skipped or interspersed.
+    std::vector<std::size_t> row_line_numbers;
     std::string content_str{csv_content};
     std::istringstream stream{content_str};
     std::string line;
     std::size_t line_number = 0;
+    bool header_captured = false;
 
     // First pass: read all rows
     while (std::getline(stream, line)) {
@@ -137,13 +141,17 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
             continue;
         }
 
-        // Store header if configured
-        if (line_number == 1 && options.has_header) {
+        // Store the header on the first non-empty line (not necessarily the
+        // first physical line — a leading blank line must not be treated as
+        // the header).
+        if (options.has_header && !header_captured) {
             header_row = columns;
+            header_captured = true;
             continue;
         }
 
         all_rows.push_back(columns);
+        row_line_numbers.push_back(line_number);
     }
 
     // Check if we have any data rows
@@ -202,8 +210,8 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
                 get_column_label(detected_value_column, options.has_header, header_row);
             return unexpected(CsvReadError{
                 "Value column " + col_label + " (index " + std::to_string(detected_value_column) +
-                ") out of range on line " + std::to_string(i + 1 + (options.has_header ? 1 : 0)) +
-                " (found " + std::to_string(row.size()) + " columns)"});
+                ") out of range on line " + std::to_string(row_line_numbers[i]) + " (found " +
+                std::to_string(row.size()) + " columns)"});
         }
 
         // Parse value (may be empty/null)
@@ -212,8 +220,8 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
             std::string col_label =
                 get_column_label(detected_value_column, options.has_header, header_row);
             return unexpected(CsvReadError{"Failed to parse value in " + col_label + " on line " +
-                                           std::to_string(i + 1 + (options.has_header ? 1 : 0)) +
-                                           ": " + value_result.error().message});
+                                           std::to_string(row_line_numbers[i]) + ": " +
+                                           value_result.error().message});
         }
 
         values.push_back(*value_result);
@@ -250,7 +258,7 @@ CsvReader::read_from_string(std::string_view csv_content, const CsvReaderOptions
                 get_column_label(detected_value_column, options.has_header, header_row);
             return unexpected(CsvReadError{
                 "Empty or null value found in " + col_label + " on line " +
-                std::to_string(i + 1 + (options.has_header ? 1 : 0)) +
+                std::to_string(row_line_numbers[i]) +
                 ". Only leading and trailing empty values are automatically trimmed."});
         }
     }
