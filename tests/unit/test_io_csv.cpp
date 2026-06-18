@@ -99,6 +99,37 @@ TEST(csv_read_from_string_with_header) {
     REQUIRE_APPROX(ts[2], 1.8, 1e-10);
 }
 
+// A leading blank line must not consume the header slot: the header is the
+// first non-empty line. Regression test for #136.
+TEST(csv_read_leading_blank_line_header) {
+    std::string csv_content = "\nValue\n1.5\n2.3\n";
+
+    CsvReaderOptions options;
+    options.has_header = true;
+
+    auto result = CsvReader::read_from_string(csv_content, options);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+}
+
+// Error messages report the physical line number even when blank lines are
+// interspersed. Regression test for #136.
+TEST(csv_read_error_line_number_with_blank_lines) {
+    // Physical lines: 1="1.0", 2=blank, 3="2.0", 4="bad", 5="3.0"
+    std::string csv_content = "1.0\n\n2.0\nbad\n3.0\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(!result.has_value());
+
+    const std::string& msg = result.error().message;
+    REQUIRE(msg.find("line 4") != std::string::npos);
+    REQUIRE(msg.find("line 3") == std::string::npos);
+}
+
 // Test reading from string with multiple columns
 TEST(csv_read_from_string_with_multiple_columns) {
     std::string csv_content = "Date,Value\n2020-01-01,1.5\n2020-01-02,2.3\n2020-01-03,1.8\n";
