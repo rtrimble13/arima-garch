@@ -114,8 +114,16 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
 
     // Step 4: Likelihood ratio test
     // H0: Gaussian (restricted), H1: Student-t (unrestricted)
-    // LR = 2 * (LL_t - LL_n) ~ chi^2(1) under H0
+    // LR = 2 * (LL_t - LL_n) ~ chi^2(1) under H0.
+    // The Student-t fit uses an estimated df that does not exactly nest the
+    // Gaussian at finite df, so student_t_ll < normal_ll (a negative LR) is
+    // possible. A negative LR means "no evidence for the richer model"; clamp
+    // it to 0 so the chi-square tail reports p = 1 rather than leaking a
+    // spurious low p-value, and so the reported statistic is never negative.
     double lr_stat = 2.0 * (student_t_ll - normal_ll);
+    if (lr_stat < 0.0) {
+        lr_stat = 0.0;
+    }
     double lr_p_value = ag::stats::chi_square_ccdf(lr_stat, 1.0);
 
     // Step 5: Information criteria
@@ -131,8 +139,11 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
     // Step 6: Compute kurtosis
     double kurt = ag::stats::kurtosis(residuals.std_eps_t);
 
-    // Step 7: Make recommendation
-    bool prefer_student_t = (lr_p_value < 0.05) || ((student_t_bic < normal_bic) && (kurt > 1.0));
+    // Step 7: Make recommendation. Only ever prefer Student-t when it actually
+    // fits at least as well as Normal (student_t_ll >= normal_ll); a worse fit
+    // must never be selected regardless of the IC/kurtosis heuristic.
+    bool prefer_student_t = (student_t_ll >= normal_ll) &&
+                            ((lr_p_value < 0.05) || ((student_t_bic < normal_bic) && (kurt > 1.0)));
 
     return DistributionTestResult{.prefer_student_t = prefer_student_t,
                                   .normal_ll = normal_ll,

@@ -138,8 +138,40 @@ TEST(compare_distributions_simple_model) {
     // Student-t log-likelihood could be less than Gaussian due to
     // suboptimal df estimation via grid search
     // Just verify calculations are consistent
-    double calculated_lr = 2.0 * (result.student_t_ll - result.normal_ll);
+    // lr_statistic is clamped to >= 0 (a negative LR means no evidence for the
+    // richer model).
+    double calculated_lr = std::max(0.0, 2.0 * (result.student_t_ll - result.normal_ll));
     REQUIRE_APPROX(result.lr_statistic, calculated_lr, 1e-8);
+    REQUIRE(result.lr_statistic >= 0.0);
+}
+
+// A worse Student-t fit (student_t_ll < normal_ll) must never select Student-t,
+// and must report p = 1 with a clamped (zero) LR statistic — not a spurious
+// "significant" p = 0. Regression test for the negative-LR guard.
+TEST(compare_distributions_negative_lr_not_significant) {
+    // Light-tailed (platykurtic) data: a uniform ramp gives standardized
+    // residuals with no heavy tails, so the estimated-df Student-t fit is no
+    // better than Normal.
+    // omega/(1 - alpha - beta) = 1, so standardized residuals are ~unit
+    // variance; a uniform ramp over ~[-sqrt(3), sqrt(3)] is then platykurtic
+    // and the heavier-tailed Student-t fits strictly worse than Normal.
+    ArimaGarchSpec spec(0, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+    params.garch_params.omega = 0.05;
+    params.garch_params.alpha_coef = {0.05};
+    params.garch_params.beta_coef = {0.9};
+
+    std::vector<double> data;
+    for (int i = 0; i < 400; ++i) {
+        data.push_back(-1.732 + 2.0 * 1.732 * (i % 40) / 39.0);
+    }
+
+    DistributionTestResult result = compareDistributions(spec, params, data.data(), data.size());
+
+    REQUIRE(result.student_t_ll < result.normal_ll);  // confirm we exercise the branch
+    REQUIRE(!result.prefer_student_t);
+    REQUIRE_APPROX(result.lr_statistic, 0.0, 1e-12);
+    REQUIRE_APPROX(result.lr_p_value, 1.0, 1e-12);
 }
 
 // Test with null data
