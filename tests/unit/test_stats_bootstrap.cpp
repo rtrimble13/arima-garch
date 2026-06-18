@@ -425,6 +425,26 @@ TEST(bootstrap_adf_integrated_series) {
     REQUIRE(result_diff.p_value < 0.5);  // Should tend to reject for stationary series
 }
 
+// The observed ADF statistic must be identical whether computed by adf_test or
+// by adf_test_bootstrap, since both now use the shared ag::util::olsTStatistic
+// on the same regression (no bespoke matrix inverse). Regression test for #137.
+TEST(adf_observed_statistic_matches_direct) {
+    std::mt19937 gen(909);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    std::vector<double> data(120);
+    data[0] = dist(gen);
+    for (std::size_t i = 1; i < data.size(); ++i) {
+        data[i] = 0.5 * data[i - 1] + dist(gen);
+    }
+
+    auto direct = ag::stats::adf_test(data, 2, ag::stats::ADFRegressionForm::Constant);
+    auto boot =
+        ag::stats::adf_test_bootstrap(data, 2, ag::stats::ADFRegressionForm::Constant, 50, 42);
+
+    // Observed tau comes from the same code path now; they must match tightly.
+    REQUIRE_APPROX(boot.statistic, direct.statistic, 1e-9);
+}
+
 // ============================================================================
 // Main test runner
 // ============================================================================

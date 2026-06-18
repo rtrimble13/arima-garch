@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace ag::util {
 
@@ -113,6 +114,52 @@ std::vector<double> solveLeastSquares(const std::vector<std::vector<double>>& X,
 
     // Solve X'X * beta = X'y
     return solveLinearSystem(XtX, Xty, tol);
+}
+
+double olsTStatistic(const std::vector<std::vector<double>>& X, const std::vector<double>& y,
+                     std::size_t coef_index, double tol) {
+    if (y.empty() || X.empty() || X[0].empty()) {
+        throw std::invalid_argument("olsTStatistic: empty design matrix or response");
+    }
+
+    const std::size_t n = y.size();
+    const std::size_t k = X[0].size();
+
+    if (coef_index >= k) {
+        throw std::invalid_argument("olsTStatistic: coefficient index out of range");
+    }
+    if (n <= k) {
+        throw std::invalid_argument("olsTStatistic: insufficient degrees of freedom");
+    }
+
+    std::vector<double> beta = solveLeastSquares(X, y, tol);
+    if (beta.empty()) {
+        throw std::runtime_error("olsTStatistic: singular design matrix");
+    }
+
+    // Residual sum of squares.
+    double rss = 0.0;
+    for (std::size_t t = 0; t < n; ++t) {
+        double fitted = 0.0;
+        for (std::size_t i = 0; i < k; ++i) {
+            fitted += X[t][i] * beta[i];
+        }
+        const double resid = y[t] - fitted;
+        rss += resid * resid;
+    }
+    const double sigma2 = rss / static_cast<double>(n - k);
+
+    // Diagonal element of (X'X)^{-1} for coef_index: solve X'X v = e_i.
+    std::vector<double> ei(k, 0.0);
+    ei[coef_index] = 1.0;
+    auto XtX = computeGramMatrix(X);
+    std::vector<double> inv_col = solveLinearSystem(XtX, ei, tol);
+    if (inv_col.empty()) {
+        throw std::runtime_error("olsTStatistic: failed to compute standard errors");
+    }
+
+    const double se = std::sqrt(sigma2 * inv_col[coef_index]);
+    return beta[coef_index] / se;
 }
 
 }  // namespace ag::util
