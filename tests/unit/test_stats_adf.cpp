@@ -376,6 +376,41 @@ TEST(adf_test_auto_on_random_walk) {
     REQUIRE(result.p_value > 0.05);
 }
 
+// Critical values follow the MacKinnon (1994) response surface: they match the
+// reference at n=100, vary smoothly with n (no discontinuity at n=500), and
+// approach the asymptotic value as n grows. Regression test for #133.
+TEST(adf_critical_values_mackinnon_response_surface) {
+    auto cv_for_n = [](std::size_t n) {
+        std::mt19937 gen(2025);
+        std::normal_distribution<double> dist(0.0, 1.0);
+        std::vector<double> data(n);
+        for (auto& v : data) {
+            v = dist(gen);
+        }
+        return ag::stats::adf_test(data, 1, ag::stats::ADFRegressionForm::Constant);
+    };
+
+    // n = 100, constant: -2.8621 - 2.738/100 - 8.36/100^2
+    auto r100 = cv_for_n(100);
+    double expected5 = -2.8621 - 2.738 / 100.0 - 8.36 / (100.0 * 100.0);
+    REQUIRE_APPROX(r100.critical_value_5pct, expected5, 1e-9);
+
+    // No discontinuity straddling the old n=500 branch boundary.
+    auto r499 = cv_for_n(499);
+    auto r501 = cv_for_n(501);
+    REQUIRE(std::abs(r499.critical_value_5pct - r501.critical_value_5pct) < 0.005);
+
+    // Larger n is closer to the asymptotic value (-2.8621).
+    auto r1000 = cv_for_n(1000);
+    REQUIRE(std::abs(r1000.critical_value_5pct + 2.8621) <
+            std::abs(r100.critical_value_5pct + 2.8621));
+
+    // Ordering preserved (1% < 5% < 10% < 0).
+    REQUIRE(r100.critical_value_1pct < r100.critical_value_5pct);
+    REQUIRE(r100.critical_value_5pct < r100.critical_value_10pct);
+    REQUIRE(r100.critical_value_10pct < 0.0);
+}
+
 int main() {
     report_test_results("ADF Tests");
     return get_test_result();
