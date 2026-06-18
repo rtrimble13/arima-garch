@@ -12,62 +12,49 @@ namespace ag::stats {
 namespace {
 
 /**
- * @brief Critical values for the ADF test.
+ * @brief MacKinnon (1994) response-surface coefficients for the ADF τ statistic.
  *
- * These are approximate critical values from MacKinnon (1996, 2010).
- * Rows: regression form (none, constant, constant+trend)
- * Columns: significance level (1%, 5%, 10%)
- * Values are for sample size n=100. Adjustments are made for other sample sizes.
+ * The finite-sample critical value is CV(T) = b_inf + b1/T + b2/T², where T is
+ * the sample size. b_inf is the asymptotic (T → ∞) critical value. Coefficients
+ * are taken from MacKinnon (1994), Table 1.
+ *
+ * Outer index: regression form (none, constant, constant+trend).
+ * Inner index: significance level (1%, 5%, 10%).
  */
-const double CRITICAL_VALUES[3][3] = {
+struct ResponseSurface {
+    double b_inf;
+    double b1;
+    double b2;
+};
+
+const ResponseSurface MACKINNON_RS[3][3] = {
     // None (no constant, no trend)
-    {-2.58, -1.95, -1.62},
+    {{-2.5658, -1.960, -10.04}, {-1.9393, -0.398, 0.0}, {-1.6156, -0.181, 0.0}},
     // Constant
-    {-3.51, -2.89, -2.58},
+    {{-3.4336, -5.999, -29.25}, {-2.8621, -2.738, -8.36}, {-2.5671, -1.438, -4.48}},
     // Constant and trend
-    {-4.04, -3.45, -3.15}};
+    {{-3.9638, -8.353, -47.44}, {-3.4126, -4.039, -17.83}, {-3.1279, -2.418, -7.58}}};
 
 /**
- * @brief Adjust critical value for sample size.
+ * @brief Get critical values for the ADF test at sample size n.
  *
- * Uses asymptotic expansion to adjust critical values for different sample sizes.
- * Based on MacKinnon approximation.
- *
- * @param base_cv Base critical value (for n=100)
- * @param n Sample size
- * @param form Regression form
- * @return Adjusted critical value
- */
-double adjust_critical_value(double base_cv, std::size_t n, ADFRegressionForm form) {
-    if (n <= 25) {
-        // For small samples, use conservative adjustment
-        double adjustment = 0.0;
-        if (form == ADFRegressionForm::Constant) {
-            adjustment = -0.1;
-        } else if (form == ADFRegressionForm::ConstantAndTrend) {
-            adjustment = -0.15;
-        }
-        return base_cv + adjustment;
-    } else if (n >= 500) {
-        // For large samples, approach asymptotic values
-        return base_cv * 1.02;
-    }
-    // For moderate samples, use linear interpolation
-    return base_cv;
-}
-
-/**
- * @brief Get critical values for the ADF test.
+ * Evaluates the MacKinnon response surface CV(T) = b_inf + b1/T + b2/T², which
+ * varies smoothly with n (no discontinuity) and approaches the asymptotic
+ * value as n grows.
  *
  * @param n Sample size
  * @param form Regression form
  * @return Array of three critical values (1%, 5%, 10%)
  */
 std::array<double, 3> get_critical_values(std::size_t n, ADFRegressionForm form) {
-    int form_idx = static_cast<int>(form);
-    return {adjust_critical_value(CRITICAL_VALUES[form_idx][0], n, form),
-            adjust_critical_value(CRITICAL_VALUES[form_idx][1], n, form),
-            adjust_critical_value(CRITICAL_VALUES[form_idx][2], n, form)};
+    const int form_idx = static_cast<int>(form);
+    const double t = static_cast<double>(n);
+    std::array<double, 3> cv{};
+    for (int level = 0; level < 3; ++level) {
+        const ResponseSurface& rs = MACKINNON_RS[form_idx][level];
+        cv[level] = rs.b_inf + rs.b1 / t + rs.b2 / (t * t);
+    }
+    return cv;
 }
 
 /**
