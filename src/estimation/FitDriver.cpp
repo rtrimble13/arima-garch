@@ -4,6 +4,7 @@
 #include "ag/estimation/ParameterInitialization.hpp"
 #include "ag/estimation/ParameterVector.hpp"
 
+#include <cmath>
 #include <stdexcept>
 
 namespace ag::estimation {
@@ -13,6 +14,22 @@ std::optional<FitOutcome> runFit(const double* data, std::size_t n,
                                  const FitOptions& options) {
     if (data == nullptr || n == 0) {
         return std::nullopt;
+    }
+
+    // Validate input finiteness once, up front. This must happen outside the
+    // optimizer objective: the objective maps thrown exceptions to
+    // CONSTRAINT_PENALTY, so non-finite data evaluated there would produce a
+    // flat penalty surface that Nelder-Mead can report as "converged" on
+    // garbage parameters. Failing here yields an actionable non-converged
+    // outcome instead.
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!std::isfinite(data[i])) {
+            FitOutcome failure(spec);
+            failure.converged = false;
+            failure.message =
+                "Input data contains non-finite values (NaN or Inf) at index " + std::to_string(i);
+            return failure;
+        }
     }
 
     // Initialize parameters from data. If this throws we return a non-
