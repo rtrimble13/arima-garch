@@ -56,6 +56,24 @@ void ArimaState::update(double observation, double residual) {
     ag::util::shiftAndAppend(residual_history_, residual);
 }
 
+void ArimaState::restore(const std::vector<double>& observation_history,
+                         const std::vector<double>& residual_history,
+                         const std::vector<double>& differenced_series) {
+    if (observation_history.size() != static_cast<std::size_t>(p_)) {
+        throw std::invalid_argument(
+            "ArimaState::restore: observation history size must equal AR order p");
+    }
+    if (residual_history.size() != static_cast<std::size_t>(q_)) {
+        throw std::invalid_argument(
+            "ArimaState::restore: residual history size must equal MA order q");
+    }
+
+    obs_history_ = observation_history;
+    residual_history_ = residual_history;
+    differenced_series_ = differenced_series;
+    initialized_ = true;
+}
+
 std::vector<double> ArimaState::applyDifferencing(const double* data, std::size_t size) const {
     return ag::util::differenceSeries(data, size, d_);
 }

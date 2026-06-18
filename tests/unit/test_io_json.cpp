@@ -1,3 +1,4 @@
+#include "ag/forecasting/Forecaster.hpp"
 #include "ag/io/Json.hpp"
 #include "ag/models/ArimaGarchSpec.hpp"
 #include "ag/models/composite/ArimaGarchModel.hpp"
@@ -5,6 +6,7 @@
 #include <cmath>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "test_framework.hpp"
 
@@ -231,7 +233,10 @@ TEST(json_model_save_load_parameters) {
     std::filesystem::remove(model_file);
 }
 
-// Test that saved model produces identical forecasts (via update)
+// Test that a saved model resumes from its terminal state: feeding the same
+// *new* observations to the in-process model and to the reloaded model yields
+// identical outputs. (Previously loadModel discarded state, so a reloaded
+// model restarted from zero history; this test now pins state continuity.)
 TEST(json_model_identical_forecasts) {
     auto model_file = std::filesystem::temp_directory_path() / "test_model_forecast.json";
 
@@ -247,15 +252,10 @@ TEST(json_model_identical_forecasts) {
 
     ArimaGarchModel original_model(spec, params);
 
-    // Generate some observations with original model
-    std::vector<double> test_data = {1.0, 1.5, 1.2, 1.8, 1.3};
-    std::vector<double> original_means;
-    std::vector<double> original_variances;
-
-    for (double y : test_data) {
-        auto output = original_model.update(y);
-        original_means.push_back(output.mu_t);
-        original_variances.push_back(output.h_t);
+    // Warm up the model with some history before saving.
+    std::vector<double> warmup_data = {1.0, 1.5, 1.2, 1.8, 1.3};
+    for (double y : warmup_data) {
+        original_model.update(y);
     }
 
     // Save model after processing
@@ -268,31 +268,87 @@ TEST(json_model_identical_forecasts) {
 
     auto loaded_model = *load_result;
 
-    // Process same data with loaded model
-    std::vector<double> loaded_means;
-    std::vector<double> loaded_variances;
-
-    for (double y : test_data) {
-        auto output = loaded_model.update(y);
-        loaded_means.push_back(output.mu_t);
-        loaded_variances.push_back(output.h_t);
-    }
-
-    // Compare outputs - they should be identical since parameters are the same
-    // Note: State might differ slightly due to initialization, but with same parameters,
-    // the model behavior should converge quickly
-    REQUIRE(loaded_means.size() == original_means.size());
-    REQUIRE(loaded_variances.size() == original_variances.size());
-
-    // Check that parameters produce consistent behavior
-    // (exact state match is not guaranteed due to how state is restored)
-    for (size_t i = 0; i < loaded_means.size(); ++i) {
-        // We use a slightly larger tolerance since state restoration may not be exact
-        REQUIRE(approx_equal(loaded_means[i], original_means[i], 1e-6));
-        REQUIRE(approx_equal(loaded_variances[i], original_variances[i], 1e-6));
+    // Continue both models with the same *new* observations. Because the
+    // loaded model resumed from the saved terminal state, the per-step outputs
+    // must match exactly.
+    std::vector<double> continuation_data = {1.1, 0.7, 1.6, 1.0};
+    for (double y : continuation_data) {
+        auto original_output = original_model.update(y);
+        auto loaded_output = loaded_model.update(y);
+        REQUIRE(approx_equal(loaded_output.mu_t, original_output.mu_t));
+        REQUIRE(approx_equal(loaded_output.h_t, original_output.h_t));
     }
 
     // Cleanup
+    std::filesystem::remove(model_file);
+}
+
+// Saving a model after processing data and loading it must restore the exact
+// terminal state (histories), so a load -> forecast matches an in-process
+// forecast without re-feeding the data. Regression test for loadModel
+// previously discarding state.
+TEST(json_model_state_roundtrip_and_forecast) {
+    auto model_file = std::filesystem::temp_directory_path() / "test_model_state_roundtrip.json";
+
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+    ArimaGarchParameters params(spec);
+    params.arima_params.intercept = 0.05;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.arima_params.ma_coef[0] = 0.3;
+    params.garch_params.omega = 0.01;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+
+    ArimaGarchModel original_model(spec, params);
+    std::vector<double> data = {1.0, 1.5, 1.2, 1.8, 1.3, 0.9, 1.1, 1.4};
+    for (double y : data) {
+        original_model.update(y);
+    }
+
+    auto save_result = JsonWriter::saveModel(model_file, original_model);
+    REQUIRE(save_result.has_value());
+
+    auto load_result = JsonReader::loadModel(model_file);
+    REQUIRE(load_result.has_value());
+    const auto& loaded_model = *load_result;
+
+    // Restored histories must equal the saved ones.
+    const auto& orig_arima = original_model.getArimaState();
+    const auto& load_arima = loaded_model.getArimaState();
+    REQUIRE(load_arima.getObservationHistory().size() == orig_arima.getObservationHistory().size());
+    for (size_t i = 0; i < orig_arima.getObservationHistory().size(); ++i) {
+        REQUIRE(approx_equal(load_arima.getObservationHistory()[i],
+                             orig_arima.getObservationHistory()[i]));
+    }
+    for (size_t i = 0; i < orig_arima.getResidualHistory().size(); ++i) {
+        REQUIRE(
+            approx_equal(load_arima.getResidualHistory()[i], orig_arima.getResidualHistory()[i]));
+    }
+
+    const auto& orig_garch = original_model.getGarchState();
+    const auto& load_garch = loaded_model.getGarchState();
+    REQUIRE(approx_equal(load_garch.getInitialVariance(), orig_garch.getInitialVariance()));
+    for (size_t i = 0; i < orig_garch.getVarianceHistory().size(); ++i) {
+        REQUIRE(
+            approx_equal(load_garch.getVarianceHistory()[i], orig_garch.getVarianceHistory()[i]));
+    }
+    for (size_t i = 0; i < orig_garch.getSquaredResidualHistory().size(); ++i) {
+        REQUIRE(approx_equal(load_garch.getSquaredResidualHistory()[i],
+                             orig_garch.getSquaredResidualHistory()[i]));
+    }
+
+    // Forecasts from the loaded model must match the in-process model exactly.
+    ag::forecasting::Forecaster original_forecaster(original_model);
+    ag::forecasting::Forecaster loaded_forecaster(loaded_model);
+    auto original_fc = original_forecaster.forecast(5);
+    auto loaded_fc = loaded_forecaster.forecast(5);
+
+    REQUIRE(loaded_fc.mean_forecasts.size() == original_fc.mean_forecasts.size());
+    for (size_t h = 0; h < original_fc.mean_forecasts.size(); ++h) {
+        REQUIRE(approx_equal(loaded_fc.mean_forecasts[h], original_fc.mean_forecasts[h]));
+        REQUIRE(approx_equal(loaded_fc.variance_forecasts[h], original_fc.variance_forecasts[h]));
+    }
+
     std::filesystem::remove(model_file);
 }
 

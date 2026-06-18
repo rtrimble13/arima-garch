@@ -260,25 +260,17 @@ JsonReader::arimaStateFromJson(const nlohmann::json& json, const models::ArimaSp
     try {
         models::arima::ArimaState state(spec.p, spec.d, spec.q);
 
-        // We need to reconstruct the state by initializing it with dummy data
-        // and then manually setting the internal state
-        // Since we can't directly set the private members, we'll need to use the public interface
-
-        // First, initialize with dummy data
-        std::vector<double> dummy_data(1, 0.0);
-        state.initialize(dummy_data.data(), dummy_data.size());
-
-        // The state is now initialized, but we need to populate it with the saved histories
-        // We can do this by calling update() with the saved values
+        // Restore the bounded sliding windows directly so the loaded state is
+        // byte-for-byte the terminal state that was saved (replaying through
+        // update() from a dummy-initialized state would not reproduce it).
         auto obs_history = json.at("observation_history").get<std::vector<double>>();
         auto residual_history = json.at("residual_history").get<std::vector<double>>();
-
-        // Update state for each historical observation/residual pair
-        // Note: This is a workaround since we can't directly set private members
-        // We'll update in reverse order to populate the histories correctly
-        for (size_t i = 0; i < obs_history.size() && i < residual_history.size(); ++i) {
-            state.update(obs_history[i], residual_history[i]);
+        std::vector<double> differenced_series;
+        if (json.contains("differenced_series")) {
+            differenced_series = json.at("differenced_series").get<std::vector<double>>();
         }
+
+        state.restore(obs_history, residual_history, differenced_series);
 
         return state;
     } catch (const nlohmann::json::exception& e) {
@@ -293,20 +285,14 @@ JsonReader::garchStateFromJson(const nlohmann::json& json, const models::GarchSp
     try {
         models::garch::GarchState state(spec.p, spec.q);
 
-        // Initialize with dummy data
-        std::vector<double> dummy_residuals(1, 0.0);
+        // Restore the saved histories and initial variance directly (see the
+        // ArimaState helper above for why replaying update() is insufficient).
         double initial_variance = json.at("initial_variance").get<double>();
-        state.initialize(dummy_residuals.data(), dummy_residuals.size(), initial_variance);
-
-        // Populate histories by calling update()
         auto variance_history = json.at("variance_history").get<std::vector<double>>();
         auto squared_residual_history =
             json.at("squared_residual_history").get<std::vector<double>>();
 
-        for (size_t i = 0; i < variance_history.size() && i < squared_residual_history.size();
-             ++i) {
-            state.update(variance_history[i], squared_residual_history[i]);
-        }
+        state.restore(variance_history, squared_residual_history, initial_variance);
 
         return state;
     } catch (const nlohmann::json::exception& e) {
@@ -378,14 +364,24 @@ JsonReader::loadModel(const std::filesystem::path& filepath) {
         // Create model
         models::composite::ArimaGarchModel model(spec, *params_result);
 
-        // Note: The state is initialized in the constructor with dummy data.
-        // For a full round-trip, we would need to either:
-        // 1. Add a method to the model to restore state from saved histories
-        // 2. Accept that the state will be re-initialized when loading
-        //
-        // For now, the loaded model will have fresh state (as if just fitted)
-        // This is acceptable because the parameters are what matter for forecasting.
-        // The state can be rebuilt by processing the original data through update().
+        // Restore the saved state so forecasts continue from the model's
+        // terminal state rather than from a fresh zero-history state. Older
+        // files without a "state" block keep the constructor's fresh state.
+        if (j.contains("state")) {
+            const auto& state_json = j.at("state");
+
+            auto arima_state_result = arimaStateFromJson(state_json.at("arima"), spec.arimaSpec);
+            if (!arima_state_result.has_value()) {
+                return unexpected<JsonError>(arima_state_result.error());
+            }
+
+            auto garch_state_result = garchStateFromJson(state_json.at("garch"), spec.garchSpec);
+            if (!garch_state_result.has_value()) {
+                return unexpected<JsonError>(garch_state_result.error());
+            }
+
+            model.restoreState(*arima_state_result, *garch_state_result);
+        }
 
         return model;
     } catch (const nlohmann::json::exception& e) {

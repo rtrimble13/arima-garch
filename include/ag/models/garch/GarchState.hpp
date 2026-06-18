@@ -51,6 +51,24 @@ public:
     void update(double conditional_variance, double squared_residual);
 
     /**
+     * @brief Restore the state directly from previously saved histories.
+     *
+     * Used when deserializing a fitted model so that variance forecasts
+     * continue from the exact terminal state. @p variance_history must hold p
+     * values and @p squared_residual_history q values (oldest first), matching
+     * the orders this state was constructed with. For an ARIMA-only model
+     * (p == q == 0) both histories are empty and only @p initial_variance is
+     * meaningful (it is the constant variance the model returns).
+     *
+     * @param variance_history The p most recent conditional variances
+     * @param squared_residual_history The q most recent squared residuals
+     * @param initial_variance The initial conditional variance h_0
+     * @throws std::invalid_argument if a history size does not match the order
+     */
+    void restore(const std::vector<double>& variance_history,
+                 const std::vector<double>& squared_residual_history, double initial_variance);
+
+    /**
      * @brief Get the historical conditional variances for GARCH component.
      * @return Vector of the most recent p conditional variances (oldest first)
      */

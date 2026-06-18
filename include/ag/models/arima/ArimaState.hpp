@@ -51,6 +51,25 @@ public:
     void update(double observation, double residual);
 
     /**
+     * @brief Restore the state directly from previously saved histories.
+     *
+     * Used when deserializing a fitted model so that forecasts continue from
+     * the exact terminal state, rather than from a fresh zero-history state.
+     * The histories are the bounded sliding windows the recursion consumes:
+     * @p observation_history must hold p values and @p residual_history q
+     * values (oldest first), matching the orders this state was constructed
+     * with.
+     *
+     * @param observation_history The p most recent observations (oldest first)
+     * @param residual_history The q most recent residuals (oldest first)
+     * @param differenced_series The differenced series (empty when d == 0)
+     * @throws std::invalid_argument if a history size does not match the order
+     */
+    void restore(const std::vector<double>& observation_history,
+                 const std::vector<double>& residual_history,
+                 const std::vector<double>& differenced_series);
+
+    /**
      * @brief Get the historical observations for AR component.
      * @return Vector of the most recent p observations (oldest first)
      */
