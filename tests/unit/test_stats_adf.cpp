@@ -152,6 +152,32 @@ TEST(adf_test_auto_lag_selection) {
     REQUIRE(result.p_value <= 1.0);
 }
 
+// Auto lag selection must respond to autocorrelation in the differences.
+// Here Δy follows an AR(1) with strong persistence, so including lagged
+// differences materially lowers the regression RSS and AIC should prefer a
+// non-zero lag. The previous variance-of-Δy shortcut always returned lag 0.
+TEST(adf_test_auto_lag_selects_nonzero_with_ar_differences) {
+    std::mt19937 gen(2024);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const std::size_t n = 400;
+    std::vector<double> data(n);
+    double diff = 0.0;
+    data[0] = 0.0;
+    for (std::size_t t = 1; t < n; ++t) {
+        diff = 0.7 * diff + dist(gen);  // AR(1) differences
+        data[t] = data[t - 1] + diff;
+    }
+
+    auto result = ag::stats::adf_test(data, 0, ag::stats::ADFRegressionForm::Constant);
+
+    // With AR(1) differences, the information criterion should pick at least
+    // one lagged difference rather than collapsing to lag 0.
+    REQUIRE(result.lags >= 1);
+    REQUIRE(result.p_value >= 0.0);
+    REQUIRE(result.p_value <= 1.0);
+}
+
 // Test automatic regression form selection
 TEST(adf_test_auto_regression_form) {
     std::mt19937 gen(666);
