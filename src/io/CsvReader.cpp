@@ -21,20 +21,42 @@ std::string trim(const std::string& str) {
     return str.substr(start, end - start + 1);
 }
 
-// Helper function to split a line by delimiter
+// Helper function to split a line by delimiter with minimal RFC-4180 quoting.
+// A double-quoted field may contain the delimiter literally, and an escaped
+// quote ("") inside a quoted field denotes a single quote. Surrounding quotes
+// are stripped; fields are then trimmed (so quoted whitespace padding around a
+// numeric value is removed, matching the reader's numeric intent).
 std::vector<std::string> split_line(const std::string& line, char delimiter) {
     std::vector<std::string> result;
-    std::stringstream ss(line);
-    std::string item;
+    std::string field;
+    bool in_quotes = false;
 
-    while (std::getline(ss, item, delimiter)) {
-        result.push_back(trim(item));
+    for (std::size_t i = 0; i < line.size(); ++i) {
+        const char c = line[i];
+        if (in_quotes) {
+            if (c == '"') {
+                if (i + 1 < line.size() && line[i + 1] == '"') {
+                    field.push_back('"');  // escaped quote ("")
+                    ++i;
+                } else {
+                    in_quotes = false;  // closing quote
+                }
+            } else {
+                field.push_back(c);
+            }
+        } else if (c == '"') {
+            in_quotes = true;
+        } else if (c == delimiter) {
+            result.push_back(trim(field));
+            field.clear();
+        } else {
+            field.push_back(c);
+        }
     }
 
-    // Handle trailing delimiter - if line ends with delimiter, add empty field
-    if (!line.empty() && line.back() == delimiter) {
-        result.push_back("");
-    }
+    // Final field (also yields the trailing empty field when the line ends with
+    // a delimiter).
+    result.push_back(trim(field));
 
     return result;
 }

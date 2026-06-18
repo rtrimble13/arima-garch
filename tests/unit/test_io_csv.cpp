@@ -148,6 +148,50 @@ TEST(csv_read_from_string_with_multiple_columns) {
     REQUIRE_APPROX(ts[2], 1.8, 1e-10);
 }
 
+// Quoted numeric fields: surrounding quotes are stripped before parsing.
+// Regression test for #141.
+TEST(csv_read_quoted_numeric_fields) {
+    std::string csv_content = "\"1.5\"\n\"2.3\"\n\"1.8\"\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 3);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+    REQUIRE_APPROX(ts[2], 1.8, 1e-10);
+}
+
+// A delimiter inside a quoted field must not split the field, so column
+// alignment (and the numeric column) is preserved. Regression test for #141.
+TEST(csv_read_quoted_embedded_delimiter) {
+    // First column is a quoted label containing a comma; value is column 1.
+    std::string csv_content = "\"Jan, 2020\",1.5\n\"Feb, 2020\",2.3\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+}
+
+// Escaped quotes ("") inside a quoted field collapse to a single quote without
+// breaking field boundaries. Regression test for #141.
+TEST(csv_read_quoted_escaped_quotes) {
+    std::string csv_content = "\"a \"\"x\"\", b\",1.5\n\"c\",2.3\n";
+
+    auto result = CsvReader::read_from_string(csv_content);
+    REQUIRE(result.has_value());
+
+    const auto& ts = *result;
+    REQUIRE(ts.size() == 2);
+    REQUIRE_APPROX(ts[0], 1.5, 1e-10);
+    REQUIRE_APPROX(ts[1], 2.3, 1e-10);
+}
+
 // Test error handling: file not found
 TEST(csv_read_error_file_not_found) {
     std::filesystem::path bad_path = "/nonexistent/path/file.csv";
