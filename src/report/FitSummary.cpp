@@ -52,6 +52,18 @@ std::string generateTextReport(const FitSummary& summary) {
         report += "\n";
     }
 
+    // AR stationarity / MA invertibility (reported; not enforced during fitting).
+    if (summary.spec.arimaSpec.p > 0) {
+        report += summary.parameters.arima_params.isStationary()
+                      ? "     AR stationarity:  stationary\n"
+                      : "     AR stationarity:  NON-STATIONARY (explosive AR roots)\n";
+    }
+    if (summary.spec.arimaSpec.q > 0) {
+        report += summary.parameters.arima_params.isInvertible()
+                      ? "     MA invertibility: invertible\n"
+                      : "     MA invertibility: NON-INVERTIBLE\n";
+    }
+
     report += "\n   GARCH:\n";
     report += fmt::format("     Omega:            {:.6f}\n", summary.parameters.garch_params.omega);
 

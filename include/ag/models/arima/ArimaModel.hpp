@@ -25,6 +25,23 @@ struct ArimaParameters {
      * @param q Number of MA coefficients
      */
     ArimaParameters(int p, int q) : intercept(0.0), ar_coef(p, 0.0), ma_coef(q, 0.0) {}
+
+    /**
+     * @brief Whether the AR polynomial is stationary.
+     *
+     * True iff all roots of 1 − φ₁z − … − φₚzᵖ lie outside the unit circle.
+     * Uses the Schur-Cohn reflection-coefficient test (no root-finding). An
+     * empty AR part is trivially stationary.
+     */
+    [[nodiscard]] bool isStationary() const;
+
+    /**
+     * @brief Whether the MA polynomial is invertible.
+     *
+     * True iff all roots of 1 + θ₁z + … + θ_qz^q lie outside the unit circle.
+     * An empty MA part is trivially invertible.
+     */
+    [[nodiscard]] bool isInvertible() const;
 };
 
 /**

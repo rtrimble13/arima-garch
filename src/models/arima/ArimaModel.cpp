@@ -1,8 +1,50 @@
 #include "ag/models/arima/ArimaModel.hpp"
 
+#include <cmath>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace ag::models::arima {
+
+namespace {
+
+// Returns true iff all roots of the lag polynomial 1 - a_1 z - ... - a_p z^p
+// lie strictly outside the unit circle (i.e. the filter is minimum-phase).
+// Uses the Schur-Cohn / Levinson step-down recursion: the polynomial is stable
+// iff every reflection coefficient has magnitude < 1. No root-finding required.
+bool roots_outside_unit_circle(std::vector<double> a) {
+    while (!a.empty()) {
+        const std::size_t m = a.size();
+        const double k = a[m - 1];  // reflection coefficient at order m
+        if (std::abs(k) >= 1.0) {
+            return false;
+        }
+        const double denom = 1.0 - k * k;  // > 0 since |k| < 1
+        std::vector<double> next(m - 1);
+        for (std::size_t i = 0; i + 1 < m; ++i) {
+            next[i] = (a[i] + k * a[m - 2 - i]) / denom;
+        }
+        a = std::move(next);
+    }
+    return true;
+}
+
+}  // namespace
+
+bool ArimaParameters::isStationary() const {
+    // AR filter is 1 - phi_1 z - ... - phi_p z^p, so a_i = phi_i.
+    return roots_outside_unit_circle(ar_coef);
+}
+
+bool ArimaParameters::isInvertible() const {
+    // MA filter is 1 + theta_1 z + ... = 1 - (-theta_1) z - ..., so a_i = -theta_i.
+    std::vector<double> a(ma_coef.size());
+    for (std::size_t i = 0; i < ma_coef.size(); ++i) {
+        a[i] = -ma_coef[i];
+    }
+    return roots_outside_unit_circle(std::move(a));
+}
 
 ArimaModel::ArimaModel(const ag::models::ArimaSpec& spec) : spec_(spec) {
     spec.validate();
