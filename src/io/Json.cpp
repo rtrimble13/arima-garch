@@ -93,6 +93,14 @@ nlohmann::json JsonWriter::toJson(const models::composite::ArimaGarchModel& mode
                                      {"garch", toJson(model.getGarchParams())}};
     j["state"] = nlohmann::json{{"arima", toJson(model.getArimaState())},
                                 {"garch", toJson(model.getGarchState())}};
+
+    // Differencing anchors (d > 0). Needed so a reloaded model integrates
+    // forecasts from the saved terminal levels rather than from zero.
+    const auto& differencer = model.getDifferencer();
+    j["state"]["differencer"] =
+        nlohmann::json{{"order", differencer.order()},
+                       {"anchors", differencer.anchors()},
+                       {"observation_count", differencer.observationCount()}};
     return j;
 }
 
@@ -381,6 +389,26 @@ JsonReader::loadModel(const std::filesystem::path& filepath) {
             }
 
             model.restoreState(*arima_state_result, *garch_state_result);
+
+            // Restore the differencing anchors so d > 0 models integrate
+            // forecasts from the saved terminal levels. Files written before
+            // this block existed simply keep the constructor's fresh (zero)
+            // anchors.
+            if (state_json.contains("differencer")) {
+                const auto& diff_json = state_json.at("differencer");
+                int order = diff_json.at("order").get<int>();
+                if (order != spec.arimaSpec.d) {
+                    return unexpected<JsonError>({"Differencer order mismatch: expected " +
+                                                  std::to_string(spec.arimaSpec.d) + ", got " +
+                                                  std::to_string(order)});
+                }
+                auto anchors = diff_json.at("anchors").get<std::vector<double>>();
+                auto observation_count = diff_json.at("observation_count").get<std::size_t>();
+
+                ag::util::StreamingDifferencer differencer(order);
+                differencer.restore(anchors, observation_count);
+                model.restoreDifferencer(differencer);
+            }
         }
 
         return model;

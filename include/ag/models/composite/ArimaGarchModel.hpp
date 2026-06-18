@@ -126,6 +126,19 @@ public:
     }
 
     /**
+     * @brief Restore the differencing anchors (for d > 0 models).
+     *
+     * Used when deserializing a fitted model so that forecasts integrate from
+     * the saved terminal levels rather than from zero initial conditions. The
+     * supplied differencer must have the same order as this model's spec.
+     *
+     * @param differencer The restored streaming differencer
+     */
+    void restoreDifferencer(const ag::util::StreamingDifferencer& differencer) {
+        differencer_ = differencer;
+    }
+
+    /**
      * @brief Get the ARIMA-GARCH specification for this model.
      * @return The ARIMA-GARCH specification
      */

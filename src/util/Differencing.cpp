@@ -94,4 +94,14 @@ bool StreamingDifferencer::primed() const noexcept {
     return count_ >= static_cast<std::size_t>(d_);
 }
 
+void StreamingDifferencer::restore(const std::vector<double>& anchors,
+                                   std::size_t observation_count) {
+    if (anchors.size() != static_cast<std::size_t>(d_)) {
+        throw std::invalid_argument(
+            "StreamingDifferencer::restore: anchor count must equal differencing order");
+    }
+    last_ = anchors;
+    count_ = observation_count;
+}
+
 }  // namespace ag::util

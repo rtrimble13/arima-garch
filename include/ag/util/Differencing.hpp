@@ -80,6 +80,28 @@ public:
      */
     [[nodiscard]] int order() const noexcept { return d_; }
 
+    /**
+     * @brief The current integration anchors (most recent k-th order
+     *        differences, k = 0..d-1). Empty for d == 0.
+     */
+    [[nodiscard]] const std::vector<double>& anchors() const noexcept { return last_; }
+
+    /**
+     * @brief Number of raw observations consumed by difference().
+     */
+    [[nodiscard]] std::size_t observationCount() const noexcept { return count_; }
+
+    /**
+     * @brief Restore the anchors and observation count (e.g. when deserializing
+     *        a fitted model) so integration continues from the saved terminal
+     *        levels rather than from zero initial conditions.
+     *
+     * @param anchors The d most recent lower-order differences (size must == d)
+     * @param observation_count Number of raw observations previously consumed
+     * @throws std::invalid_argument if anchors.size() != order()
+     */
+    void restore(const std::vector<double>& anchors, std::size_t observation_count);
+
 private:
     int d_;                     // Differencing order
     std::vector<double> last_;  // last_[k] = most recent k-th order difference (k = 0..d-1)
