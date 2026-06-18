@@ -398,6 +398,54 @@ TEST(arima_model_ar1_with_diff) {
     }
 }
 
+// AR-stationarity check (Schur-Cohn) flags stationary vs explosive AR sets.
+// Regression test for #140.
+TEST(arima_params_ar_stationarity) {
+    ArimaParameters p0(0, 0);
+    REQUIRE(p0.isStationary());  // no AR part is trivially stationary
+
+    ArimaParameters ar1(1, 0);
+    ar1.ar_coef = {0.5};
+    REQUIRE(ar1.isStationary());
+    ar1.ar_coef = {-0.99};
+    REQUIRE(ar1.isStationary());
+    ar1.ar_coef = {1.5};
+    REQUIRE(!ar1.isStationary());
+    ar1.ar_coef = {1.0};  // unit root
+    REQUIRE(!ar1.isStationary());
+
+    ArimaParameters ar2(2, 0);
+    ar2.ar_coef = {0.5, 0.2};  // inside the AR(2) stationarity triangle
+    REQUIRE(ar2.isStationary());
+    ar2.ar_coef = {0.6, -0.3};
+    REQUIRE(ar2.isStationary());
+    ar2.ar_coef = {0.5, 0.6};  // phi1 + phi2 > 1 -> non-stationary
+    REQUIRE(!ar2.isStationary());
+}
+
+// MA-invertibility check flags invertible vs non-invertible MA sets.
+// Regression test for #140.
+TEST(arima_params_ma_invertibility) {
+    ArimaParameters q0(0, 0);
+    REQUIRE(q0.isInvertible());  // no MA part is trivially invertible
+
+    ArimaParameters ma1(0, 1);
+    ma1.ma_coef = {0.5};
+    REQUIRE(ma1.isInvertible());
+    ma1.ma_coef = {-0.5};
+    REQUIRE(ma1.isInvertible());
+    ma1.ma_coef = {1.5};
+    REQUIRE(!ma1.isInvertible());
+    ma1.ma_coef = {1.0};  // root on the unit circle
+    REQUIRE(!ma1.isInvertible());
+
+    ArimaParameters ma2(0, 2);
+    ma2.ma_coef = {0.4, 0.2};
+    REQUIRE(ma2.isInvertible());
+    ma2.ma_coef = {0.3, 1.2};  // |theta_2| > 1 -> non-invertible
+    REQUIRE(!ma2.isInvertible());
+}
+
 int main() {
     report_test_results("ARIMA Models");
     return get_test_result();
