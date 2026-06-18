@@ -46,9 +46,11 @@ double ArimaGarchLikelihood::computeNegativeLogLikelihood(
             double eps_t = residuals[t];
             double h_t = conditional_variances[t];
 
-            // Guard against non-positive variance (should not happen with valid parameters)
-            if (h_t <= 0.0) {
-                throw std::runtime_error("Conditional variance must be positive");
+            // Guard against non-positive or non-finite variance. The negated
+            // comparison also rejects NaN (every comparison with NaN is false),
+            // which a bare `h_t <= 0.0` would silently let through.
+            if (!(h_t > 0.0)) {
+                throw std::runtime_error("Conditional variance must be positive and finite");
             }
 
             // Accumulate: 0.5 * (log(h_t) + ε_t² / h_t)
@@ -67,13 +69,23 @@ double ArimaGarchLikelihood::computeNegativeLogLikelihood(
             double eps_t = residuals[t];
             double h_t = conditional_variances[t];
 
-            if (h_t <= 0.0) {
-                throw std::runtime_error("Conditional variance must be positive");
+            if (!(h_t > 0.0)) {
+                throw std::runtime_error("Conditional variance must be positive and finite");
             }
 
             const double standardized_sq = (eps_t * eps_t) / (df_minus_2 * h_t);
             nll += df_constant + 0.5 * std::log(h_t) + half_df_plus_1 * std::log1p(standardized_sq);
         }
+    }
+
+    // A diverging/explosive recursion (or a non-finite residual that slipped
+    // through) can yield a NaN/Inf NLL. Returning it would let Nelder-Mead
+    // treat the vertex as "not worse" (every comparison with NaN is false) and
+    // potentially report convergence on garbage parameters. Throwing here lets
+    // the FitDriver objective map it to CONSTRAINT_PENALTY so the optimizer
+    // steers away consistently.
+    if (!std::isfinite(nll)) {
+        throw std::runtime_error("Negative log-likelihood is not finite");
     }
 
     return nll;

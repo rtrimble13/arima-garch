@@ -7,7 +7,9 @@
 #include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <memory>
+#include <string>
 
 #include "test_framework.hpp"
 
@@ -63,6 +65,28 @@ TEST(engine_fit_insufficient_data) {
     auto fit_result = engine.fit(data, spec);
 
     REQUIRE(!fit_result.has_value());
+}
+
+TEST(engine_fit_nonfinite_data_fails_cleanly) {
+    // Data with a NaN (and an Inf) must not produce a "successful" converged
+    // fit built on non-finite parameters; it should fail with an actionable
+    // message. Regression test for the NaN/Inf likelihood guard.
+    ArimaGarchSpec spec(1, 0, 1, 1, 1);
+
+    std::vector<double> nan_data(50, 0.1);
+    nan_data[25] = std::numeric_limits<double>::quiet_NaN();
+
+    Engine engine;
+    auto fit_nan = engine.fit(nan_data, spec);
+    REQUIRE(!fit_nan.has_value());
+    REQUIRE(fit_nan.error().message.find("non-finite") != std::string::npos);
+
+    std::vector<double> inf_data(50, 0.1);
+    inf_data[10] = std::numeric_limits<double>::infinity();
+
+    auto fit_inf = engine.fit(inf_data, spec);
+    REQUIRE(!fit_inf.has_value());
+    REQUIRE(fit_inf.error().message.find("non-finite") != std::string::npos);
 }
 
 TEST(engine_fit_no_diagnostics) {
