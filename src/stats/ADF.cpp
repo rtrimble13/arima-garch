@@ -99,10 +99,10 @@ double approximate_pvalue(double statistic, double cv1, double cv5, double cv10)
 }
 
 /**
- * @brief Simple OLS regression to compute ADF test statistic.
+ * @brief Compute the ADF t-statistic for the y_{t-1} coefficient.
  *
- * Solves the regression: y = X * beta + residuals
- * Returns the t-statistic for the coefficient of interest (y_{t-1}).
+ * Thin wrapper over the shared ag::util::olsTStatistic so the observed ADF
+ * statistic and the bootstrap statistic (Bootstrap.cpp) use one implementation.
  *
  * @param y Dependent variable (Δy_t)
  * @param X Design matrix (columns: [1, t, y_{t-1}, Δy_{t-1}, ..., Δy_{t-p}])
@@ -111,60 +111,7 @@ double approximate_pvalue(double statistic, double cv1, double cv5, double cv10)
  */
 double compute_ols_tstat(const std::vector<double>& y, const std::vector<std::vector<double>>& X,
                          std::size_t coef_index) {
-    const std::size_t n = y.size();
-    const std::size_t k = X[0].size();
-
-    if (n == 0 || k == 0 || n < k) {
-        throw std::invalid_argument("Invalid dimensions for OLS regression");
-    }
-
-    // Solve least squares using utility function
-    std::vector<double> beta = ag::util::solveLeastSquares(X, y, 1e-12);
-
-    if (beta.empty()) {
-        throw std::runtime_error("Singular matrix in OLS regression");
-    }
-
-    // Compute residual sum of squares
-    double rss = 0.0;
-    for (std::size_t t = 0; t < n; ++t) {
-        double fitted = 0.0;
-        for (std::size_t i = 0; i < k; ++i) {
-            fitted += X[t][i] * beta[i];
-        }
-        double resid = y[t] - fitted;
-        rss += resid * resid;
-    }
-
-    // Estimate variance - ensure we have sufficient degrees of freedom
-    if (n <= k) {
-        throw std::runtime_error("Insufficient degrees of freedom in OLS regression");
-    }
-    double sigma2 = rss / static_cast<double>(n - k);
-
-    // Compute (X'X)^{-1} for standard errors
-    // We need the diagonal element for coef_index
-    // Solve X'X * v = e_i where e_i is unit vector
-    std::vector<double> ei(k, 0.0);
-    ei[coef_index] = 1.0;
-
-    // Compute X'X
-    auto XtX = ag::util::computeGramMatrix(X);
-
-    // Solve for the column of the inverse matrix
-    std::vector<double> inv_col = ag::util::solveLinearSystem(XtX, ei, 1e-12);
-
-    if (inv_col.empty()) {
-        throw std::runtime_error("Failed to compute standard errors");
-    }
-
-    // Standard error for beta[coef_index]
-    double se = std::sqrt(sigma2 * inv_col[coef_index]);
-
-    // t-statistic
-    double t_stat = beta[coef_index] / se;
-
-    return t_stat;
+    return ag::util::olsTStatistic(X, y, coef_index, 1e-12);
 }
 
 /**

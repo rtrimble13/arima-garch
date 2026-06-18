@@ -274,97 +274,7 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
         }
     }
 
-    // Solve least squares to get coefficients and standard errors
-    // Compute X'X
-    std::vector<std::vector<double>> XtX(n_regressors, std::vector<double>(n_regressors, 0.0));
-    for (std::size_t i = 0; i < n_regressors; ++i) {
-        for (std::size_t j = 0; j < n_regressors; ++j) {
-            for (std::size_t t = 0; t < n_obs; ++t) {
-                XtX[i][j] += X[t][i] * X[t][j];
-            }
-        }
-    }
-
-    // Compute X'y
-    std::vector<double> Xty(n_regressors, 0.0);
-    for (std::size_t i = 0; i < n_regressors; ++i) {
-        for (std::size_t t = 0; t < n_obs; ++t) {
-            Xty[i] += X[t][i] * y_vec[t];
-        }
-    }
-
-    // Solve for coefficients using Gaussian elimination
-    std::vector<double> beta(n_regressors, 0.0);
-
-    // Copy XtX and Xty for solving (to preserve originals for variance calculation)
-    auto A = XtX;
-    auto b = Xty;
-
-    // Gaussian elimination with partial pivoting
-    for (std::size_t k = 0; k < n_regressors; ++k) {
-        // Find pivot
-        std::size_t max_row = k;
-        double max_val = std::abs(A[k][k]);
-        for (std::size_t i = k + 1; i < n_regressors; ++i) {
-            if (std::abs(A[i][k]) > max_val) {
-                max_val = std::abs(A[i][k]);
-                max_row = i;
-            }
-        }
-
-        if (max_row != k) {
-            std::swap(A[k], A[max_row]);
-            std::swap(b[k], b[max_row]);
-        }
-
-        // Forward elimination
-        for (std::size_t i = k + 1; i < n_regressors; ++i) {
-            if (std::abs(A[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
-                continue;
-            }
-            double factor = A[i][k] / A[k][k];
-            for (std::size_t j = k; j < n_regressors; ++j) {
-                A[i][j] -= factor * A[k][j];
-            }
-            b[i] -= factor * b[k];
-        }
-    }
-
-    // Back substitution
-    for (int i = static_cast<int>(n_regressors) - 1; i >= 0; --i) {
-        if (std::abs(A[i][i]) < MATRIX_SINGULARITY_TOLERANCE) {
-            beta[i] = 0.0;
-            continue;
-        }
-        beta[i] = b[i];
-        for (std::size_t j = i + 1; j < n_regressors; ++j) {
-            beta[i] -= A[i][j] * beta[j];
-        }
-        beta[i] /= A[i][i];
-    }
-
-    // Compute residuals and variance
-    std::vector<double> resid(n_obs);
-    for (std::size_t t = 0; t < n_obs; ++t) {
-        double fitted = 0.0;
-        for (std::size_t j = 0; j < n_regressors; ++j) {
-            fitted += beta[j] * X[t][j];
-        }
-        resid[t] = y_vec[t] - fitted;
-    }
-
-    // Compute residual sum of squares
-    double rss = 0.0;
-    for (double r : resid) {
-        rss += r * r;
-    }
-
-    // Estimate variance: σ̂² = RSS / (n - k)
-    double sigma_sq = rss / static_cast<double>(n_obs - n_regressors);
-
-    // Compute (X'X)^{-1} to get standard errors
-    // We need the diagonal element corresponding to the φ coefficient
-    // The φ coefficient is at index: 0 if no constant/trend, 1 if constant, 2 if constant+trend
+    // The φ coefficient (on y_{t-1}) follows the deterministic terms.
     std::size_t phi_idx = 0;
     if (form == ADFRegressionForm::Constant) {
         phi_idx = 1;
@@ -372,75 +282,16 @@ double compute_adf_statistic(std::span<const double> data, std::size_t lags,
         phi_idx = 2;
     }
 
-    // Invert XtX to get (X'X)^{-1}
-    // For numerical stability, we use Cholesky decomposition if possible
-    // For simplicity in bootstrap context, use direct inversion via Gaussian elimination
-
-    // Create augmented matrix [XtX | I]
-    std::vector<std::vector<double>> aug(n_regressors, std::vector<double>(2 * n_regressors, 0.0));
-    for (std::size_t i = 0; i < n_regressors; ++i) {
-        for (std::size_t j = 0; j < n_regressors; ++j) {
-            aug[i][j] = XtX[i][j];
-        }
-        aug[i][n_regressors + i] = 1.0;  // Identity on the right
-    }
-
-    // Gaussian elimination to get [I | (X'X)^{-1}]
-    for (std::size_t k = 0; k < n_regressors; ++k) {
-        // Find pivot
-        std::size_t max_row = k;
-        double max_val = std::abs(aug[k][k]);
-        for (std::size_t i = k + 1; i < n_regressors; ++i) {
-            if (std::abs(aug[i][k]) > max_val) {
-                max_val = std::abs(aug[i][k]);
-                max_row = i;
-            }
-        }
-
-        if (max_row != k) {
-            std::swap(aug[k], aug[max_row]);
-        }
-
-        // Scale pivot row
-        if (std::abs(aug[k][k]) < MATRIX_SINGULARITY_TOLERANCE) {
-            continue;  // Singular matrix
-        }
-        double pivot = aug[k][k];
-        for (std::size_t j = 0; j < 2 * n_regressors; ++j) {
-            aug[k][j] /= pivot;
-        }
-
-        // Eliminate column k in all other rows
-        for (std::size_t i = 0; i < n_regressors; ++i) {
-            if (i == k)
-                continue;
-            double factor = aug[i][k];
-            for (std::size_t j = 0; j < 2 * n_regressors; ++j) {
-                aug[i][j] -= factor * aug[k][j];
-            }
-        }
-    }
-
-    // Extract (X'X)^{-1}
-    std::vector<std::vector<double>> XtX_inv(n_regressors, std::vector<double>(n_regressors));
-    for (std::size_t i = 0; i < n_regressors; ++i) {
-        for (std::size_t j = 0; j < n_regressors; ++j) {
-            XtX_inv[i][j] = aug[i][n_regressors + j];
-        }
-    }
-
-    // Standard error of φ: SE(φ) = sqrt(σ̂² * (X'X)^{-1}_{φ,φ})
-    double se_phi = std::sqrt(sigma_sq * XtX_inv[phi_idx][phi_idx]);
-
-    if (se_phi < MATRIX_SINGULARITY_TOLERANCE) {
-        // Avoid division by zero
+    // Use the shared OLS t-statistic so the observed and bootstrap ADF
+    // statistics are produced by one implementation (the bespoke Gauss-Jordan
+    // inverse previously here has been removed). A singular regression on a
+    // bootstrap replicate is treated as an uninformative 0, matching the prior
+    // behavior, rather than aborting the whole bootstrap.
+    try {
+        return ag::util::olsTStatistic(X, y_vec, phi_idx, MATRIX_SINGULARITY_TOLERANCE);
+    } catch (const std::exception&) {
         return 0.0;
     }
-
-    // t-statistic: t = φ̂ / SE(φ̂)
-    double t_stat = beta[phi_idx] / se_phi;
-
-    return t_stat;
 }
 
 }  // anonymous namespace
