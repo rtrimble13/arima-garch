@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <random>
+#include <vector>
 
 #include "test_framework.hpp"
 
@@ -148,11 +150,39 @@ TEST(garch_params_unconditional_variance) {
     double expected_var = 0.1 / (1.0 - 0.15 - 0.75);
     REQUIRE_APPROX(params.unconditionalVariance(), expected_var, 1e-10);
 
-    // Non-stationary case
+    // Non-stationary case: the unconditional variance does not exist, signalled
+    // by NaN (not the old 0.0 sentinel, which conflated it with a real value).
     params.alpha_coef[0] = 0.5;
     params.beta_coef[0] = 0.5;
     REQUIRE(!params.isStationary());
-    REQUIRE_APPROX(params.unconditionalVariance(), 0.0, 1e-10);
+    REQUIRE(std::isnan(params.unconditionalVariance()));
+}
+
+// Near the IGARCH boundary (alpha + beta = 0.99) the unconditional variance is
+// finite and positive, and GarchState initializes h_0 from it (no 0.0 sentinel
+// / sample-variance flip). A NaN (non-stationary) falls back to a finite
+// positive sample variance. Regression test for #142.
+TEST(garch_unconditional_variance_near_igarch) {
+    GarchParameters params(1, 1);
+    params.omega = 0.02;
+    params.alpha_coef[0] = 0.09;
+    params.beta_coef[0] = 0.90;  // alpha + beta = 0.99
+
+    REQUIRE(params.isStationary());
+    double uv = params.unconditionalVariance();
+    REQUIRE(std::isfinite(uv));
+    REQUIRE(uv > 0.0);
+    REQUIRE_APPROX(uv, 0.02 / 0.01, 1e-9);
+
+    std::vector<double> residuals = {0.1, -0.2, 0.15, -0.05, 0.2, -0.1};
+    GarchState state(1, 1);
+    state.initialize(residuals.data(), residuals.size(), uv);
+    REQUIRE_APPROX(state.getInitialVariance(), uv, 1e-9);
+
+    GarchState state2(1, 1);
+    state2.initialize(residuals.data(), residuals.size(), std::numeric_limits<double>::quiet_NaN());
+    REQUIRE(std::isfinite(state2.getInitialVariance()));
+    REQUIRE(state2.getInitialVariance() > 0.0);
 }
 
 // ============================================================================
