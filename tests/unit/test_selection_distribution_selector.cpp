@@ -62,6 +62,23 @@ TEST(estimate_student_t_df_heavy_tails) {
     REQUIRE(df < 30.0);
 }
 
+// Light-tailed residuals (excess kurtosis <= 0) give no support for heavy
+// tails, so a high df is reported rather than an arbitrary bracket midpoint.
+// Regression test for argmin / flat-surface handling.
+TEST(estimate_student_t_df_light_tails_high_df) {
+    // Uniform ramp is platykurtic (excess kurtosis ~ -1.2).
+    std::vector<double> light_tail_residuals;
+    for (int i = 0; i < 200; ++i) {
+        light_tail_residuals.push_back(-2.0 + 4.0 * i / 199.0);
+    }
+
+    double df = estimateStudentTDF(light_tail_residuals);
+    REQUIRE(df >= 100.0);  // reported as Normal-like
+
+    // Deterministic / stable across repeated calls.
+    REQUIRE(df == estimateStudentTDF(light_tail_residuals));
+}
+
 // Test with empty vector
 TEST(estimate_student_t_df_empty) {
     std::vector<double> empty;

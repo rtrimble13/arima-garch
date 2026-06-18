@@ -16,6 +16,15 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
         throw std::invalid_argument("Cannot estimate degrees of freedom from empty residuals");
     }
 
+    // Near-Gaussian residuals give no support for heavy tails: the Student-t
+    // log-likelihood surface is essentially flat in df, so any interior point
+    // is arbitrary. Report a high df (Normal-like) rather than a meaningless
+    // value. Excess kurtosis <= 0 means no heavier-than-Gaussian tails.
+    constexpr double HIGH_DF = 100.0;
+    if (std_residuals.size() >= 4 && ag::stats::kurtosis(std_residuals) <= 0.0) {
+        return HIGH_DF;
+    }
+
     // Objective: maximize Student-t log-likelihood w.r.t. df
     auto objective = [&](double df) -> double {
         if (df <= 2.0 || df > 100.0)
@@ -34,22 +43,27 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
         return -ll;  // Negate for minimization
     };
 
-    // Grid search followed by optimization
+    // Track the best (argmin) df actually evaluated rather than returning the
+    // bracket midpoint, which is a worse df when the optimum sits at a bracket
+    // boundary and is arbitrary on a flat surface.
     double best_df = 5.0;
-    double best_ll = objective(5.0);
-
-    // Try common df values
-    for (double df : {3.0, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0, 30.0}) {
-        double ll = objective(df);
-        if (ll < best_ll) {
-            best_ll = ll;
+    double best_obj = objective(best_df);
+    auto consider = [&](double df) {
+        double o = objective(df);
+        if (o < best_obj) {
+            best_obj = o;
             best_df = df;
         }
+    };
+
+    // Grid search over common df values (incl. the high-df boundary).
+    for (double df : {3.0, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0, 30.0, 50.0, HIGH_DF}) {
+        consider(df);
     }
 
-    // Fine-tune with simple golden section search
+    // Fine-tune with a golden section search around the best grid point.
     double a = std::max(3.0, best_df - 5.0);
-    double b = std::min(100.0, best_df + 5.0);
+    double b = std::min(HIGH_DF, best_df + 5.0);
     const double phi = (1.0 + std::sqrt(5.0)) / 2.0;
     const double resphi = 2.0 - phi;
     const double tol = 1e-5;
@@ -58,6 +72,8 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
     double x2 = b - resphi * (b - a);
     double f1 = objective(x1);
     double f2 = objective(x2);
+    consider(x1);
+    consider(x2);
 
     while (std::abs(b - a) > tol) {
         if (f1 < f2) {
@@ -66,16 +82,18 @@ double estimateStudentTDF(const std::vector<double>& std_residuals) {
             f2 = f1;
             x1 = a + resphi * (b - a);
             f1 = objective(x1);
+            consider(x1);
         } else {
             a = x1;
             x1 = x2;
             f1 = f2;
             x2 = b - resphi * (b - a);
             f2 = objective(x2);
+            consider(x2);
         }
     }
 
-    return (a + b) / 2.0;
+    return best_df;
 }
 
 DistributionTestResult
