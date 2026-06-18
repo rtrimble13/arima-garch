@@ -187,6 +187,45 @@ TEST(acf_result_size) {
     REQUIRE(result.size() == 6);
 }
 
+// For large n the FFT path must reproduce the direct O(n*lag) autocovariance
+// to floating-point precision. Regression test for #138.
+TEST(acf_fft_matches_direct_large_n) {
+    std::mt19937 gen(31337);
+    std::normal_distribution<double> dist(0.0, 1.0);
+
+    const std::size_t n = 300;  // >= FFT threshold, not a power of two
+    std::vector<double> data(n);
+    double prev = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        prev = 0.6 * prev + dist(gen);  // autocorrelated series
+        data[i] = prev;
+    }
+
+    const std::size_t max_lag = 20;
+    std::vector<double> fft_acf = ag::stats::acf(data, max_lag);
+
+    // Brute-force reference.
+    double mean = 0.0;
+    for (double v : data) {
+        mean += v;
+    }
+    mean /= static_cast<double>(n);
+    double var = 0.0;
+    for (double v : data) {
+        var += (v - mean) * (v - mean);
+    }
+
+    REQUIRE(fft_acf.size() == max_lag + 1);
+    REQUIRE_APPROX(fft_acf[0], 1.0, 1e-12);
+    for (std::size_t k = 1; k <= max_lag; ++k) {
+        double cov = 0.0;
+        for (std::size_t i = 0; i + k < n; ++i) {
+            cov += (data[i] - mean) * (data[i + k] - mean);
+        }
+        REQUIRE_APPROX(fft_acf[k], cov / var, 1e-9);
+    }
+}
+
 int main() {
     report_test_results("ACF Tests");
     return get_test_result();
