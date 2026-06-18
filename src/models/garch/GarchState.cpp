@@ -64,6 +64,24 @@ void GarchState::update(double conditional_variance, double squared_residual) {
     ag::util::shiftAndAppend(squared_residual_history_, squared_residual);
 }
 
+void GarchState::restore(const std::vector<double>& variance_history,
+                         const std::vector<double>& squared_residual_history,
+                         double initial_variance) {
+    if (variance_history.size() != static_cast<std::size_t>(p_)) {
+        throw std::invalid_argument(
+            "GarchState::restore: variance history size must equal GARCH order p");
+    }
+    if (squared_residual_history.size() != static_cast<std::size_t>(q_)) {
+        throw std::invalid_argument(
+            "GarchState::restore: squared residual history size must equal ARCH order q");
+    }
+
+    initial_variance_ = initial_variance;
+    variance_history_ = variance_history;
+    squared_residual_history_ = squared_residual_history;
+    initialized_ = true;
+}
+
 double GarchState::computeSampleVariance(const double* residuals, std::size_t size) const {
     if (size < 2) {
         // Return a small positive value if insufficient data

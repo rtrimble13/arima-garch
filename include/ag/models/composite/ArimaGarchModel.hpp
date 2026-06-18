@@ -100,6 +100,23 @@ public:
     [[nodiscard]] ArimaGarchOutput predict() const;
 
     /**
+     * @brief Restore the internal ARIMA and GARCH states.
+     *
+     * Replaces the fresh zero-history states created by the constructor with
+     * previously saved states (e.g. when deserializing a fitted model), so
+     * that subsequent forecasts continue from the model's terminal state
+     * rather than from zero history. The supplied states must have been built
+     * for the same orders as this model's specification.
+     *
+     * @param arima_state The restored ARIMA state
+     * @param garch_state The restored GARCH state
+     */
+    void restoreState(const arima::ArimaState& arima_state, const garch::GarchState& garch_state) {
+        mean_state_ = arima_state;
+        var_state_ = garch_state;
+    }
+
+    /**
      * @brief Get the ARIMA-GARCH specification for this model.
      * @return The ARIMA-GARCH specification
      */
