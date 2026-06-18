@@ -93,6 +93,16 @@ std::optional<FitOutcome> runFit(const double* data, std::size_t n,
             return CONSTRAINT_PENALTY;
         }
 
+        // Enforce AR stationarity (mirrors the GARCH constraint below): steer
+        // the optimizer away from the explosive AR region, where the mean
+        // recursion diverges. A zero-order AR part is trivially stationary, so
+        // this is a no-op for those specs. MA invertibility is intentionally
+        // not enforced (a non-invertible MA has an observationally-equivalent
+        // invertible representation); it remains report-only.
+        if (!arima_p.isStationary()) {
+            return CONSTRAINT_PENALTY;
+        }
+
         if (!spec.garchSpec.isNull()) {
             if (!garch_p.isPositive() || !garch_p.isStationary()) {
                 return CONSTRAINT_PENALTY;

@@ -57,6 +57,48 @@ TEST(engine_fit_basic) {
     REQUIRE(fit_result.value().summary.diagnostics.has_value());
 }
 
+// AR-stationarity is enforced during fitting (#158): a stationary AR(1) fit
+// converges and returns stationary coefficients.
+TEST(engine_fit_ar_stationarity_enforced) {
+    ArimaGarchSpec spec(1, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+    params.arima_params.intercept = 0.0;
+    params.arima_params.ar_coef[0] = 0.6;
+    params.garch_params.omega = 0.05;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+    auto sim = simulator.simulate(500, 2024);
+
+    Engine engine;
+    auto fit = engine.fit(sim.returns, spec, false);
+    REQUIRE(fit.has_value());
+    REQUIRE(fit.value().summary.converged);
+    REQUIRE(fit.value().summary.parameters.arima_params.isStationary());
+}
+
+// Near the unit root (phi ~ 0.95) the AR-stationarity constraint must not break
+// convergence. Regression guard for #158.
+TEST(engine_fit_near_unit_root_converges) {
+    ArimaGarchSpec spec(1, 0, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+    params.arima_params.intercept = 0.0;
+    params.arima_params.ar_coef[0] = 0.95;
+    params.garch_params.omega = 0.05;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.8;
+
+    ArimaGarchSimulator simulator(spec, params);
+    auto sim = simulator.simulate(500, 99);
+
+    Engine engine;
+    auto fit = engine.fit(sim.returns, spec, false);
+    REQUIRE(fit.has_value());
+    REQUIRE(fit.value().summary.converged);
+    REQUIRE(fit.value().summary.parameters.arima_params.isStationary());
+}
+
 TEST(engine_fit_insufficient_data) {
     ArimaGarchSpec spec(1, 0, 1, 1, 1);
     std::vector<double> data = {1.0, 2.0, 3.0};  // Too few observations
