@@ -11,8 +11,11 @@ namespace ag::models::composite {
 ArimaGarchModel::ArimaGarchModel(const ag::models::ArimaGarchSpec& spec,
                                  const ArimaGarchParameters& params)
     : spec_(spec), params_(params), arima_model_(spec.arimaSpec), garch_model_(spec.garchSpec),
-      mean_state_(spec.arimaSpec.p, spec.arimaSpec.d, spec.arimaSpec.q),
-      var_state_(spec.garchSpec.p, spec.garchSpec.q) {
+      // The ARMA recursion operates on the already-differenced series, so the
+      // mean state carries no differencing of its own (d = 0); differencing is
+      // owned by differencer_ below.
+      mean_state_(spec.arimaSpec.p, 0, spec.arimaSpec.q),
+      var_state_(spec.garchSpec.p, spec.garchSpec.q), differencer_(spec.arimaSpec.d) {
     // Validate specifications
     spec.arimaSpec.validate();
     spec.garchSpec.validate();
@@ -50,26 +53,37 @@ ArimaGarchModel::ArimaGarchModel(const ag::models::ArimaGarchSpec& spec,
 }
 
 ArimaGarchOutput ArimaGarchModel::update(double y_t) {
-    // Step 1: Compute conditional mean using ARIMA model
-    double mu_t = computeConditionalMean();
+    // Step 0: Difference the raw level. The ARMA/GARCH recursion runs on the
+    // differenced (stationary) series w_t = Δ^d y_t, matching the fit. While
+    // the differencing pipeline is priming (the first d observations) there is
+    // no innovation yet: just consume the level and report the current state.
+    double w_t = y_t;
+    if (!differencer_.difference(y_t, w_t)) {
+        double h_t = computeConditionalVariance();
+        return ArimaGarchOutput{y_t, h_t};
+    }
 
-    // Step 2: Compute residual
-    double eps_t = y_t - mu_t;
+    // Step 1: Conditional mean on the differenced scale (μ_w).
+    double mu_w = computeConditionalMean();
 
-    // Step 3: Compute conditional variance
+    // Step 2: Innovation on the differenced scale.
+    double eps_t = w_t - mu_w;
+
+    // Step 3: Conditional variance.
     double h_t = computeConditionalVariance();
 
-    // Step 4: Update ARIMA state
-    mean_state_.update(y_t, eps_t);
+    // Step 4: Update the ARIMA state with the differenced observation.
+    mean_state_.update(w_t, eps_t);
 
-    // Step 5: Update GARCH state (only if GARCH component exists)
+    // Step 5: Update GARCH state (only if a GARCH component exists).
     if (!spec_.garchSpec.isNull()) {
         double eps_squared = eps_t * eps_t;
         var_state_.update(h_t, eps_squared);
     }
 
-    // Return output
-    return ArimaGarchOutput{mu_t, h_t};
+    // The conditional mean on the original level scale satisfies
+    // y_t - mu_level = eps_t, so re-integrate by mu_level = y_t - eps_t.
+    return ArimaGarchOutput{y_t - eps_t, h_t};
 }
 
 ArimaGarchOutput ArimaGarchModel::predict() const {

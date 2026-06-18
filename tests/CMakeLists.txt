@@ -132,6 +132,13 @@ add_executable(test_models_composite
 target_link_libraries(test_models_composite PRIVATE arimagarch)
 add_test(NAME test_models_composite COMMAND test_models_composite)
 
+add_executable(test_models_differencing
+    unit/test_models_differencing.cpp
+    unit/test_framework.cpp
+)
+target_link_libraries(test_models_differencing PRIVATE arimagarch)
+add_test(NAME test_models_differencing COMMAND test_models_differencing)
+
 # Estimation tests
 add_executable(test_estimation_parameters
     unit/test_estimation_parameters.cpp

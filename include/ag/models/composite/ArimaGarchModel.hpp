@@ -5,6 +5,7 @@
 #include "ag/models/arima/ArimaState.hpp"
 #include "ag/models/garch/GarchModel.hpp"
 #include "ag/models/garch/GarchState.hpp"
+#include "ag/util/Differencing.hpp"
 
 #include <cstddef>
 
@@ -54,6 +55,15 @@ struct ArimaGarchOutput {
  *
  * The update() method processes a single new observation, updates both states,
  * and returns μ_t and h_t for that observation.
+ *
+ * Differencing (d > 0): update() consumes raw level observations and
+ * differences them internally (Δ^d) before running the ARMA/GARCH recursion,
+ * which therefore operates on the stationary differenced series exactly as the
+ * fit does. The first d observations only prime the differencing pipeline (no
+ * innovation is produced). The conditional mean returned by update() is
+ * re-integrated to the original level scale, and the Forecaster integrates
+ * forecasts back to levels using the model's differencing anchors (see
+ * getDifferencer()).
  */
 class ArimaGarchModel {
 public:
@@ -85,17 +95,16 @@ public:
     /**
      * @brief Predict conditional mean and variance without updating state.
      *
-     * This method computes the one-step-ahead predictions μ_t and h_t using
-     * only information available up to time t-1, without updating the internal
-     * state. This is the correct method for computing diagnostic residuals,
-     * as it avoids look-ahead bias.
+     * Computes the one-step-ahead predictions using only information available
+     * up to time t-1, without updating the internal state.
      *
-     * For diagnostic purposes, use this method followed by manual state updates:
-     * 1. Call predict() to get μ_t and h_t
-     * 2. Compute residual ε_t = y_t - μ_t
-     * 3. Manually update state using the observation and residual
+     * Note on scale: the returned mean is on the differenced (stationary) scale
+     * the recursion operates on. For a level-scale mean (and diagnostic
+     * residuals), use update(), which differences/integrates internally; for
+     * level forecasts use the Forecaster, which integrates predict-style
+     * forecasts back to levels.
      *
-     * @return ArimaGarchOutput containing μ_t and h_t predictions
+     * @return ArimaGarchOutput containing the differenced-scale μ_t and h_t
      */
     [[nodiscard]] ArimaGarchOutput predict() const;
 
@@ -150,13 +159,25 @@ public:
      */
     [[nodiscard]] const garch::GarchState& getGarchState() const noexcept { return var_state_; }
 
+    /**
+     * @brief Get the differencing state (anchors) for d > 0 models.
+     *
+     * The Forecaster copies this to integrate differenced-scale forecasts back
+     * to the original level scale. For d == 0 it is an identity differencer.
+     * @return Reference to the streaming differencer
+     */
+    [[nodiscard]] const ag::util::StreamingDifferencer& getDifferencer() const noexcept {
+        return differencer_;
+    }
+
 private:
-    ag::models::ArimaGarchSpec spec_;  // Model specification
-    ArimaGarchParameters params_;      // Model parameters (fitted coefficients)
-    arima::ArimaModel arima_model_;    // ARIMA model instance
-    garch::GarchModel garch_model_;    // GARCH model instance
-    arima::ArimaState mean_state_;     // State for ARIMA recursion
-    garch::GarchState var_state_;      // State for GARCH recursion
+    ag::models::ArimaGarchSpec spec_;             // Model specification
+    ArimaGarchParameters params_;                 // Model parameters (fitted coefficients)
+    arima::ArimaModel arima_model_;               // ARIMA model instance
+    garch::GarchModel garch_model_;               // GARCH model instance
+    arima::ArimaState mean_state_;                // State for ARIMA recursion (differenced scale)
+    garch::GarchState var_state_;                 // State for GARCH recursion
+    ag::util::StreamingDifferencer differencer_;  // Δ^d / integration anchors
 
     /**
      * @brief Compute conditional mean for the current observation.

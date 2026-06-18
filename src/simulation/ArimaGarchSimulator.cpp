@@ -1,5 +1,7 @@
 #include "ag/simulation/ArimaGarchSimulator.hpp"
 
+#include "ag/models/ArimaGarchSpec.hpp"
+#include "ag/util/Differencing.hpp"
 #include "ag/util/NumericConstants.hpp"
 
 #include <cmath>
@@ -61,8 +63,16 @@ SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed,
     // Create innovations generator
     Innovations innovations(seed);
 
-    // Create model instance for this simulation
-    ag::models::composite::ArimaGarchModel model(spec_, params_);
+    // The ARMA/GARCH recursion generates the stationary (differenced) process.
+    // Build a d = 0 model for that recursion and integrate the simulated path
+    // back to the level scale afterwards (Δ^d inverse, zero initial
+    // conditions). For d == 0 the integrator is the identity, so behavior is
+    // unchanged.
+    ag::models::ArimaSpec stationary_arima(spec_.arimaSpec.p, 0, spec_.arimaSpec.q);
+    ag::models::ArimaGarchSpec stationary_spec(stationary_arima, spec_.garchSpec);
+    ag::models::composite::ArimaGarchModel model(stationary_spec, params_);
+
+    ag::util::StreamingDifferencer integrator(spec_.arimaSpec.d);
 
     // Simulate path
     for (int t = 0; t < length; ++t) {
@@ -80,15 +90,17 @@ SimulationResult ArimaGarchSimulator::simulate(int length, unsigned int seed,
         const double mu_t = pred.mu_t;
         const double h_t = std::max(pred.h_t, ag::util::MIN_VARIANCE);
 
-        // Generate return: y_t = μ_t + sqrt(h_t) * z_t
-        double y_t = mu_t + std::sqrt(h_t) * z_t;
+        // Generate the differenced-scale value w_t = μ_t + sqrt(h_t) * z_t,
+        // then integrate to the level scale for the reported return.
+        double w_t = mu_t + std::sqrt(h_t) * z_t;
+        double y_t = integrator.integrate(w_t);
 
         // Store results
         result.returns[t] = y_t;
         result.volatilities[t] = std::sqrt(h_t);
 
-        // Update model state with the generated observation
-        model.update(y_t);
+        // Advance the stationary recursion with the differenced value.
+        model.update(w_t);
     }
 
     return result;
