@@ -352,6 +352,47 @@ TEST(json_model_state_roundtrip_and_forecast) {
     std::filesystem::remove(model_file);
 }
 
+// For an integrated (d > 0) model the differencing anchors must survive the
+// JSON round-trip, so a reloaded model forecasts on the level scale identically
+// to the in-process model rather than integrating from zero.
+TEST(json_model_d1_state_roundtrip_and_forecast) {
+    auto model_file = std::filesystem::temp_directory_path() / "test_model_d1_roundtrip.json";
+
+    ArimaGarchSpec spec(1, 1, 0, 1, 1);
+    ArimaGarchParameters params(spec);
+    params.arima_params.intercept = 0.1;
+    params.arima_params.ar_coef[0] = 0.4;
+    params.garch_params.omega = 0.02;
+    params.garch_params.alpha_coef[0] = 0.1;
+    params.garch_params.beta_coef[0] = 0.85;
+
+    ArimaGarchModel original_model(spec, params);
+    std::vector<double> levels = {10.0, 11.0, 13.0, 16.0, 20.0, 25.0, 31.0};
+    for (double y : levels) {
+        original_model.update(y);
+    }
+
+    auto save_result = JsonWriter::saveModel(model_file, original_model);
+    REQUIRE(save_result.has_value());
+    auto load_result = JsonReader::loadModel(model_file);
+    REQUIRE(load_result.has_value());
+    const auto& loaded_model = *load_result;
+
+    ag::forecasting::Forecaster original_forecaster(original_model);
+    ag::forecasting::Forecaster loaded_forecaster(loaded_model);
+    auto original_fc = original_forecaster.forecast(4);
+    auto loaded_fc = loaded_forecaster.forecast(4);
+
+    for (size_t h = 0; h < original_fc.mean_forecasts.size(); ++h) {
+        REQUIRE(approx_equal(loaded_fc.mean_forecasts[h], original_fc.mean_forecasts[h]));
+    }
+    // Sanity: forecasts are on the level scale (near the last level ~31), not
+    // integrated from zero.
+    REQUIRE(loaded_fc.mean_forecasts[0] > 25.0);
+
+    std::filesystem::remove(model_file);
+}
+
 // Test error handling for invalid JSON
 TEST(json_invalid_spec_handling) {
     nlohmann::json invalid_json = {{"p", -1}, {"d", 0}, {"q", 1}};

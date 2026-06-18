@@ -1,5 +1,6 @@
 #include "ag/forecasting/Forecaster.hpp"
 
+#include "ag/util/Differencing.hpp"
 #include "ag/util/NumericConstants.hpp"
 
 #include <algorithm>
@@ -36,23 +37,30 @@ ForecastResult Forecaster::forecast(int horizon) const {
     std::vector<double> var_history = garch_state.getVarianceHistory();
     std::vector<double> sq_res_history = garch_state.getSquaredResidualHistory();
 
+    // Differencing/integration anchors at the end of the data. The ARMA
+    // recursion forecasts on the differenced scale; we integrate each forecast
+    // back to the original level scale. A copy is used so integration over the
+    // horizon does not mutate the model. For d == 0 this is the identity.
+    ag::util::StreamingDifferencer integrator = model_.getDifferencer();
+
     // Iterate over the forecast horizon
     for (int h = 0; h < horizon; ++h) {
-        // Step 1: Forecast mean for step h+1
-        double mean_forecast = forecastMeanOneStep(obs_history, res_history);
-        result.mean_forecasts[h] = mean_forecast;
+        // Step 1: Forecast the mean on the differenced scale, then integrate to
+        // the original level scale.
+        double diff_mean_forecast = forecastMeanOneStep(obs_history, res_history);
+        result.mean_forecasts[h] = integrator.integrate(diff_mean_forecast);
 
         // Step 2: Forecast variance for step h+1
         double var_forecast = forecastVarianceOneStep(var_history, sq_res_history);
         result.variance_forecasts[h] = var_forecast;
 
-        // Step 3: Update observation history for next iteration
-        // Shift left and add new forecast (oldest removed)
+        // Step 3: Update observation history for next iteration on the
+        // differenced scale (oldest removed).
         if (spec.arimaSpec.p > 0) {
             for (int i = 0; i < spec.arimaSpec.p - 1; ++i) {
                 obs_history[i] = obs_history[i + 1];
             }
-            obs_history[spec.arimaSpec.p - 1] = mean_forecast;
+            obs_history[spec.arimaSpec.p - 1] = diff_mean_forecast;
         }
 
         // Step 4: Update residual history for next iteration
