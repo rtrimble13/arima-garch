@@ -2,6 +2,7 @@
 
 #include "ag/diagnostics/Residuals.hpp"
 #include "ag/stats/Descriptive.hpp"
+#include "ag/stats/SpecialFunctions.hpp"
 
 #include <cmath>
 #include <numbers>
@@ -9,114 +10,6 @@
 #include <stdexcept>
 
 namespace ag::selection {
-
-namespace {
-
-/**
- * @brief Compute ln(Γ(x)) using Lanczos approximation.
- * Implementation borrowed from LjungBox for consistency.
- */
-double log_gamma_lanczos(double x) {
-    if (x <= 0.0) {
-        throw std::invalid_argument("Gamma function undefined for non-positive values");
-    }
-
-    // Lanczos coefficients for g=7
-    const double coef[] = {0.99999999999980993,  676.5203681218851,     -1259.1392167224028,
-                           771.32342877765313,   -176.61502916214059,   12.507343278686905,
-                           -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7};
-
-    if (x < 0.5) {
-        // Use reflection formula: Γ(x) * Γ(1-x) = π / sin(πx)
-        double sin_val = std::sin(std::numbers::pi * x);
-        if (std::abs(sin_val) < 1e-15) {
-            throw std::invalid_argument("Gamma function evaluation unstable for x very close to 0");
-        }
-        return std::log(std::numbers::pi) - std::log(std::abs(sin_val)) -
-               log_gamma_lanczos(1.0 - x);
-    }
-
-    x -= 1.0;
-    double sum = coef[0];
-    for (int i = 1; i < 9; ++i) {
-        sum += coef[i] / (x + i);
-    }
-
-    const double t = x + 7.5;
-    const double log_sqrt_2pi = 0.91893853320467274178;
-    return log_sqrt_2pi + std::log(sum) + (x + 0.5) * std::log(t) - t;
-}
-
-/**
- * @brief Compute continued fraction for Q(a, z) using Lentz's method.
- * Implementation borrowed from LjungBox for consistency.
- */
-double continued_fraction_q(double a, double z) {
-    const int max_iter = 200;
-    const double eps = 1e-15;
-    const double tiny = 1e-30;
-
-    double b = z + 1.0 - a;
-    double c = 1.0 / tiny;
-    double d = 1.0 / b;
-    double h = d;
-
-    for (int i = 1; i <= max_iter; ++i) {
-        double an = -i * (i - a);
-        b += 2.0;
-        d = an * d + b;
-        if (std::abs(d) < tiny)
-            d = tiny;
-        c = b + an / c;
-        if (std::abs(c) < tiny)
-            c = tiny;
-        d = 1.0 / d;
-        double delta = d * c;
-        h *= delta;
-        if (std::abs(delta - 1.0) < eps) {
-            break;
-        }
-    }
-
-    return h;
-}
-
-/**
- * @brief Compute the complementary chi-square CDF (upper tail probability).
- * Implementation borrowed from LjungBox for consistency.
- */
-double chi_square_ccdf(double x, double k) {
-    if (x <= 0.0) {
-        return 1.0;
-    }
-    if (k <= 0.0) {
-        throw std::invalid_argument("Degrees of freedom must be positive");
-    }
-
-    const double a = k / 2.0;
-    const double z = x / 2.0;
-
-    if (z > 500.0) {
-        return 0.0;
-    }
-
-    double log_term = a * std::log(z) - z - log_gamma_lanczos(a);
-    double cf = continued_fraction_q(a, z);
-    double result = std::exp(log_term) * cf;
-
-    result = std::max(0.0, std::min(1.0, result));
-
-    return result;
-}
-
-/**
- * @brief Compute chi-square CDF (lower tail probability).
- */
-double chi_square_cdf(double x, double k) {
-    return 1.0 - chi_square_ccdf(x, k);
-}
-
-}  // anonymous namespace
 
 double estimateStudentTDF(const std::vector<double>& std_residuals) {
     if (std_residuals.empty()) {
@@ -223,7 +116,7 @@ compareDistributions(const ag::models::ArimaGarchSpec& spec,
     // H0: Gaussian (restricted), H1: Student-t (unrestricted)
     // LR = 2 * (LL_t - LL_n) ~ chi^2(1) under H0
     double lr_stat = 2.0 * (student_t_ll - normal_ll);
-    double lr_p_value = 1.0 - chi_square_cdf(lr_stat, 1.0);
+    double lr_p_value = ag::stats::chi_square_ccdf(lr_stat, 1.0);
 
     // Step 5: Information criteria
     int k_normal = spec.totalParamCount();
